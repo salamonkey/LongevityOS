@@ -1,0 +1,3 @@
+-- Fabric baseline seed file.
+-- Keep this file idempotent and safe to rerun.
+-- Add project-specific seed records below.

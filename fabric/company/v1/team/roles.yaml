@@ -1,0 +1,87 @@
+schema_version: 1
+roles:
+- id: orchestrator
+  spec_path: team/orchestrator.md
+  purpose: Owns operating mode, routing, artifact lifecycle control, and enforcement
+    of the product-intent -> product-system-framing -> architecture/UX -> implementation
+    sequence.
+  invoke_when:
+  - project bootstrap is required
+  - slice progression or recovery decisions are needed
+  - artifact coherence must be restored
+  - product-system framing must be created, refreshed, or enforced before backlog/architecture
+    work proceeds
+  required_inputs:
+  - .system/project-description.yaml (bootstrap)
+  - .system/project-manifest.yaml
+  - .system/artifact-registry.yaml
+  - .system/workflow-rules.yaml
+  - docs/product/current-slice.yaml
+  - docs/product/product-system-framing.md
+  produces_artifacts:
+  - .system/project-manifest.yaml
+  - .system/artifact-registry.yaml
+  - .system/workflow-rules.yaml
+  - docs/product/current-slice.yaml
+- id: product_manager
+  spec_path: team/product-manager.md
+  purpose: Owns customer intent translation, product-system framing, scope control,
+    and product review quality gates.
+  invoke_when:
+  - project/product interpretation is required from customer inputs or source material
+  - backlog/current-slice definition or revision is needed
+  - product-system framing is missing or materially outdated
+  - slice readiness or closeout review is required
+  - customer escalation and checkpointing are needed
+  required_inputs:
+  - docs/product/backlog.yaml
+  - docs/product/current-slice.yaml
+  - docs/product/product-system-framing.md
+  - docs/architecture/baseline.md
+  - docs/ux/{slice_id}-current-slice-flow.md
+  produces_artifacts:
+  - docs/product/product-system-framing.md
+  - docs/reviews/product-manager/*.md
+  - docs/customer-checkpoints/*.md
+  - docs/product/backlog.yaml
+- id: architect
+  spec_path: team/architect.md
+  purpose: Owns domain model integrity, boundaries, and invariant definitions.
+  invoke_when:
+  - structural modeling decisions are required
+  - invariants or lifecycle rules change
+  - product-system framing requires formalization into architecture
+  required_inputs:
+  - docs/product/current-slice.yaml
+  - docs/product/product-system-framing.md
+  - .system/workflow-rules.yaml
+  produces_artifacts:
+  - docs/architecture/baseline.md
+- id: uiux
+  spec_path: team/uiux.md
+  purpose: Owns user-facing workflow clarity and implementation-ready interaction
+    contracts.
+  invoke_when:
+  - meaningful user-facing flow exists in a slice
+  - relationship visibility or UX coherence needs definition/review
+  - product-system workflows and visible states need interface translation
+  required_inputs:
+  - docs/product/current-slice.yaml
+  - docs/product/product-system-framing.md
+  - docs/architecture/baseline.md
+  produces_artifacts:
+  - docs/ux/{slice_id}-current-slice-flow.md
+- id: coder
+  spec_path: team/coder.md
+  purpose: Implements approved slices respecting architecture and UX constraints.
+  invoke_when:
+  - slice is approved and implementation-ready
+  required_inputs:
+  - docs/product/current-slice.yaml
+  - docs/product/product-system-framing.md
+  - docs/architecture/baseline.md
+  - docs/ux/{slice_id}-current-slice-flow.md
+  produces_artifacts:
+  - docs/implementation/{slice_id}-implementation-notes.md
+  - src/**
+  - tests/**

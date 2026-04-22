@@ -1,0 +1,54 @@
+project:
+  name: "{{project_name}}"
+  summary: >
+    {{project_summary}}
+
+product:
+  type: "{{product_type}}"
+
+users:
+  - "{{primary_user_1}}"
+  - "{{primary_user_2}}"
+
+primary_goal: >
+  {{primary_goal}}
+
+core_workflow:
+  - "{{workflow_step_1}}"
+  - "{{workflow_step_2}}"
+  - "{{workflow_step_3}}"
+
+key_concepts:
+  - "{{concept_1}}"
+  - "{{concept_2}}"
+  - "{{concept_3}}"
+
+scope:
+  v1_priorities:
+    - "{{v1_priority_1}}"
+    - "{{v1_priority_2}}"
+  explicitly_out_of_scope:
+    - "{{out_of_scope_1}}"
+    - "{{out_of_scope_2}}"
+
+constraints:
+  tech_preferences:
+    backend: "{{backend_stack}}"
+    frontend: "{{frontend_stack}}"
+    database: "{{database_stack}}"
+    orm: "{{orm_choice}}"
+  architecture_preference: "{{architecture_preference}}"
+  working_style: "{{working_style}}"
+  editor: "{{editor_choice}}"
+  non_functional:
+    - "{{non_functional_1}}"
+    - "{{non_functional_2}}"
+
+customer_preferences:
+  wants_product_review_gate: true
+  prefers_small_vertical_slices: true
+  escalation_mode: only_when_material_decisions_are_required
+
+success_criteria:
+  - "{{success_criterion_1}}"
+  - "{{success_criterion_2}}"

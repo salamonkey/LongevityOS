@@ -1,0 +1,19 @@
+{
+  "bundle": "fabric-model-invocation-layer",
+  "files": [
+    "runtime/fabric.mjs",
+    "runtime/commands/product.mjs",
+    "runtime/lib/llm/config.mjs",
+    "runtime/lib/llm/provider-openai.mjs",
+    "runtime/lib/llm/provider-stdio-json.mjs",
+    "runtime/lib/llm/intake.mjs",
+    "templates/llm/source-synthesis.system.md",
+    "templates/llm/source-synthesis.user.md",
+    "templates/llm/product-system-framing.system.md",
+    "templates/llm/product-system-framing.user.md",
+    "templates/llm/project-brief.system.md",
+    "templates/llm/project-brief.user.md",
+    "fabric.values.example.json",
+    "README.md"
+  ]
+}

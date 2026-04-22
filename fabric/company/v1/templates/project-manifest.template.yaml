@@ -1,0 +1,56 @@
+schema_version: 1
+manifest_version: 1
+generated_at_utc: '{{generated_at_utc}}'
+last_updated_utc: '{{generated_at_utc}}'
+project:
+  id: '{{project_id}}'
+  name: '{{project_name}}'
+  summary: '{{project_summary}}
+
+    '
+  product_type: '{{product_type}}'
+  source_description: .system/project-description.yaml
+operating_model:
+  architecture_preference: '{{architecture_preference}}'
+  delivery_style: agile_slice_based
+  bootstrap_status: '{{bootstrap_status}}'
+  bootstrap_completed_at_utc: '{{bootstrap_completed_at_utc}}'
+  current_mode: '{{current_mode}}'
+roles:
+  enabled:
+  - orchestrator
+  - product_manager
+  - architect
+  - uiux
+  - coder
+stack_direction:
+  backend: '{{backend_stack}}'
+  frontend: '{{frontend_stack}}'
+  database: '{{database_stack}}'
+  orm: '{{orm_choice}}'
+governance:
+  product_review_gate: required
+  escalation_mode: only_when_material_decisions_are_required
+  prefers_small_vertical_slices: true
+scope:
+  v1_priorities:
+  - '{{v1_priority_1}}'
+  - '{{v1_priority_2}}'
+  explicitly_out_of_scope:
+  - '{{out_of_scope_1}}'
+  - '{{out_of_scope_2}}'
+status:
+  initialized: true
+  requires_customer_escalation: false
+  blocking_decision: null
+  active_slice: '{{active_slice_id}}'
+  active_slice_state: '{{active_slice_state}}'
+  active_milestone: '{{active_milestone}}'
+  approved_reviews: []
+  customer_checkpoint_summaries: []
+artifacts:
+  registry: .system/artifact-registry.yaml
+  workflow_rules: .system/workflow-rules.yaml
+  backlog: docs/product/backlog.yaml
+  current_slice: docs/product/current-slice.yaml
+  product_system_framing: docs/product/product-system-framing.md

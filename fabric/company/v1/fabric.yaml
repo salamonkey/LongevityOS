@@ -1,0 +1,139 @@
+fabric_version: v1
+schema_version: 1
+compatible_project_schema_versions:
+- 1
+factory_init_source_of_truth:
+- source: team/orchestrator.md
+  target: .agents/orchestrator.md
+- source: team/product-manager.md
+  target: .agents/product-manager.md
+- source: team/architect.md
+  target: .agents/architect.md
+- source: team/uiux.md
+  target: .agents/uiux.md
+- source: team/coder.md
+  target: .agents/coder.md
+- source: method/bootstrap-runbook.md
+  target: docs/factory/bootstrap-runbook.md
+  render: false
+- source: method/fabric-validation-checklist.md
+  target: docs/factory/fabric-validation-checklist.md
+  render: false
+- source: templates/customer-input-readme.md
+  target: docs/customer-input/README.md
+  render: false
+source_of_truth:
+- source: team/orchestrator.md
+  target: .agents/orchestrator.md
+- source: team/product-manager.md
+  target: .agents/product-manager.md
+- source: team/architect.md
+  target: .agents/architect.md
+- source: team/uiux.md
+  target: .agents/uiux.md
+- source: team/coder.md
+  target: .agents/coder.md
+- source: templates/project-description.template.yaml
+  target: .system/project-description.yaml
+- source: templates/project-manifest.template.yaml
+  target: .system/project-manifest.yaml
+- source: method/workflow-rules.template.yaml
+  target: .system/workflow-rules.yaml
+- source: method/artifact-registry.template.yaml
+  target: .system/artifact-registry.yaml
+- source: templates/backlog.template.yaml
+  target: docs/product/backlog.yaml
+- source: templates/current-slice.template.yaml
+  target: docs/product/current-slice.yaml
+- source: templates/product-system-framing.template.md
+  target: docs/product/product-system-framing.md
+- source: templates/customer-checkpoint-template.md
+  target: docs/templates/customer-checkpoint-template.md
+- source: templates/slice-closeout-review-template.md
+  target: docs/templates/slice-closeout-review-template.md
+- source: templates/architecture-baseline-template.md
+  target: docs/architecture/baseline.md
+- source: templates/deployment-flow-template.md
+  target: docs/operations/deployment-flow.md
+- source: templates/env-example.template
+  target: .env.example
+- source: db/supabase-config.template.toml
+  target: supabase/config.toml
+- source: db/supabase-seed.template.sql
+  target: supabase/seed.sql
+required_tokens:
+- project_id
+- project_name
+- generated_at_utc
+- db_migration_status_command
+- db_migration_command
+- release_verification_command
+- release_preflight_command
+- release_deploy_command
+- customer_checkpoint_template_path
+- slice_closeout_review_template_path
+- bootstrap_foundation_review_path
+- bootstrap_backlog_slice_review_path
+- project_summary
+- product_type
+- primary_user_1
+- primary_user_2
+- primary_goal
+- workflow_step_1
+- workflow_step_2
+- workflow_step_3
+- concept_1
+- concept_2
+- concept_3
+- v1_priority_1
+- v1_priority_2
+- out_of_scope_1
+- out_of_scope_2
+- backend_stack
+- frontend_stack
+- database_stack
+- orm_choice
+- architecture_preference
+- working_style
+- editor_choice
+- non_functional_1
+- non_functional_2
+- success_criterion_1
+- success_criterion_2
+- bootstrap_status
+- bootstrap_completed_at_utc
+- current_mode
+- active_slice_id
+- active_slice_state
+- active_milestone
+- customer_review_tenant_id
+- database_url_example
+- owner_role
+- slice_id
+- slice_title
+db:
+  required_files:
+  - supabase/config.toml
+  - supabase/seed.sql
+  - .env.example
+  - package.json
+  required_env_keys:
+  - DATABASE_URL
+  required_package_scripts:
+    fabric: ./fabric/company/v1/fabric
+    db:init: npm run fabric -- db:init --target .
+    db:check: npm run fabric -- db:check --target .
+    db:reset: npm run fabric -- db:reset --target . --yes
+    db:seed: npm run fabric -- db:seed --target . --yes
+    db:migrate:status: supabase migration list
+    db:migrate:deploy: supabase db push
+  reset_command: supabase db reset
+  seed_command: supabase db reset
+drift_exemptions:
+- docs/product/product-system-framing.md
+- .system/project-manifest.yaml
+- docs/product/backlog.yaml
+- docs/product/current-slice.yaml
+- docs/reviews/product-manager/bootstrap-foundation-review.md
+- docs/reviews/product-manager/bootstrap-backlog-slice-review.md
+- docs/architecture/baseline.md

@@ -1,0 +1,19 @@
+schema_version: 1
+generated_at_utc: "{{generated_at_utc}}"
+backlog:
+  slices:
+    - id: "{{active_slice_id}}"
+      title: "{{slice_title}}"
+      objective: "{{primary_goal}}"
+      status: "{{active_slice_state}}"
+      owner_role: "{{owner_role}}"
+      in_scope:
+        - "__REQUIRED_IN_SCOPE_ITEM_1__"
+      out_of_scope:
+        - "__REQUIRED_OUT_OF_SCOPE_ITEM_1__"
+      acceptance_criteria:
+        - "__REQUIRED_ACCEPTANCE_CRITERION_1__"
+      dependencies:
+        - "__REQUIRED_DEPENDENCY_1__"
+      done_definition:
+        - "__REQUIRED_DONE_DEFINITION_1__"

@@ -1,0 +1,8 @@
+# Server
+PORT=3000
+NODE_ENV=development
+APP_REVIEW_MODE=none
+CUSTOMER_REVIEW_TENANT_ID={{customer_review_tenant_id}}
+
+# Database
+DATABASE_URL={{database_url_example}}
