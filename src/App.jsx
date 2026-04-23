@@ -9,24 +9,20 @@ import { HealthPlanPage } from './routes/onboarding.jsx';
 
 const seedPlan = {
   today: [
-  "Scaffold the React/Vite app with a mobile-first shell and routes for start, onboarding, loading or submit state, and dashboard.",
-  "Build the single onboarding form with required age, gender, and planning context inputs, disabled submit until valid, and inline validation for missing, non-in1",
-  "Hook the form to a POST /api/onboarding/complete endpoint that lazily creates the anonymous account, stores the httpOnly cookie, creates one active profile, and",
-  "Implement the deterministic in-repo rule service with a fixed rule_version that maps age and gender to ordered generated actions in Now, Soon, and Later buckets",
-  "Persist only account, active_profile, and generated_action records needed for reload and return a dashboard payload with summary, next_action or all_clear, and",
-  "Add GET /api/dashboard to load the existing active profile and persisted generated actions for the same cookie without re-running generation on refresh or revis"
-],
+    'Take a 15-minute walk after your next meal.',
+    'Schedule a blood pressure check this week.',
+    'Set a hydration reminder for today.',
+  ],
   soon: [
-  "Render the dashboard with a summary placeholder, a primary next-action card chosen from the earliest non-empty bucket, and explicit empty messaging in each bu",
-  "Add the loading state, duplicate-submit prevention, retry action, and back-to-edit recovery path that preserves entered values after a failed submit.",
-  "Create rule-engine fixture tests covering supported age and gender combinations, fixed bucket assignment, fixed sort order, and the zero-action all-clear case.",
-  "Add API and integration tests for invalid onboarding input, successful onboarding persistence, dashboard reload persistence, and next-action priority order."
-],
+    'Book a dental cleaning within the next 2 months.',
+    'Plan a preventive blood panel with your clinician.',
+    'Review sleep routine and target 7-8 hours nightly.',
+  ],
   later: [
-  "Tighten responsive spacing, wrapping, and typography so common phone widths remain readable without horizontal scrolling.",
-  "Add internal server logging with anonymous account identifiers for onboarding failures and dashboard fetch failures.",
-  "Document the onboarding and dashboard API contracts plus the rule catalog behavior used in this slice so the scaffold stays deterministic and testable."
-],
+    'Discuss age-appropriate screening timelines at your next annual visit.',
+    'Review vaccination status before flu season.',
+    'Set quarterly reminders to revisit your health plan.',
+  ],
 };
 
 export default function App() {

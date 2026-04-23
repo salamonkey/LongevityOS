@@ -1,7 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveFirstValidLlmSettings } from './config.mjs';
 import { invokeOpenAIStructured } from './provider-openai.mjs';
 import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
 
+const FABRIC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const MIN_SLICE_COUNT = 5;
 const MAX_SLICE_COUNT = 8;
 
@@ -64,6 +68,38 @@ const SLICE_PLAN_SCHEMA = {
     },
   },
 };
+
+function readText(filePath) {
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function normalizeSpecPath(rawValue) {
+  return String(rawValue || '').trim().replace(/^['"]|['"]$/g, '');
+}
+
+function resolveRoleSpecPathFromRolesYaml({ roleId }) {
+  const rolesPath = path.join(FABRIC_ROOT, 'team/roles.yaml');
+  if (!fs.existsSync(rolesPath)) return null;
+  const text = readText(rolesPath);
+  const blockMatch = text.match(new RegExp(`-\\s+id:\\s*${String(roleId)}\\b[\\s\\S]*?(?=\\n-\\s+id:|$)`));
+  if (!blockMatch) return null;
+  const specMatch = blockMatch[0].match(/^\s*spec_path:\s*(.+)\s*$/m);
+  if (!specMatch) return null;
+  return normalizeSpecPath(specMatch[1]);
+}
+
+function loadProductManagerRoleContract() {
+  const fallbackRelPath = 'team/product-manager.md';
+  const relPath = resolveRoleSpecPathFromRolesYaml({ roleId: 'product_manager' }) || fallbackRelPath;
+  const absPath = path.join(FABRIC_ROOT, relPath);
+  if (!fs.existsSync(absPath)) {
+    return { relPath, roleContract: '' };
+  }
+  return {
+    relPath,
+    roleContract: readText(absPath).trim(),
+  };
+}
 
 function normalizeSentence(value, fallback) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
@@ -267,6 +303,7 @@ export async function generateExecutionSlicePlan({
   framingMarkdown = '',
   onProgress,
 }) {
+  const pmRole = loadProductManagerRoleContract();
   const { settings, purpose } = resolveFirstValidLlmSettings(
     values,
     undefined,
@@ -275,6 +312,7 @@ export async function generateExecutionSlicePlan({
 
   const systemPrompt = [
     'You are a Product Manager generating an execution slice plan from an approved project brief.',
+    'Respect the Product Manager role contract and keep outputs consistent with it.',
     'Return JSON only according to the schema.',
     `Produce ${String(MIN_SLICE_COUNT)} to ${String(MAX_SLICE_COUNT)} slices, ordered by dependency.`,
     'Each slice must be a vertical end-to-end deliverable with bounded scope.',
@@ -285,6 +323,11 @@ export async function generateExecutionSlicePlan({
     'Approved project brief markdown:',
     '```markdown',
     String(briefMarkdown || '').trim(),
+    '```',
+    '',
+    `Product Manager role contract (source: ${pmRole.relPath}):`,
+    '```markdown',
+    String(pmRole.roleContract || '').trim(),
     '```',
     '',
     'Product system framing markdown (optional):',

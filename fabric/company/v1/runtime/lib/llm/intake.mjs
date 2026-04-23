@@ -524,6 +524,8 @@ async function suggestBestWayForwardForFindings({
   issues,
   framing,
   framingContext = '',
+  pmRoleContractSource = '',
+  pmRoleContractBriefFocus = '',
   onProgress,
 }) {
   const findings = (Array.isArray(issues) ? issues : []).slice(0, 24).map((issue, idx) => ({
@@ -538,6 +540,7 @@ async function suggestBestWayForwardForFindings({
 
   const systemPrompt = [
     'You provide best-way-forward repair suggestions for project-brief findings.',
+    'Respect Product Manager role guidance while preserving clarity-rule compliance.',
     'Return JSON only according to the schema.',
     'For each input finding id, return one concrete best_way_forward recommendation.',
     'Keep guidance concise, section-intent-safe, and evidence-aligned to product-system framing.',
@@ -558,6 +561,12 @@ async function suggestBestWayForwardForFindings({
     'Product system framing markdown context:',
     '```markdown',
     String(framingContext || '').trim(),
+    '```',
+    '',
+    `Product Manager role guidance source: ${String(pmRoleContractSource || 'not_provided')}`,
+    'PM role brief-focused guidance:',
+    '```markdown',
+    String(pmRoleContractBriefFocus || '').trim(),
     '```',
   ].join('\n');
 
@@ -1540,6 +1549,8 @@ async function reviewGeneratedBriefClarityAllSemantic({
   framing = null,
   synthesisContext = '',
   framingContext = '',
+  pmRoleContractSource = '',
+  pmRoleContractBriefFocus = '',
   semanticClarityGateEnabled = true,
   strictSemanticOnly = false,
   onProgress,
@@ -1561,6 +1572,7 @@ async function reviewGeneratedBriefClarityAllSemantic({
     if (progress) progress('running full semantic clarity validation pass...');
     const systemPrompt = [
       'You are a strict clarity gate reviewer for product briefs.',
+      'Respect Product Manager role guidance, but prioritize clarity rules and schema requirements.',
       'Return JSON only according to the schema.',
       'Judge semantics, not keyword presence.',
       'Report only real violations of the clarity rules.',
@@ -1613,6 +1625,12 @@ async function reviewGeneratedBriefClarityAllSemantic({
       '```markdown',
       String(framingContext || '').trim(),
       '```',
+      '',
+      `Product Manager role guidance source: ${String(pmRoleContractSource || 'not_provided')}`,
+      'PM role brief-focused guidance:',
+      '```markdown',
+      String(pmRoleContractBriefFocus || '').trim(),
+      '```',
     ].join('\n');
 
     const output = await invokeStructured({
@@ -1663,6 +1681,18 @@ export async function runPostEditSemanticValidation({
   synthesisContext = '',
   onProgress,
 }) {
+  let pmRole = {
+    relPath: 'team/product-manager.md',
+    roleContractBriefFocus: '',
+  };
+  try {
+    pmRole = loadProductManagerRoleContract();
+  } catch (_) {
+    pmRole = {
+      relPath: 'team/product-manager.md',
+      roleContractBriefFocus: '',
+    };
+  }
   const settings = resolveLlmSettings(values, undefined, 'intake');
   const validation = validateLlmSettings(settings);
   if (!validation.ok) throw new Error(validation.errors.join(' '));
@@ -1675,6 +1705,8 @@ export async function runPostEditSemanticValidation({
     framing: {},
     synthesisContext: String(synthesisContext || ''),
     framingContext: String(framingContext || ''),
+    pmRoleContractSource: pmRole.relPath,
+    pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
     semanticClarityGateEnabled: true,
     strictSemanticOnly: true,
     onProgress,
@@ -1690,6 +1722,8 @@ export async function runPostEditSemanticValidation({
       issues: findings,
       framing: {},
       framingContext: String(framingContext || ''),
+      pmRoleContractSource: pmRole.relPath,
+      pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
       onProgress,
     })
     : [];
@@ -1972,6 +2006,8 @@ export async function generateIntakeArtifactsWithModel({ targetRoot, values = {}
           evidencePack,
           synthesis,
           framing,
+          pmRoleContractSource: pmRole.relPath,
+          pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
           semanticClarityGateEnabled: semanticGateEnabled,
           onProgress: progress,
         }),
@@ -1982,6 +2018,8 @@ export async function generateIntakeArtifactsWithModel({ targetRoot, values = {}
         settings,
         issues: review.issues,
         framing,
+        pmRoleContractSource: pmRole.relPath,
+        pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
         onProgress: progress,
       })
       : [];

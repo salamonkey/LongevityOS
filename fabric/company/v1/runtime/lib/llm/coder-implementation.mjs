@@ -1,6 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveFirstValidLlmSettings } from './config.mjs';
 import { invokeOpenAIStructured } from './provider-openai.mjs';
 import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+
+const FABRIC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const CODER_IMPLEMENTATION_SCHEMA = {
   type: 'object',
@@ -42,6 +47,38 @@ const CODER_IMPLEMENTATION_SCHEMA = {
     },
   },
 };
+
+function readText(filePath) {
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function normalizeSpecPath(rawValue) {
+  return String(rawValue || '').trim().replace(/^['"]|['"]$/g, '');
+}
+
+function resolveRoleSpecPathFromRolesYaml({ roleId }) {
+  const rolesPath = path.join(FABRIC_ROOT, 'team/roles.yaml');
+  if (!fs.existsSync(rolesPath)) return null;
+  const text = readText(rolesPath);
+  const blockMatch = text.match(new RegExp(`-\\s+id:\\s*${String(roleId)}\\b[\\s\\S]*?(?=\\n-\\s+id:|$)`));
+  if (!blockMatch) return null;
+  const specMatch = blockMatch[0].match(/^\s*spec_path:\s*(.+)\s*$/m);
+  if (!specMatch) return null;
+  return normalizeSpecPath(specMatch[1]);
+}
+
+function loadCoderRoleContract() {
+  const fallbackRelPath = 'team/coder.md';
+  const relPath = resolveRoleSpecPathFromRolesYaml({ roleId: 'coder' }) || fallbackRelPath;
+  const absPath = path.join(FABRIC_ROOT, relPath);
+  if (!fs.existsSync(absPath)) {
+    return { relPath, roleContract: '' };
+  }
+  return {
+    relPath,
+    roleContract: readText(absPath).trim(),
+  };
+}
 
 function normalizeSentence(value, fallback = '') {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
@@ -128,15 +165,17 @@ export async function generateCurrentSliceImplementationPlaybook({
   framingMarkdown = '',
   onProgress,
 }) {
+  const coderRole = loadCoderRoleContract();
   const { settings, purpose } = resolveFirstValidLlmSettings(
     values,
     undefined,
-    ['architect', 'planning', 'intake'],
+    ['coder', 'architect', 'planning', 'intake'],
   );
 
   const systemPrompt = [
     'You are the Coder role in a virtual software company.',
     'Generate an implementation playbook for a deterministic React/Vite scaffold.',
+    'Respect the coder role contract, architecture baseline, UX flow, and approved brief.',
     'Return JSON only according to the schema.',
     'Keep outputs bounded to active-slice MVP scope.',
     'Use concise, concrete, customer-testable wording.',
@@ -157,6 +196,11 @@ export async function generateCurrentSliceImplementationPlaybook({
     'Active slice (structured):',
     '```json',
     JSON.stringify(sliceContext, null, 2),
+    '```',
+    '',
+    `Coder role contract (source: ${coderRole.relPath}):`,
+    '```markdown',
+    String(coderRole.roleContract || '').trim(),
     '```',
     '',
     'Architecture baseline markdown:',

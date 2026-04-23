@@ -1,6 +1,7 @@
 import { resolveFirstValidLlmSettings } from './config.mjs';
 import { invokeOpenAIStructured } from './provider-openai.mjs';
 import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+import { loadRoleContractForModule } from './role-contracts.mjs';
 
 const UIUX_FLOW_SCHEMA = {
   type: 'object',
@@ -150,15 +151,21 @@ export async function generateCurrentSliceUxPlaybook({
   framingMarkdown = '',
   onProgress,
 }) {
+  const uiuxRole = loadRoleContractForModule({
+    importMetaUrl: import.meta.url,
+    roleId: 'uiux',
+    fallbackRelPath: 'team/uiux.md',
+  });
   const { settings, purpose } = resolveFirstValidLlmSettings(
     values,
     undefined,
-    ['architect', 'planning', 'intake'],
+    ['uiux', 'architect', 'planning', 'intake'],
   );
 
   const systemPrompt = [
     'You are the UI/UX role in a virtual software company.',
     'Generate a current-slice UX flow playbook for implementation.',
+    'Respect the UI/UX role contract, approved brief, and product-system framing.',
     'Return JSON only according to the schema.',
     'Keep scope strictly bounded to the active slice.',
     'Prefer concrete, testable MVP flows over speculative future UX.',
@@ -179,6 +186,11 @@ export async function generateCurrentSliceUxPlaybook({
     'Active slice (structured):',
     '```json',
     JSON.stringify(sliceContext, null, 2),
+    '```',
+    '',
+    `UI/UX role contract (source: ${uiuxRole.relPath}):`,
+    '```markdown',
+    String(uiuxRole.roleContract || '').trim(),
     '```',
     '',
     'Product system framing markdown (optional):',

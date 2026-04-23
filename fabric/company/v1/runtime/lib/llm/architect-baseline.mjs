@@ -1,6 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveFirstValidLlmSettings } from './config.mjs';
 import { invokeOpenAIStructured } from './provider-openai.mjs';
 import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+
+const FABRIC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 const ARCHITECT_BASELINE_SCHEMA = {
   type: 'object',
@@ -47,6 +52,38 @@ const ARCHITECT_BASELINE_SCHEMA = {
     },
   },
 };
+
+function readText(filePath) {
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function normalizeSpecPath(rawValue) {
+  return String(rawValue || '').trim().replace(/^['"]|['"]$/g, '');
+}
+
+function resolveRoleSpecPathFromRolesYaml({ roleId }) {
+  const rolesPath = path.join(FABRIC_ROOT, 'team/roles.yaml');
+  if (!fs.existsSync(rolesPath)) return null;
+  const text = readText(rolesPath);
+  const blockMatch = text.match(new RegExp(`-\\s+id:\\s*${String(roleId)}\\b[\\s\\S]*?(?=\\n-\\s+id:|$)`));
+  if (!blockMatch) return null;
+  const specMatch = blockMatch[0].match(/^\s*spec_path:\s*(.+)\s*$/m);
+  if (!specMatch) return null;
+  return normalizeSpecPath(specMatch[1]);
+}
+
+function loadArchitectRoleContract() {
+  const fallbackRelPath = 'team/architect.md';
+  const relPath = resolveRoleSpecPathFromRolesYaml({ roleId: 'architect' }) || fallbackRelPath;
+  const absPath = path.join(FABRIC_ROOT, relPath);
+  if (!fs.existsSync(absPath)) {
+    return { relPath, roleContract: '' };
+  }
+  return {
+    relPath,
+    roleContract: readText(absPath).trim(),
+  };
+}
 
 function normalizeSentence(value, fallback = '') {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
@@ -134,6 +171,7 @@ export async function generateArchitectureBaselinePlaybook({
   framingMarkdown = '',
   onProgress,
 }) {
+  const architectRole = loadArchitectRoleContract();
   const { settings, purpose } = resolveFirstValidLlmSettings(
     values,
     undefined,
@@ -143,6 +181,7 @@ export async function generateArchitectureBaselinePlaybook({
   const systemPrompt = [
     'You are the Architect role in a virtual software company.',
     'Generate a current-slice architecture baseline playbook.',
+    'Respect the Architect role contract, approved brief, and product-system framing.',
     'Return JSON only according to the schema.',
     'Keep scope strictly bounded to the active slice.',
     'Prefer concrete MVP-safe decisions over speculative design.',
@@ -164,6 +203,11 @@ export async function generateArchitectureBaselinePlaybook({
     'Active slice (structured):',
     '```json',
     JSON.stringify(sliceContext, null, 2),
+    '```',
+    '',
+    `Architect role contract (source: ${architectRole.relPath}):`,
+    '```markdown',
+    String(architectRole.roleContract || '').trim(),
     '```',
     '',
     'Product system framing markdown (optional):',

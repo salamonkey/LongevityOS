@@ -1094,6 +1094,44 @@ function renderManagedHtmlHeader(relPath) {
   return `<!-- generated_from: fabric/company/v1/runtime/commands/runtime.mjs | target: ${relPath} | fabric_version: ${manifest.fabric_version} | generated_at_utc: ${generatedAt} -->\n`;
 }
 
+const DEMO_HEALTH_PLAN_DEFAULTS = Object.freeze({
+  today: [
+    'Take a 15-minute walk after your next meal.',
+    'Schedule a blood pressure check this week.',
+    'Set a hydration reminder for today.',
+  ],
+  soon: [
+    'Book a dental cleaning within the next 2 months.',
+    'Plan a preventive blood panel with your clinician.',
+    'Review sleep routine and target 7-8 hours nightly.',
+  ],
+  later: [
+    'Discuss age-appropriate screening timelines at your next annual visit.',
+    'Review vaccination status before flu season.',
+    'Set quarterly reminders to revisit your health plan.',
+  ],
+});
+
+const IMPLEMENTATION_LEAK_PATTERN = /\b(react|vite|api|endpoint|scaffold|slice|acceptance|backend|frontend|persistence|persist|schema|rule[\s_-]?engine|rule[\s_-]?version|httponly|cookie|integration\s+tests?|smoke\s+tests?|dashboard\s+payload|generated_action|profile\s+summary\s+placeholder|next-action\s+card|bucket\s+assignment|viewports?)\b/i;
+
+function sanitizeDemoItems(candidateItems, fallbackItems) {
+  const safe = [];
+  const seen = new Set();
+  const source = Array.isArray(candidateItems) ? candidateItems : [];
+  for (const item of source) {
+    const normalized = String(item || '').replace(/\s+/g, ' ').trim();
+    if (!normalized || normalized.length < 8) continue;
+    if (IMPLEMENTATION_LEAK_PATTERN.test(normalized)) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    safe.push(normalized);
+    if (safe.length >= 6) break;
+  }
+  if (safe.length >= 2) return safe;
+  return Array.isArray(fallbackItems) ? [...fallbackItems] : [];
+}
+
 function buildGeneratedAppFiles(currentSlice, playbookOverride = null) {
   const playbook = playbookOverride || {};
   const titleJson = JSON.stringify(playbook.appTitle || currentSlice.title || 'Current Slice');
@@ -1106,27 +1144,18 @@ function buildGeneratedAppFiles(currentSlice, playbookOverride = null) {
     2,
   );
   const sliceSlug = slugifySliceTitle(currentSlice.title);
-  const inScope = currentSlice.in_scope || [];
   const todayItems = JSON.stringify(
-    Array.isArray(playbook.todayItems) && playbook.todayItems.length > 0
-      ? playbook.todayItems
-      : (inScope.slice(0, 2).length ? inScope.slice(0, 2) : ['Book a dental appointment', 'Review overdue blood test']),
+    sanitizeDemoItems(playbook.todayItems, DEMO_HEALTH_PLAN_DEFAULTS.today),
     null,
     2,
   );
   const soonItems = JSON.stringify(
-    Array.isArray(playbook.soonItems) && playbook.soonItems.length > 0
-      ? playbook.soonItems
-      : (inScope.slice(2, 4).length ? inScope.slice(2, 4) : ['Schedule a skin check', 'Review vaccinations']),
+    sanitizeDemoItems(playbook.soonItems, DEMO_HEALTH_PLAN_DEFAULTS.soon),
     null,
     2,
   );
   const laterItems = JSON.stringify(
-    Array.isArray(playbook.laterItems) && playbook.laterItems.length > 0
-      ? playbook.laterItems
-      : ((currentSlice.acceptance_criteria || []).slice(0, 2).length
-        ? (currentSlice.acceptance_criteria || []).slice(0, 2)
-        : ['Add family members', 'Set reminder preferences']),
+    sanitizeDemoItems(playbook.laterItems, DEMO_HEALTH_PLAN_DEFAULTS.later),
     null,
     2,
   );
