@@ -1267,7 +1267,7 @@ async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, 
     heartbeat = setInterval(() => {
       const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
       progress(`llm request in progress: ${label} (${String(elapsedSec)}s elapsed)`);
-    }, 12000);
+    }, 10000);
   }
   try {
     let result;

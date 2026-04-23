@@ -82,14 +82,17 @@ export function resolveLlmSettings(values = {}, env = process.env, purpose = 'in
 
 export function validateLlmSettings(settings) {
   const errors = [];
-  if (!settings.enabled) errors.push('LLM invocation disabled. Set intake_llm_enabled=true or LLM_ENABLED=true.');
+  const purpose = String(settings?.purpose || '').trim();
+  const enabledKey = purpose ? `${purpose}_llm_enabled` : 'llm_enabled';
+  const stdioKey = purpose ? `${purpose}_llm_stdio_command` : 'llm_stdio_command';
+  if (!settings.enabled) errors.push(`LLM invocation disabled. Set ${enabledKey}=true or LLM_ENABLED=true.`);
   if (!settings.provider) errors.push('Missing llm provider.');
   if (settings.provider === 'openai') {
     if (!settings.model) errors.push('Missing llm model for openai provider.');
     if (!settings.apiKey) errors.push(`Missing API key in env var ${settings.apiKeyEnv}.`);
   }
   if (settings.provider === 'stdio_json' && !settings.stdioCommand) {
-    errors.push('Missing intake_llm_stdio_command for stdio_json provider.');
+    errors.push(`Missing ${stdioKey} for stdio_json provider.`);
   }
   return { ok: errors.length === 0, errors };
 }

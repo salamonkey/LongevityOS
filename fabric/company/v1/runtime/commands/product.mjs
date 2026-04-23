@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
+import { FABRIC_ROOT } from '../lib/constants.mjs';
 import {
   SLICE_LIST_FIELDS,
   readText,
@@ -34,6 +35,11 @@ import {
   getLlmCheckReport,
   runPostEditSemanticValidation,
 } from '../lib/llm/intake.mjs';
+import { generateExecutionSlicePlan } from '../lib/llm/planning.mjs';
+import {
+  ARCHITECT_CONSULTABLE_TOKENS,
+  generateArchitectValueRecommendations,
+} from '../lib/llm/architect-values.mjs';
 
 const BRIEF_READINESS_DIMENSIONS = [
   {
@@ -1432,7 +1438,7 @@ function defaultMarkerForToken(token) {
 }
 
 function isDefaultMarker(value) {
-  return typeof value === 'string' && value.startsWith(DEFAULT_MARKER_PREFIX);
+  return typeof value === 'string' && /^__DEFAULT_/.test(String(value));
 }
 
 function isUnsetLike(value) {
@@ -1472,6 +1478,35 @@ function buildNeutralValuesSeed(manifest) {
   seed.values_seed_mode = 'brief_first_defaults_v1';
   seed.values_seed_source = 'pm:approve-brief';
   return seed;
+}
+
+const ARCHITECT_TECH_TOKENS = new Set([
+  'product_type',
+  'backend_stack',
+  'frontend_stack',
+  'database_stack',
+  'orm_choice',
+  'architecture_preference',
+]);
+
+function architectConsultCandidateTokens(values) {
+  return ARCHITECT_CONSULTABLE_TOKENS.filter((token) => isUnsetLike(values[token]));
+}
+
+function normalizeArchitectConsultValue(token, rawValue) {
+  const text = String(rawValue || '').replace(/\s+/g, ' ').trim();
+  if (!text || isUnsetLike(text)) {
+    return '';
+  }
+  if (ARCHITECT_TECH_TOKENS.has(token)) {
+    return normalizeTechToken(text);
+  }
+  return text;
+}
+
+function unresolvedRequiredTokens(manifest, values) {
+  const requiredTokens = Array.isArray(manifest?.required_tokens) ? manifest.required_tokens : [];
+  return requiredTokens.filter((token) => isUnsetLike(values[token]));
 }
 
 function toProjectIdFromName(projectName) {
@@ -1872,7 +1907,7 @@ async function pmBriefSemanticCheck({ targetRoot, valuesPath, briefPath }) {
   }
 }
 
-function pmApproveBrief({ targetRoot, valuesPath }) {
+async function pmApproveBrief({ targetRoot, valuesPath }) {
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   if (!fs.existsSync(briefPath)) {
     throw new Error('Cannot approve brief: missing docs/product/project-brief.md');
@@ -1895,14 +1930,77 @@ function pmApproveBrief({ targetRoot, valuesPath }) {
   }
   const derived = deriveValuesFromBrief(approvedBrief, values);
   const merged = { ...values, ...derived };
+
+  const architectCandidates = architectConsultCandidateTokens(merged);
+  let architectConsultAttempted = false;
+  let architectConsultPurpose = null;
+  let architectConsultProviderModel = null;
+  let architectAppliedTokens = [];
+
+  if (architectCandidates.length > 0) {
+    const architectRolePath = path.join(FABRIC_ROOT, 'team/architect.md');
+    const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
+    if (!fs.existsSync(architectRolePath)) {
+      console.warn(
+        `fabric pm:approve-brief: architect consult skipped (missing role contract: ${path.relative(targetRoot, architectRolePath)})`,
+      );
+    } else if (!fs.existsSync(framingPath)) {
+      console.warn(
+        'fabric pm:approve-brief: architect consult skipped (missing docs/product/product-system-framing.md)',
+      );
+    } else {
+      architectConsultAttempted = true;
+      const architectRoleMarkdown = readText(architectRolePath);
+      const framingMarkdown = readText(framingPath);
+      try {
+        console.log(
+          `fabric pm:approve-brief: consulting architect for unresolved defaults (${String(architectCandidates.length)} token(s))...`,
+        );
+        const consult = await generateArchitectValueRecommendations({
+          values: merged,
+          unresolvedTokens: architectCandidates,
+          briefMarkdown: approvedBrief,
+          framingMarkdown,
+          architectRoleMarkdown,
+          currentValues: merged,
+          onProgress: (message) => {
+            console.log(`  - ${String(message)}`);
+          },
+        });
+        architectConsultPurpose = consult.purpose;
+        if (consult?.settings?.provider && consult?.settings?.model) {
+          architectConsultProviderModel = `${consult.settings.provider}/${consult.settings.model}`;
+        }
+        for (const token of architectCandidates) {
+          if (!isUnsetLike(merged[token])) {
+            continue;
+          }
+          const recommendation = consult.byToken?.[token];
+          if (!recommendation) {
+            continue;
+          }
+          const normalized = normalizeArchitectConsultValue(token, recommendation.value);
+          if (!normalized || isUnsetLike(normalized)) {
+            continue;
+          }
+          merged[token] = normalized;
+          architectAppliedTokens.push(token);
+        }
+      } catch (error) {
+        console.warn(
+          `fabric pm:approve-brief: architect consult unavailable (${String(error?.message || error)})`,
+        );
+      }
+    }
+  }
+
+  const unresolvedTokens = unresolvedRequiredTokens(manifest, merged);
+  merged.defaulted_fields = unresolvedTokens.sort();
   if (seededDefaults) {
-    const requiredTokens = Array.isArray(manifest.required_tokens) ? manifest.required_tokens : [];
-    merged.defaulted_fields = requiredTokens
-      .filter((token) => Object.prototype.hasOwnProperty.call(seededDefaults, token) && merged[token] === seededDefaults[token])
-      .sort();
     merged.values_seed_mode = 'brief_first_defaults_v1';
     merged.values_seed_source = 'pm:approve-brief';
   }
+
   fs.writeFileSync(valuesPath, `${JSON.stringify(merged, null, 2)}\n`, 'utf8');
 
   const updatedKeys = Object.keys(derived).sort();
@@ -1911,8 +2009,18 @@ function pmApproveBrief({ targetRoot, valuesPath }) {
   console.log(`- values updated: ${path.relative(targetRoot, valuesPath)}`);
   if (seededDefaults) {
     console.log(`- values created from neutral defaults: ${path.relative(targetRoot, valuesPath)}`);
-    console.log(`- defaulted fields remaining: ${String(merged.defaulted_fields.length)}`);
   }
+  if (architectConsultAttempted) {
+    if (architectConsultPurpose) {
+      console.log(`- architect consult profile: ${architectConsultPurpose}`);
+    }
+    if (architectConsultProviderModel) {
+      console.log(`- architect consult model: ${architectConsultProviderModel}`);
+    }
+    console.log(`- architect-applied fields: ${String(architectAppliedTokens.length)}`);
+    architectAppliedTokens.sort().forEach((token) => console.log(`  - ${token}`));
+  }
+  console.log(`- defaulted fields remaining: ${String(merged.defaulted_fields.length)}`);
   console.log(`- derived keys: ${updatedKeys.length}`);
   updatedKeys.forEach((k) => console.log(`  - ${k}`));
 }
@@ -2765,6 +2873,99 @@ function buildInitialSlicePlan(briefText) {
   return slices.slice(0, Math.max(3, Math.min(6, slices.length)));
 }
 
+function normalizePlanList(rawValues, fallback = []) {
+  const source = Array.isArray(rawValues) && rawValues.length > 0 ? rawValues : fallback;
+  const out = [];
+  const seen = new Set();
+  for (const value of source) {
+    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+      continue;
+    }
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function appendUniqueCaseInsensitive(values, candidate) {
+  const text = String(candidate || '').trim();
+  if (!text) {
+    return;
+  }
+  const key = text.toLowerCase();
+  if (values.some((item) => String(item || '').trim().toLowerCase() === key)) {
+    return;
+  }
+  values.push(text);
+}
+
+function buildSlicePlanFromStructuredSpecs(rawSpecs) {
+  const specs = Array.isArray(rawSpecs) ? rawSpecs : [];
+  if (specs.length < 3 || specs.length > 6) {
+    throw new Error(`Cannot plan slices: expected 3-6 slices, received ${String(specs.length)}.`);
+  }
+
+  const titleCounts = new Map();
+  return specs.map((spec, index) => {
+    const n = String(index + 1).padStart(3, '0');
+    const id = `SL-${n}`;
+    const milestone = `SL${n}_delivery`;
+    const baseTitle = normalizeSliceTitle(spec?.title || `Slice ${String(index + 1)}`) || `Slice ${String(index + 1)}`;
+    const baseKey = baseTitle.toLowerCase();
+    const seenCount = titleCounts.get(baseKey) || 0;
+    titleCounts.set(baseKey, seenCount + 1);
+    const title = seenCount === 0 ? baseTitle : `${baseTitle} (${String(seenCount + 1)})`;
+    const lowerTitle = title.toLowerCase();
+    const checklistRelPath = `docs/testing/${id}-user-checklist.md`;
+    const implementationNotesRelPath = `docs/implementation/${id}-implementation-notes.md`;
+    const targetList = derivePlannedImplementationTargets(title);
+    const dependencyFallback = index === 0
+      ? ['Approved project brief and bootstrap reviews are complete.']
+      : [`Dependencies from SL-${String(index).padStart(3, '0')} are resolved.`];
+
+    const doneDefinition = normalizePlanList(spec?.done_definition, [
+      `${checklistRelPath} is completed and marked Pass for ${id}.`,
+      `Implementation artifacts exist for ${id} targets: ${targetList.join(', ')}.`,
+      `${implementationNotesRelPath} is updated with verification evidence and changed files for ${id}.`,
+      'fabric doctor passes without bootstrap semantic issues.',
+    ]);
+    appendUniqueCaseInsensitive(doneDefinition, `${checklistRelPath} is completed and marked Pass for ${id}.`);
+    appendUniqueCaseInsensitive(doneDefinition, `Implementation artifacts exist for ${id} targets: ${targetList.join(', ')}.`);
+    appendUniqueCaseInsensitive(doneDefinition, `${implementationNotesRelPath} is updated with verification evidence and changed files for ${id}.`);
+    appendUniqueCaseInsensitive(doneDefinition, 'fabric doctor passes without bootstrap semantic issues.');
+
+    return {
+      id,
+      title,
+      milestone,
+      status: 'planned',
+      owner_role: 'Product Manager',
+      objective: normalizePlanList(
+        spec?.objective ? [spec.objective] : [],
+        [`Deliver ${title} as an MVP-ready vertical slice with clear user value and bounded scope.`],
+      )[0],
+      in_scope: normalizePlanList(spec?.in_scope, [
+        `Implement the core ${lowerTitle} user flow end-to-end.`,
+        `Include required persistence, validation, and visible completion status for ${lowerTitle}.`,
+      ]),
+      out_of_scope: normalizePlanList(spec?.out_of_scope, [
+        `Advanced automation and non-MVP integrations for ${lowerTitle}.`,
+      ]),
+      acceptance_criteria: normalizePlanList(spec?.acceptance_criteria, [
+        `${title} flow works end-to-end in the local review environment.`,
+        'Happy path and one failure/recovery path are verified.',
+      ]),
+      dependencies: normalizePlanList(spec?.dependencies, dependencyFallback),
+      done_definition: doneDefinition,
+    };
+  });
+}
+
 function renderYamlList(indent, values) {
   if (!values || values.length === 0) {
     return [`${' '.repeat(indent)}[]`];
@@ -3096,11 +3297,14 @@ function pmStatus({ targetRoot, valuesPath, format = 'terminal' }) {
   throw new Error("Cannot run pm:status: unsupported --format value. Use 'terminal' or 'markdown'.");
 }
 
-function pmPlanSlices({ targetRoot, valuesPath }) {
+async function pmPlanSlices({ targetRoot, valuesPath, modelDriven = false, heuristic = false }) {
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const backlogPath = path.join(targetRoot, 'docs/product/backlog.yaml');
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const manifestPath = path.join(targetRoot, '.system/project-manifest.yaml');
+  if (modelDriven && heuristic) {
+    throw new Error('Cannot run pm:plan-slices with both --model-driven and --heuristic.');
+  }
   if (!fs.existsSync(manifestPath)) {
     throw new Error('Cannot run pm:plan-slices: missing .system/project-manifest.yaml');
   }
@@ -3109,10 +3313,37 @@ function pmPlanSlices({ targetRoot, valuesPath }) {
   }
   assertApprovedBrief(targetRoot);
 
-  const manifestText = readText(manifestPath);
-
   const briefText = readText(briefPath);
-  const slices = buildInitialSlicePlan(briefText);
+  let slices = [];
+  let planningMode = 'heuristic';
+  if (!heuristic) {
+    try {
+      const values = loadValues(valuesPath);
+      const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
+      const framingMarkdown = fs.existsSync(framingPath) ? readText(framingPath) : '';
+      console.log('fabric pm:plan-slices: starting model-driven planning...');
+      const { settings, slices: structuredSlices } = await generateExecutionSlicePlan({
+        values,
+        briefMarkdown: briefText,
+        framingMarkdown,
+        onProgress: (message) => {
+          console.log(`fabric pm:plan-slices: ${String(message)}`);
+        },
+      });
+      slices = buildSlicePlanFromStructuredSpecs(structuredSlices);
+      planningMode = 'model_driven';
+      console.log(`fabric pm:plan-slices: model planner ${settings.provider}/${settings.model}`);
+    } catch (error) {
+      const reason = error?.message ? String(error.message) : String(error);
+      console.warn(`fabric pm:plan-slices: model-driven planning unavailable (${reason})`);
+      console.warn('fabric pm:plan-slices: falling back to heuristic planning. Use --heuristic to skip model calls.');
+      slices = buildInitialSlicePlan(briefText);
+      planningMode = 'heuristic_fallback';
+    }
+  } else {
+    slices = buildInitialSlicePlan(briefText);
+  }
+
   const activeSlice = slices[0];
   const generatedAt = new Date().toISOString();
   const fabricManifest = loadManifest();
@@ -3160,6 +3391,7 @@ function pmPlanSlices({ targetRoot, valuesPath }) {
   console.log('fabric pm:plan-slices: OK');
   console.log(`- planned slices: ${String(slices.length)}`);
   console.log(`- active slice: ${activeSlice.id} (${activeSlice.status})`);
+  console.log(`- planning mode: ${planningMode}`);
   console.log('- backlog/current-slice regenerated from approved brief');
 }
 

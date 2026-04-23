@@ -15,11 +15,28 @@ import {
   architectFinalizeBaseline,
   uiuxFinalizeCurrentSliceFlow,
 } from './commands/product.mjs';
-import { initFactory, formatFromBrief, instantiate, execute, validate, doctor, gate, dbInit, dbCheck, dbReset, dbSeed, coderPrepareCurrentSlice, coderImplementCurrentSlice, coderCloseCurrentSlice, orchestratorAdvanceSlice } from './commands/runtime.mjs';
+import {
+  initFactory,
+  formatFromBrief,
+  instantiate,
+  scaffold,
+  execute,
+  validate,
+  doctor,
+  gate,
+  dbInit,
+  dbCheck,
+  dbReset,
+  dbSeed,
+  coderPrepareCurrentSlice,
+  coderImplementCurrentSlice,
+  coderCloseCurrentSlice,
+  orchestratorAdvanceSlice,
+} from './commands/runtime.mjs';
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|execute|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|execute|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
@@ -37,8 +54,9 @@ function usage() {
   console.log('  coder:close-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  orchestrator:advance-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:bootstrap-signoff --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
-  console.log('  pm:plan-slices --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  pm:plan-slices --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--model-driven] [--heuristic]');
   console.log('  format-from-brief --target <project-root>');
+  console.log('  scaffold --values <fabric.values.json|fabric.values.yaml> --target <project-root> [--force]');
   console.log('  execute --values <fabric.values.json|fabric.values.yaml> --target <project-root> [--force]');
   console.log('  instantiate --values <fabric.values.json|fabric.values.yaml> --target <project-root> [--force]');
   console.log('  validate --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
@@ -90,7 +108,7 @@ async function main() {
     return;
   }
   if (command === 'pm:approve-brief') {
-    pmApproveBrief({ targetRoot, valuesPath });
+    await pmApproveBrief({ targetRoot, valuesPath });
     return;
   }
   if (command === 'pm:status') {
@@ -106,7 +124,16 @@ async function main() {
     return;
   }
   if (command === 'pm:plan-slices') {
-    pmPlanSlices({ targetRoot, valuesPath });
+    await pmPlanSlices({
+      targetRoot,
+      valuesPath,
+      modelDriven: Boolean(args['model-driven']),
+      heuristic: Boolean(args.heuristic),
+    });
+    return;
+  }
+  if (command === 'scaffold') {
+    scaffold({ targetRoot, valuesPath, force: Boolean(args.force) });
     return;
   }
   if (command === 'architect:finalize-baseline') {

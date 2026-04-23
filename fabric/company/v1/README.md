@@ -52,14 +52,14 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Exit behavior: returns `0` when semantic findings are clear; returns `1` when findings remain or required inputs are missing.
 
 - `pm:approve-brief --target <project-root> [--values fabric.values.json]`
-  - What it does: sets `Brief Approval Status: approved` in `docs/product/project-brief.md` and derives/updates `fabric.values.json` from the approved brief content.
+  - What it does: sets `Brief Approval Status: approved` in `docs/product/project-brief.md`, derives/updates `fabric.values.json` from the approved brief content, and attempts Architect LLM consultation to fill unresolved default planning/architecture values (using `team/architect.md` + `docs/product/product-system-framing.md` when available).
   - When to use: immediately after customer approval of the project brief.
   - Benefit: combines brief approval and value-token derivation into one explicit transition command.
   - Creation behavior: if `fabric.values.json` does not exist, this command now creates it with neutral defaults + machine-readable `defaulted_fields`, then overlays brief-derived values.
 
 - `pm:finalize-bootstrap-reviews --target <project-root> [--values fabric.values.json]`
   - What it does: generates finalized PM bootstrap review artifacts for foundation and backlog/current-slice state, removes template placeholders automatically, and sets explicit machine-readable assessments (`approved` or `needs_revision`).
-  - When to use: after `execute` and `pm:plan-slices`, before `pm:bootstrap-signoff`.
+  - When to use: after `scaffold` and `pm:plan-slices`, before `pm:bootstrap-signoff`.
   - Benefit: separates template review scaffolding from final approval artifacts and removes a brittle manual cleanup step.
 
 - `pm:bootstrap-signoff --target <project-root> [--values fabric.values.json]`
@@ -67,9 +67,10 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: after `pm:finalize-bootstrap-reviews` returns both artifacts as `approved`.
   - Benefit: prevents silent transition to delivery with draft review artifacts.
 
-- `pm:plan-slices --target <project-root> [--values fabric.values.json]`
+- `pm:plan-slices --target <project-root> [--values fabric.values.json] [--model-driven] [--heuristic]`
   - What it does: generates an initial delivery-ready backlog plan (3-6 slices) from the approved project brief and writes a non-placeholder active `current-slice` with `planned` status.
-  - When to use: immediately after `execute` and before bootstrap review finalization.
+  - Planning mode: model-driven by default (with automatic fallback to heuristic if model invocation is unavailable). Use `--heuristic` to force deterministic planning only.
+  - When to use: immediately after `scaffold` and before bootstrap review finalization.
   - Benefit: converts bootstrap scaffolding into execution-ready slice definitions.
 
 - `architect:finalize-baseline --target <project-root> [--values fabric.values.json]`
@@ -87,11 +88,15 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: after the Product Manager/customer refine the brief and before execution generation.
   - Benefit: explicit lifecycle gate between factory setup and project execution.
 
+- `scaffold --values fabric.values.json --target <project-root> [--force]`
+  - What it does: renders bootstrap/governance project artifacts from fabric sources without touching constitutional customer-derived and planning-owned files (`product-system-framing`, `backlog`, `current-slice`).
+  - When to use: after `format-from-brief` succeeds and before `pm:plan-slices`.
+  - Benefit: isolates scaffolding from planning and preserves customer-approved product framing artifacts.
+
 - `execute --values fabric.values.json --target <project-root> [--force]`
-  - What it does: execution-phase generation command (alias of `instantiate`) that renders full project governance/operation artifacts from fabric sources.
-  - When to use: after `format-from-brief` succeeds.
-  - Benefit: lifecycle intent is explicit in command naming.
-  - Important: this command scaffolds backlog/current-slice structure; it does **not** create a delivery-ready slice plan by itself.
+  - What it does: alias of `scaffold` for compatibility.
+  - When to use: legacy flow/scripts still calling `execute`.
+  - Benefit: preserves backward compatibility while new flow uses `scaffold` explicitly.
 
 - `instantiate --values fabric.values.json --target <project-root> [--force]`
   - What it does: renders fabric sources into project outputs defined in the fabric manifest (`fabric.json` by default), including generated headers (`generated_from`, `fabric_version`, `generated_at`).
@@ -140,7 +145,7 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
 - `fabric.values.json`: token values used during generation (recommended, dependency-free).
 - `fabric.values.yaml`: supported when `js-yaml` is available.
 - Starter file: `fabric/company/v1/fabric.values.example.json` (use `init-factory --init-values` or copy manually).
-- Recommended timing: initialize the values file early, complete/finalize values after project brief approval and before `execute`.
+- Recommended timing: initialize the values file early, complete/finalize values after project brief approval and before `scaffold`.
 
 Customer entry artifacts (before execution generation):
 
@@ -161,6 +166,7 @@ Workflow:
 6. If sufficient, Product Manager synthesizes available inputs into `docs/product/project-brief.md`.
 7. Customer and Product Manager refine the brief.
 8. Brief approval gates execution generation (`format-from-brief` then `execute`).
+>> Flow now reflects project-brief -> scaffold -> planning -> execution.
 
 Artifact lifecycle policy:
 
@@ -182,9 +188,9 @@ Artifact lifecycle policy:
 8. After `pm:brief-readiness` succeeds, Product Manager reviews and refines the synthesized first draft in `docs/product/project-brief.md` (if missing, the command generates it from customer input using the template structure).
 9. Finalize `docs/product/project-brief.md` with customer and run `./fabric/company/v1/fabric pm:approve-brief --target <project-root> --values <project-root>/fabric.values.json` (creates values file if missing).
 10. Run `./fabric/company/v1/fabric format-from-brief --target <project-root>`.
-11. Run `./fabric/company/v1/fabric execute --values <project-root>/fabric.values.json --target <project-root>` (scaffolds governance + planning artifacts).
-12. Complete `docs/reviews/product-manager/bootstrap-foundation-review.md` and `docs/reviews/product-manager/bootstrap-backlog-slice-review.md` with `Assessment: approved`.
-13. Run `./fabric/company/v1/fabric pm:plan-slices --target <project-root> --values <project-root>/fabric.values.json`.
+11. Run `./fabric/company/v1/fabric scaffold --values <project-root>/fabric.values.json --target <project-root>` (scaffolds governance/bootstrap artifacts only).
+12. Run `./fabric/company/v1/fabric pm:plan-slices --target <project-root> --values <project-root>/fabric.values.json` (model-driven by default; add `--heuristic` for deterministic-only planning).
+13. Complete `docs/reviews/product-manager/bootstrap-foundation-review.md` and `docs/reviews/product-manager/bootstrap-backlog-slice-review.md` with `Assessment: approved`.
 14. Run `./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target <project-root> --values <project-root>/fabric.values.json`.
 15. Run `./fabric/company/v1/fabric pm:bootstrap-signoff --target <project-root> --values <project-root>/fabric.values.json`.
 16. Run `./fabric/company/v1/fabric architect:finalize-baseline --target <project-root> --values <project-root>/fabric.values.json`.
@@ -341,18 +347,27 @@ What this does:
 
 ## Step 2 - Generate the project structure
 ```bash
-./fabric/company/v1/fabric execute --values fabric.values.json --target .
+./fabric/company/v1/fabric scaffold --values fabric.values.json --target .
 ```
 What this does:
 - Generates all core project artifacts from Fabric:
-  - backlog structure
-  - slice scaffolding
   - governance files
-- Translates your approved brief into an operational project setup
-👉 Important: This creates structure, not a ready-to-build plan yet.
+- Preserves customer-derived constitutional artifacts (`docs/product/product-system-framing.md`) and planning outputs (`backlog/current-slice`)
+- Prepares the repository for explicit planning as a separate step
 
 
-## Step 3 - Confirm bootstrap is complete
+## Step 3 — Generate the initial work plan (slices)
+```bash
+./fabric/company/v1/fabric pm:plan-slices --target . --values fabric.values.json
+```
+What this does:
+- Creates a real backlog of 3–6 slices
+- Defines the first executable slice
+- Uses model-driven planning by default (falls back to heuristic if model invocation is unavailable)
+👉 Add `--heuristic` to force deterministic planning only.
+
+
+## Step 4 - Confirm bootstrap is complete
 ```bash
 ./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values fabric.values.json
 ```
@@ -361,20 +376,6 @@ What this does:
 - Ensures no placeholder or incomplete artifacts remain
 - Officially transitions the project from bootstrap → delivery mode
 👉 This prevents starting development on an incomplete setup.
-
-
-## Step 4 — Generate the initial work plan (slices)
-```bash
-./fabric/company/v1/fabric pm:plan-slices --target . --values fabric.values.json
-```
-What this does:
-- Creates a real backlog of 3–6 slices
-- Defines the first executable slice
-- Sets the project up for immediate development
-👉 After this step, the system has:
-  - a clear backlog
-  - a current slice
-  - execution-ready scope
 
 
 
@@ -707,10 +708,39 @@ Then inspect:
 If that looks good:
 
 // approve the project brief
+Behavior now (pm:approve-brief)
+
+1. Approves brief.
+2. Creates/updates fabric.values.json.
+3. Derives values from brief as before.
+4. If unresolved consultable defaults remain:
+  - If framing or architect role file is missing: warns and skips consult.
+  - Else attempts architect LLM consult and applies safe recommendations.
+5. Writes updated values and prints:
+  - architect consult profile/model (if called),
+  - architect-applied fields count,
+  - remaining defaulted fields count.
 > ./fabric/company/v1/fabric pm:approve-brief --target . --values ./fabric.values.json
 
 // Gate check before execute: 
 // confirms docs/product/project-brief.md exists and has Brief Approval Status: approved. Confirms minimum input evidence exists: docs/product/intake-note.md with content, or at least one non-README file in docs/customer-input/.
+
+Current behavior of ./fabric/company/v1/fabric format-from-brief --target .:
+1. Dispatches to formatFromBrief with targetRoot=. (resolved absolute path) in fabric.mjs (line 163) and runtime.mjs (line 73).
+2. Runs two gates only:
+  - assertApprovedBrief(targetRoot) runtime.mjs (line 74), implemented in core.mjs (line 860)
+  - assertMinimumCustomerInput(targetRoot) runtime.mjs (line 75), implemented in core.mjs (line 886)
+3. “Approved brief” means:
+  - docs/product/project-brief.md must exist.
+  - Approval field must parse to approved via patterns in core.mjs (line 547):
+    . Brief Approval Status: ... or
+    . brief_approval_status: ...
+4. “Minimum customer input” means:
+  - non-empty docs/product/intake-note.md, or
+  - at least one file under docs/customer-input/**, excluding README* (logic in core.mjs (line 877)).
+5. On success: prints fabric format-from-brief: brief is approved, execution can proceed.
+6. On failure: throws, CLI catches and exits 1 with fabric: <error> in fabric.mjs (line 211).
+It does not write files, does not call LLM, and does not use fabric.values.json.
 > ./fabric/company/v1/fabric format-from-brief --target .
 
 ### BLOCK 2. Bootstrap execution stage

@@ -94,8 +94,41 @@ function instantiate({ targetRoot, valuesPath, force }) {
   outputs.forEach((item) => console.log(`- ${item}`));
 }
 
+const SCAFFOLD_EXCLUDED_TARGETS = new Set([
+  // Constitutional customer-derived product artifacts.
+  'docs/product/product-system-framing.md',
+  // Planning-owned artifacts.
+  'docs/product/backlog.yaml',
+  'docs/product/current-slice.yaml',
+]);
+
+function scaffoldEntries(manifest) {
+  const sourceEntries = Array.isArray(manifest?.source_of_truth) ? manifest.source_of_truth : [];
+  return sourceEntries.filter((entry) => !SCAFFOLD_EXCLUDED_TARGETS.has(String(entry?.target || '')));
+}
+
+function scaffold({ targetRoot, valuesPath, force }) {
+  const manifest = loadManifest();
+  const values = loadValues(valuesPath);
+  const entries = scaffoldEntries(manifest);
+  verifyRequiredTokens(manifest, values);
+  verifyTemplateTokensForEntries(manifest, values, entries);
+
+  const outputs = writeEntries({
+    targetRoot,
+    valuesPath,
+    force,
+    entries,
+    checkBriefApproval: isBootstrapInitialization(targetRoot),
+  });
+
+  console.log(`fabric scaffold: generated ${outputs.length} files`);
+  outputs.forEach((item) => console.log(`- ${item}`));
+}
+
 function execute({ targetRoot, valuesPath, force }) {
-  instantiate({ targetRoot, valuesPath, force });
+  scaffold({ targetRoot, valuesPath, force });
+  console.log('fabric execute: OK (alias of scaffold)');
 }
 
 function hasSupabaseCli() {
@@ -1343,6 +1376,7 @@ export {
   initFactory,
   formatFromBrief,
   instantiate,
+  scaffold,
   execute,
   validate,
   doctor,
