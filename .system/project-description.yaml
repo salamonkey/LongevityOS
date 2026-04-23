@@ -1,0 +1,57 @@
+# generated_from: templates/project-description.template.yaml
+# fabric_version: v1
+# generated_at: 2026-04-23T12:25:43.423Z
+project:
+  name: "Longevity Health OS (Health App MVP)"
+  summary: >
+    Preventive health navigation product that generates a personal health plan from minimal profile data.
+
+product:
+  type: "responsive_web_app"
+
+users:
+  - "Professionals aged 30–65 who want a low-friction preventive plan."
+  - "Parents or caregivers who manage health tasks for more than one household member."
+
+primary_goal: >
+  Preventive health navigation product that generates a personal health plan from minimal profile data.
+
+core_workflow:
+  - "enter_basic_profile"
+  - "generate_rule_based_plan"
+  - "review_and_update_next_action"
+
+key_concepts:
+  - "personal_health_plan"
+  - "health_action"
+  - "family_profile"
+
+scope:
+  v1_priorities:
+    - "instant_plan_generation"
+    - "clear_priority_dashboard"
+  explicitly_out_of_scope:
+    - "Doctor or provider integrations."
+    - "External API or health-data sync."
+
+constraints:
+  tech_preferences:
+    backend: "nextjs_route_handlers"
+    frontend: "nextjs_react"
+    database: "postgresql"
+    orm: "prisma"
+  architecture_preference: "modular_monolith"
+  working_style: "thin_vertical_slices"
+  editor: "vscode"
+  non_functional:
+    - "data_minimisation"
+    - "fast_mobile_load"
+
+customer_preferences:
+  wants_product_review_gate: true
+  prefers_small_vertical_slices: true
+  escalation_mode: only_when_material_decisions_are_required
+
+success_criteria:
+  - "A first-time user can complete onboarding and see a generated dashboard within 60 seconds."
+  - "100% of generated profiles display at least one prioritized next action or an explicit all-clear state."

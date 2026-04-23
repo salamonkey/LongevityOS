@@ -68,7 +68,7 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Benefit: prevents silent transition to delivery with draft review artifacts.
 
 - `pm:plan-slices --target <project-root> [--values fabric.values.json] [--model-driven] [--heuristic]`
-  - What it does: generates an initial delivery-ready backlog plan (3-6 slices) from the approved project brief and writes a non-placeholder active `current-slice` with `planned` status.
+  - What it does: generates an initial delivery-ready backlog plan (5-8 slices) from the approved project brief and writes a non-placeholder active `current-slice` with `planned` status.
   - Planning mode: model-driven by default (with automatic fallback to heuristic if model invocation is unavailable). Use `--heuristic` to force deterministic planning only.
   - When to use: immediately after `scaffold` and before bootstrap review finalization.
   - Benefit: converts bootstrap scaffolding into execution-ready slice definitions.
@@ -356,7 +356,7 @@ What this does:
 ./fabric/company/v1/fabric pm:plan-slices --target . --values fabric.values.json
 ```
 What this does:
-- Creates a real backlog of 3–6 slices
+- Creates a real backlog of 5–8 slices
 - Defines the first executable slice
 - Uses model-driven planning by default (falls back to heuristic if model invocation is unavailable)
 👉 Add `--heuristic` to force deterministic planning only.
@@ -738,7 +738,7 @@ Current behavior of ./fabric/company/v1/fabric format-from-brief --target .:
 It does not write files, does not call LLM, and does not use fabric.values.json.
 > ./fabric/company/v1/fabric format-from-brief --target .
 
-### BLOCK 2. Bootstrap execution stage
+### BLOCK 2. BOOTSTRAP execution stage
 ./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json
@@ -758,22 +758,76 @@ It does not write files, does not call LLM, and does not use fabric.values.json.
 No LLM call happens in scaffold.
 > ./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json
 
-// Create the initial delivery slice plan from the approved brief. Must happen before the coder flow, because coder:prepare-current-slice needs a current slice. Reads docs/product/project-brief.md (must be approved).
-Derives 3–6 MVP slice titles/objectives.
-- rewrites docs/product/backlog.yaml with planned slices, 
-- rewrites docs/product/current-slice.yaml with the first active slice, 
-- updates .system/project-manifest.yaml status fields to align with that active slice.
-- Sets slice contracts (scope, acceptance criteria, dependencies, done definition) so delivery commands can run.
+// Create the initial delivery slice plan from the approved brief.
+1. Prechecks
+  - Requires .system/project-manifest.yaml to exist.
+  - Requires docs/product/project-brief.md to exist and be Brief Approval Status: approved.
+  - If both --model-driven and --heuristic are passed together, it fails.
+2. Builds a slice plan (now 5–8 slices) - Derives 5–8 MVP slice titles/objectives.
+  - Default behavior: tries LLM planning first (using your LLM settings from ./fabric.values.json/env) and includes optional context from docs/product/product-system-framing.md.
+  - If LLM planning fails/unavailable, it logs a warning and falls back to deterministic heuristic planning.
+  - --heuristic skips LLM and uses deterministic planning directly.
+3. Rewrites planning artifacts
+  - docs/product/backlog.yaml - rewrites docs/product/backlog.yaml with planned slices
+  - docs/product/current-slice.yaml - rewrites docs/product/current-slice.yaml with the first active slice, 
+  - First slice becomes the active current slice (status: planned), with IDs like SL-001, SL-002, etc.
+4. Updates manifest state 
+  - In .system/project-manifest.yaml, updates status fields to align with that active slice:
+    - status.active_slice
+    - status.active_slice_state
+    - status.active_milestone
+    - last_updated_utc
+  - Sets slice contracts (scope, acceptance criteria, dependencies, done definition) so delivery commands can run.
+5. Console output
+  - Prints planned slice count, active slice, and planning mode (model_driven, heuristic_fallback, or heuristic).
 > ./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json
 
-// Auto-generates the two bootstrap PM review artifacts and assigns machine-readable assessments. Turns review templates/scaffolds into final review decisions.
+// Auto-generates the two bootstrap Product Manager review artifacts and assigns machine-readable assessments. 
+Turns review templates/scaffolds into final review decisions.
+Is currently a deterministic review-writer, not a model call and not the final gate.
+- It loads fabric.values.json only to resolve where to write the two review files (bootstrap_foundation_review_path, bootstrap_backlog_slice_review_path), otherwise uses defaults in docs/reviews/product-manager/*. See core.mjs (line 898).
+- It generates Foundation Review by checking only existence/readability of:
+  - .system/project-manifest.yaml
+  - .system/artifact-registry.yaml
+  - .system/workflow-rules.yaml
+- It generates Backlog/Slice Review by checking:
+  - docs/product/backlog.yaml exists and has slices
+  - docs/product/current-slice.yaml exists and has id/title/objective
+  - no unresolved placeholders in backlog/current-slice
+  - current slice id is present in backlog
+- It writes/overwrites those two review markdown files with Assessment: approved|needs_revision, findings, and required actions. Write path: product.mjs (line 2213).
+- It prints OK plus both assessments. It does not fail the command just because assessment is needs_revision.
+- The actual hard gate is pm:bootstrap-signoff, which fails if review artifacts are missing, not approved, or still contain placeholders.
 > ./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json
 
-// officially ends bootstrap and switches the project into delivery mode. Validates both bootstrap PM review files are present, approved, and placeholder-free.
+
+// Officially ends bootstrap and switches the project into delivery mode. Validates both bootstrap PM review files are present, approved, and placeholder-free. Hard bootstrap gate and mode switch.
+1. Prechecks required files exist:
+  - .system/project-manifest.yaml
+  - docs/product/current-slice.yaml
+2. Validates both bootstrap review artifacts (paths resolved from fabric.values.json if provided):
+  - file exists
+  - no unresolved placeholders
+  - Assessment parses to approved
+3. If any review check fails:
+  - prints FAILED + issue list + recovery command
+  - exits with code 1 (process.exit(1))
+4. Parses current slice and requires id, status, milestone.
+5. On success, updates .system/project-manifest.yaml:
+  - operating_model.bootstrap_status = "completed"
+  - operating_model.bootstrap_completed_at_utc = now
+  - operating_model.current_mode = "delivery"
+  - status.active_slice = current slice id
+  - status.active_slice_state = current slice status
+  - status.active_milestone = current slice milestone
+  - status.approved_reviews merged/unique with both review file paths
+  - top-level last_updated_utc = now
+6. Writes manifest atomically and prints OK summary.
+It does not call an LLM, and it does not rewrite brief/backlog/current-slice artifacts.
 > ./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json
 
 
-### BLOCK 3. Delivery prep + implementation stage
+### BLOCK 3. DELIVERY MODE --> Delivery prep + implementation stage
 ./fabric/company/v1/fabric architect:finalize-baseline --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric uiux:finalize-current-slice-flow --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json
@@ -782,29 +836,149 @@ Derives 3–6 MVP slice titles/objectives.
 npm install
 npm run dev
 
-
 # 3.1
-// Generates the active slice’s architecture contract and refreshes the slice checklist. Reads docs/product/current-slice.yaml (active slice), plus brief/framing context if present. Writes docs/architecture/baseline.md with slice-specific architecture guidance. Rewrites the active slice testing checklist at docs/testing/<SLICE_ID>-user-checklist.md. Marks the output as ready for implementation (via command output and artifact content).
+// Generates the active slice’s architecture contract and refreshes the slice checklist. Reads docs/product/current-slice.yaml (active slice), plus brief/framing context if present. By default it attempts model-driven baseline generation using the shared Fabric LLM settings stack, and falls back to deterministic heuristics when model calls are unavailable. Writes docs/architecture/baseline.md with slice-specific architecture guidance. Rewrites the active slice testing checklist at docs/testing/<SLICE_ID>-user-checklist.md. Marks the output as ready for implementation (via command output and artifact content).
+1. Reads docs/product/current-slice.yaml (required), plus docs/product/project-brief.md and docs/product/product-system-framing.md if present.
+2. Tries model-driven architecture baseline generation using your existing shared LLM stack from --values (profile fallback: architect -> planning -> intake), with 10s progress heartbeats.
+3. If LLM is unavailable/fails, it falls back automatically to the deterministic baseline playbook.
+4. Renders and writes docs/architecture/baseline.md (overwrites with fresh generated content + metadata header).
+5. Regenerates docs/testing/<SLICE_ID>-user-checklist.md.
+6. Prints scope, written files, and baseline mode (model_driven or heuristic_fallback).
+It does not modify backlog/current-slice/manifest/brief artifacts.
+It fails if docs/product/current-slice.yaml is missing (or on unexpected runtime errors).
 > ./fabric/company/v1/fabric architect:finalize-baseline --target . --values ./fabric.values.json
 
 # 3.2
-// Generates the active slice’s UX flow spec and refreshes that slice’s checklist. Reads the active slice (docs/product/current-slice.yaml) plus brief/framing context. Writes a slice-specific UX flow file at: docs/ux/<SLICE_ID>-current-slice-flow.md
+// Generates the active slice’s UX flow spec and refreshes that slice’s checklist. Reads the active slice (docs/product/current-slice.yaml) plus brief/framing context. By default it attempts model-driven UX flow generation using the shared Fabric LLM settings stack, and falls back to deterministic heuristics when model calls are unavailable. Writes a slice-specific UX flow file at: docs/ux/<SLICE_ID>-current-slice-flow.md
 Rewrites the active slice testing checklist: docs/testing/<SLICE_ID>-user-checklist.md
 Marks the slice UX artifact as ready for implementation.
+
+Reads the active slice from docs/product/current-slice.yaml (required), plus optional context from docs/product/project-brief.md and docs/product/product-system-framing.md.
+Implementation: product.mjs (line 2714)
+
+Tries model-driven UX generation first via shared LLM infra:
+
+resolves first valid profile in order architect -> planning -> intake
+uses existing providers (openai or stdio_json)
+emits 10s progress heartbeats during LLM call
+Implementation: uiux-flow.mjs (line 146)
+If model generation fails/unavailable, falls back to existing deterministic UX heuristics.
+Implementation: product.mjs (line 2748)
+
+Renders and writes slice UX spec to:
+
+docs/ux/<SLICE_ID>-current-slice-flow.md
+Implementation: product.mjs (line 2709), product.mjs (line 2762)
+Regenerates:
+
+docs/testing/<SLICE_ID>-user-checklist.md (derived from slice + rendered UX flow)
+Implementation: product.mjs (line 2764)
+Prints scope, written files, and mode (model_driven or heuristic_fallback).
 > ./fabric/company/v1/fabric uiux:finalize-current-slice-flow --target . --values ./fabric.values.json
 
 # 3.3
 // Initializes your project’s DB baseline artifacts and DB-related scripts.
+1. Loads Fabric manifest + values file, then validates tokens.
+  - It checks required tokens from manifest.
+  - It checks template tokens too.
+  - Important: token check is against full source_of_truth, not only DB files.
+2. Renders and writes these files from templates:
+  - supabase/config.toml from db/supabase-config.template.toml
+  - supabase/seed.sql from db/supabase-seed.template.sql
+  - .env.example from templates/env-example.template
+3. Overwrite rule:
+  - If target file exists and is not Fabric-generated, it refuses unless --force.
+  - Generated detection = contains generated_from: and fabric_version: metadata markers.
+4. Ensures package.json exists (creates minimal one if missing), then upserts required DB/fabric scripts from manifest db.required_package_scripts.
+5. Prints:
+  - optional created minimal package.json
+  - fabric db:init: OK
 > ./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json
+
+# 3.4 
+Gate is a thin deterministic wrapper: it runs validate first, then doctor, and only if both pass prints fabric gate: OK.
+What validate checks:
+  - values token completeness (required_tokens + template token coverage)
+  - each non-exempt source_of_truth artifact exists
+  - artifact has generated header marker
+  - artifact content matches expected rendered template (ignoring generated_at)
+
+What doctor checks:
+  - required governance artifacts exist (.system/project-manifest.yaml, docs/product/current-slice.yaml, docs/product/backlog.yaml)
+  - manifest/current-slice/backlog consistency (active slice id/state/status alignment)
+  - bootstrap semantic integrity (placeholder detection, scaffold-only pattern detection, delivery-mode review presence)
+  - DB readiness from manifest (db.required_files, required env keys in .env.example)
+
+Exit behavior:
+  - Any failure in validate or doctor prints FAILED and exits 1.
+  - If both pass: fabric validate: OK, fabric doctor: OK, then fabric gate: OK.
+It does not call an LLM and does not write/modify project files.
+> ./fabric/company/v1/fabric gate --target . --values ./fabric.values.json
 
 
 ### BLOCK 4. Implement, test, close
 # 4.1 Prepare code implementation
 // Prepares governance + execution artifacts and officially starts implementation for the active slice.
+1. Requires and reads:
+  - current-slice.yaml
+  - baseline.md
+  - slice UX flow file docs/ux/<SLICE_ID>-current-slice-flow.md (or migrates from legacy docs/ux/current-slice-flow.md if slice id matches)
+2. Verifies baseline + UX flow are placeholder-free (__REQUIRED_*, SL-XXX, etc.).
+3. Derives implementation targets from slice title/scope:
+  - onboarding slices -> onboarding/profile paths
+  - otherwise slug-based feature/route/test paths
+  - adds supabase/migrations/ hint if scope implies persistence/data
+4. Writes implementation notes:
+  - docs/implementation/<SLICE_ID>-implementation-notes.md
+  - includes objective, targets, verification summary, next steps
+  - metadata header is stamped
+5. Regenerates checklist:
+  - docs/testing/<SLICE_ID>-user-checklist.md
+  - now based on current UX flow + implementation notes context
+6. Transitions slice to active implementation state:
+  - rewrites backlog.yaml with active slice status in_progress
+  - rewrites current-slice.yaml with status in_progress and milestone <SLICE_ID>_implementation
+  - updates .system/project-manifest.yaml (active_slice, active_slice_state, active_milestone, current_mode=delivery, last_updated_utc)
+7. Prints OK plus scope, written files, target count, and current slice status: in_progress.
 > ./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json
 
 # 4.2 Implement the code
-// Creates the concrete code artifacts for the current slice (not just planning docs).
+// Creates the concrete code artifacts for the current slice (not just planning docs). By default it attempts model-driven implementation generation using the shared Fabric LLM settings stack, and falls back to deterministic generation when model calls are unavailable.
+1. Prechecks required artifacts
+  - docs/product/current-slice.yaml
+  - docs/architecture/baseline.md
+  - slice UX flow (docs/ux/<SLICE_ID>-current-slice-flow.md, with legacy fallback from docs/ux/current-slice-flow.md)
+  - slice implementation notes (docs/implementation/<SLICE_ID>-implementation-notes.md, with legacy fallback from docs/implementation/current-slice-notes.md)
+2. LLM-first playbook generation
+  - Tries model-driven generation using shared LLM infra/profile fallback: architect -> planning -> intake
+  - Inputs include current slice + baseline + UX flow + optional brief/framing
+  - Emits 10s progress heartbeats
+  - If successful, logs LLM profile/model and uses playbook values
+3. Deterministic fallback
+  - If LLM fails/unavailable, it logs warnings and falls back to deterministic generator (same behavior as before, now explicitly heuristic_fallback mode).
+4. Generates app files (React + Vite scaffold)
+  - Writes deterministic file set under index.html, src/*, tests/*
+  - For non-onboarding slice slugs, also writes bridge files for that slug
+  - LLM playbook currently influences content fields (title/objective/acceptance/today-soon-later), not file topology.
+5. Safe overwrite behavior
+  - Uses managed-write rule: refuses to overwrite non-generated files unless --force.
+6. Ensures package.json baseline
+  - Creates minimal package.json if missing
+  - Enforces scripts (dev/build/preview/test) and React/Vite deps.
+7. Rewrites slice implementation notes
+  - Updates docs/implementation/<SLICE_ID>-implementation-notes.md
+  - Marks status Implemented
+  - Records changed files, verification summary, execution notes, next steps.
+8. Console output
+  - implemented: <SLICE_ID> <title>
+  - changed files: <n>
+  - app scaffold: React + Vite
+  - implementation mode: model_driven | heuristic_fallback
+  - package scripts: dev, build, preview, test
+What it does not do:
+- No slice status transition (that happens in coder:close-current-slice)
+- No manifest/backlog/current-slice mutation
+- No npm install, no dev server, no tests run automatically
 > ./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json
 
 # 4.3 Test the implementation in the UI

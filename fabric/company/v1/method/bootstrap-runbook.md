@@ -115,7 +115,7 @@ Run:
 
 This command:
 
-- generates an initial 3-6 slice backlog from the approved brief
+- generates an initial 5-8 slice backlog from the approved brief
 - sets a non-placeholder active current slice (`planned`)
 - synchronizes manifest active slice fields
 

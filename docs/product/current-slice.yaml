@@ -1,0 +1,41 @@
+# generated_from: templates/current-slice.template.yaml
+# fabric_version: v1
+# generated_at: 2026-04-23T14:18:28.368Z
+schema_version: 1
+generated_at_utc: "2026-04-23T14:18:28.368Z"
+slice:
+  id: "SL-001"
+  title: "Self-profile Onboarding to Generated Dashboard"
+  milestone: "SL-001_implementation"
+  owner_role: "Product Manager"
+  status: "in_progress"
+  objective: "Enable a first-time user to enter minimal profile data, generate a rule-based preventive plan, and land on a mobile-first dashboard with a clear next action in the same session."
+  in_scope:
+    - "Mobile-first responsive onboarding flow that collects age and gender as required inputs"
+    - "Onboarding choice for self-only planning or family planning context selection without requiring additional family profiles yet"
+    - "Backend persistence for one account with one active profile, minimal profile fields, generated health actions, and profile summary data"
+    - "Rule-based recommendation service that generates a profile-specific preventive plan from age and gender"
+    - "Dashboard for the active profile with Now, Soon, and Later buckets populated from generated actions or an explicit all-clear state when no actions are due in a bucket set-to-end state when no actions are due in a bucket?"
+  out_of_scope:
+    - "Adding additional family profiles"
+    - "Action detail screens"
+    - "Status updates from the user"
+    - "Reminder setting"
+    - "Vaccination entry and review"
+  acceptance_criteria:
+    - "A new user can complete onboarding with age and gender and reach a generated dashboard within 60 seconds in normal test conditions"
+    - "Every generated profile shows at least one next action from the earliest non-empty bucket or an explicit all-clear state"
+    - "The dashboard shows Now, Soon, and Later sections and a profile-level summary placeholder for the active profile"
+    - "Generated actions are stored and are visible again after page reload for the same profile"
+    - "The experience is usable on common mobile viewport sizes without horizontal scrolling"
+  dependencies:
+    - "None - first slice"
+  done_definition:
+    - "Frontend, backend, and rule data are deployed in a shared test environment"
+    - "At least 10 age and gender test cases produce deterministic plan outputs"
+    - "Basic analytics-free event logging or server logs are available for onboarding completion and plan generation success/failure"
+    - "QA checklist passes for onboarding happy path, empty/all-clear state, and reload persistence"
+    - "docs/testing/SL-001-user-checklist.md is completed and marked Pass for SL-001."
+    - "Implementation artifacts exist for SL-001 targets: src/features/onboarding/, src/features/profile/, src/routes/onboarding*, tests/onboarding/."
+    - "docs/implementation/SL-001-implementation-notes.md is updated with verification evidence and changed files for SL-001."
+    - "fabric doctor passes without bootstrap semantic issues."

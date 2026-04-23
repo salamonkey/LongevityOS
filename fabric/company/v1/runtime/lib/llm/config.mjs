@@ -96,3 +96,28 @@ export function validateLlmSettings(settings) {
   }
   return { ok: errors.length === 0, errors };
 }
+
+export function resolveFirstValidLlmSettings(
+  values = {},
+  env = process.env,
+  purposes = ['intake'],
+) {
+  const attemptedPurposes = Array.isArray(purposes) && purposes.length > 0
+    ? purposes
+    : ['intake'];
+  const attempts = [];
+
+  for (const purpose of attemptedPurposes) {
+    const settings = resolveLlmSettings(values, env, purpose);
+    const validation = validateLlmSettings(settings);
+    attempts.push({ purpose, settings, validation });
+    if (validation.ok) {
+      return { purpose, settings, attempts };
+    }
+  }
+
+  const detail = attempts
+    .map((attempt) => `${attempt.purpose}: ${attempt.validation.errors.join(' ')}`)
+    .join(' ');
+  throw new Error(`LLM settings invalid for all candidate profiles. ${detail}`.trim());
+}

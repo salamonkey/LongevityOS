@@ -1,6 +1,9 @@
-import { resolveLlmSettings, validateLlmSettings } from './config.mjs';
+import { resolveFirstValidLlmSettings } from './config.mjs';
 import { invokeOpenAIStructured } from './provider-openai.mjs';
 import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+
+const MIN_SLICE_COUNT = 5;
+const MAX_SLICE_COUNT = 8;
 
 const SLICE_PLAN_SCHEMA = {
   type: 'object',
@@ -9,8 +12,8 @@ const SLICE_PLAN_SCHEMA = {
   properties: {
     slices: {
       type: 'array',
-      minItems: 3,
-      maxItems: 6,
+      minItems: MIN_SLICE_COUNT,
+      maxItems: MAX_SLICE_COUNT,
       items: {
         type: 'object',
         additionalProperties: false,
@@ -125,15 +128,17 @@ function deriveTitlesFromBrief(briefMarkdown) {
     'Reminder Setup + Follow-Through',
     'Family Profiles',
     'Vaccination Tracking',
+    'Provider Directory + Visit Planning',
+    'Notification Preferences + Quiet Hours',
   ];
   for (const title of fallback) {
-    if (titles.length >= 6) break;
+    if (titles.length >= MAX_SLICE_COUNT) break;
     const key = title.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     titles.push(title);
   }
-  return titles.slice(0, 6);
+  return titles.slice(0, MAX_SLICE_COUNT);
 }
 
 function deterministicSliceFromTitle(title, index, allTitles) {
@@ -171,7 +176,7 @@ export function deriveWorkflowDrivenSlices(briefMarkdown) {
     throw new Error('Unable to derive deterministic slice titles from brief.');
   }
   const slices = titles.map((title, index) => deterministicSliceFromTitle(title, index, titles));
-  return slices.slice(0, Math.max(3, Math.min(6, slices.length)));
+  return slices.slice(0, Math.max(MIN_SLICE_COUNT, Math.min(MAX_SLICE_COUNT, slices.length)));
 }
 
 async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
@@ -248,8 +253,10 @@ function normalizeSlicePlan(rawSlices) {
       ]),
     };
   });
-  if (normalized.length < 3 || normalized.length > 6) {
-    throw new Error(`Model planning returned ${String(normalized.length)} slices; expected 3-6.`);
+  if (normalized.length < MIN_SLICE_COUNT || normalized.length > MAX_SLICE_COUNT) {
+    throw new Error(
+      `Model planning returned ${String(normalized.length)} slices; expected ${String(MIN_SLICE_COUNT)}-${String(MAX_SLICE_COUNT)}.`,
+    );
   }
   return normalized;
 }
@@ -260,14 +267,16 @@ export async function generateExecutionSlicePlan({
   framingMarkdown = '',
   onProgress,
 }) {
-  const settings = resolveLlmSettings(values, undefined, 'planning');
-  const validation = validateLlmSettings(settings);
-  if (!validation.ok) throw new Error(validation.errors.join(' '));
+  const { settings, purpose } = resolveFirstValidLlmSettings(
+    values,
+    undefined,
+    ['planning', 'intake', 'architect'],
+  );
 
   const systemPrompt = [
     'You are a Product Manager generating an execution slice plan from an approved project brief.',
     'Return JSON only according to the schema.',
-    'Produce 3 to 6 slices, ordered by dependency.',
+    `Produce ${String(MIN_SLICE_COUNT)} to ${String(MAX_SLICE_COUNT)} slices, ordered by dependency.`,
     'Each slice must be a vertical end-to-end deliverable with bounded scope.',
     'Keep wording concrete and testable.',
     'Avoid speculative future scope in in_scope fields.',
@@ -293,5 +302,5 @@ export async function generateExecutionSlicePlan({
     onProgress,
   });
   const slices = normalizeSlicePlan(output?.slices);
-  return { settings, slices };
+  return { settings, purpose, slices };
 }

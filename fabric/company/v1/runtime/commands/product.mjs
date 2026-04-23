@@ -40,6 +40,11 @@ import {
   ARCHITECT_CONSULTABLE_TOKENS,
   generateArchitectValueRecommendations,
 } from '../lib/llm/architect-values.mjs';
+import { generateArchitectureBaselinePlaybook } from '../lib/llm/architect-baseline.mjs';
+import { generateCurrentSliceUxPlaybook } from '../lib/llm/uiux-flow.mjs';
+
+const MIN_SLICE_COUNT = 5;
+const MAX_SLICE_COUNT = 8;
 
 const BRIEF_READINESS_DIMENSIONS = [
   {
@@ -2311,8 +2316,15 @@ ${String(briefText || '')}`.toLowerCase();
   };
 }
 
-function renderArchitectureBaseline({ slice, productFramingText, briefText, generatedAt, fabricVersion }) {
-  const playbook = architecturePlaybookForSlice(slice.title, productFramingText, briefText);
+function renderArchitectureBaseline({
+  slice,
+  productFramingText,
+  briefText,
+  generatedAt,
+  fabricVersion,
+  playbookOverride = null,
+}) {
+  const playbook = playbookOverride || architecturePlaybookForSlice(slice.title, productFramingText, briefText);
   const lines = [
     '<!-- generated_from: templates/architecture-baseline-template.md -->',
     `<!-- fabric_version: ${fabricVersion} -->`,
@@ -2428,8 +2440,15 @@ ${String(briefText || '')}`.toLowerCase();
   };
 }
 
-function renderUxCurrentSliceFlow({ slice, productFramingText, briefText, generatedAt, fabricVersion }) {
-  const playbook = uxPlaybookForSlice(slice.title, productFramingText, briefText);
+function renderUxCurrentSliceFlow({
+  slice,
+  productFramingText,
+  briefText,
+  generatedAt,
+  fabricVersion,
+  playbookOverride = null,
+}) {
+  const playbook = playbookOverride || uxPlaybookForSlice(slice.title, productFramingText, briefText);
   const lines = [
     '<!-- generated_from: templates/ux-current-slice-flow-template.md -->',
     `<!-- fabric_version: ${fabricVersion} -->`,
@@ -2623,7 +2642,7 @@ function writeCurrentSliceUserChecklist({ targetRoot, slice, uxFlowText, impleme
   return outPath;
 }
 
-function architectFinalizeBaseline({ targetRoot, valuesPath }) {
+async function architectFinalizeBaseline({ targetRoot, valuesPath }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
@@ -2636,7 +2655,41 @@ function architectFinalizeBaseline({ targetRoot, valuesPath }) {
   const productFramingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const generatedAt = new Date().toISOString();
   const manifest = loadManifest();
-  const content = renderArchitectureBaseline({ slice, productFramingText, briefText, generatedAt, fabricVersion: manifest.fabric_version });
+  let baselineMode = 'heuristic';
+  let playbookOverride = null;
+  try {
+    const values = loadValuesIfPresent(valuesPath);
+    console.log('fabric architect:finalize-baseline: starting model-driven baseline generation...');
+    const { settings, purpose, playbook } = await generateArchitectureBaselinePlaybook({
+      values,
+      slice,
+      briefMarkdown: briefText,
+      framingMarkdown: productFramingText,
+      onProgress: (message) => {
+        console.log(`fabric architect:finalize-baseline: ${String(message)}`);
+      },
+    });
+    playbookOverride = playbook;
+    baselineMode = 'model_driven';
+    if (purpose) {
+      console.log(`fabric architect:finalize-baseline: llm profile ${purpose}`);
+    }
+    console.log(`fabric architect:finalize-baseline: model planner ${settings.provider}/${settings.model}`);
+  } catch (error) {
+    const reason = error?.message ? String(error.message) : String(error);
+    console.warn(`fabric architect:finalize-baseline: model-driven baseline unavailable (${reason})`);
+    console.warn('fabric architect:finalize-baseline: falling back to heuristic baseline generation.');
+    baselineMode = 'heuristic_fallback';
+  }
+
+  const content = renderArchitectureBaseline({
+    slice,
+    productFramingText,
+    briefText,
+    generatedAt,
+    fabricVersion: manifest.fabric_version,
+    playbookOverride,
+  });
   writeTextAtomic(outPath, `${content.trimEnd()}
 `);
   const checklistPath = writeCurrentSliceUserChecklist({
@@ -2649,6 +2702,7 @@ function architectFinalizeBaseline({ targetRoot, valuesPath }) {
   console.log(`- scope: ${normalizeSliceScopeLabel(slice)}`);
   console.log(`- wrote: ${path.relative(targetRoot, outPath)}`);
   console.log(`- wrote: ${path.relative(targetRoot, checklistPath)}`);
+  console.log(`- baseline mode: ${baselineMode}`);
   console.log('- status: Ready for implementation');
 }
 
@@ -2657,7 +2711,7 @@ function uxFlowRelPathForSlice(sliceId) {
   return `docs/ux/${normalizedSliceId}-current-slice-flow.md`;
 }
 
-function uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath }) {
+async function uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
@@ -2671,7 +2725,40 @@ function uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath }) {
   const productFramingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const generatedAt = new Date().toISOString();
   const manifest = loadManifest();
-  const content = renderUxCurrentSliceFlow({ slice, productFramingText, briefText, generatedAt, fabricVersion: manifest.fabric_version });
+  let uxMode = 'heuristic';
+  let playbookOverride = null;
+  try {
+    const values = loadValuesIfPresent(valuesPath);
+    console.log('fabric uiux:finalize-current-slice-flow: starting model-driven UX flow generation...');
+    const { settings, purpose, playbook } = await generateCurrentSliceUxPlaybook({
+      values,
+      slice,
+      briefMarkdown: briefText,
+      framingMarkdown: productFramingText,
+      onProgress: (message) => {
+        console.log(`fabric uiux:finalize-current-slice-flow: ${String(message)}`);
+      },
+    });
+    playbookOverride = playbook;
+    uxMode = 'model_driven';
+    if (purpose) {
+      console.log(`fabric uiux:finalize-current-slice-flow: llm profile ${purpose}`);
+    }
+    console.log(`fabric uiux:finalize-current-slice-flow: model ux ${settings.provider}/${settings.model}`);
+  } catch (error) {
+    const reason = error?.message ? String(error.message) : String(error);
+    console.warn(`fabric uiux:finalize-current-slice-flow: model-driven flow unavailable (${reason})`);
+    console.warn('fabric uiux:finalize-current-slice-flow: falling back to heuristic UX flow generation.');
+    uxMode = 'heuristic_fallback';
+  }
+  const content = renderUxCurrentSliceFlow({
+    slice,
+    productFramingText,
+    briefText,
+    generatedAt,
+    fabricVersion: manifest.fabric_version,
+    playbookOverride,
+  });
   writeTextAtomic(outPath, `${content.trimEnd()}
 `);
   const checklistPath = writeCurrentSliceUserChecklist({
@@ -2684,6 +2771,7 @@ function uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath }) {
   console.log(`- scope: ${normalizeSliceScopeLabel(slice)}`);
   console.log(`- wrote: ${outRelPath}`);
   console.log(`- wrote: ${path.relative(targetRoot, checklistPath)}`);
+  console.log(`- ux mode: ${uxMode}`);
   console.log('- status: Ready for implementation');
 }
 
@@ -2814,9 +2902,11 @@ function deriveInitialSliceTitlesFromBrief(briefText) {
     'Reminder System',
     'Family Mode',
     'Vaccination Tracker',
+    'Provider Directory',
+    'Notification Preferences',
   ];
   for (const title of fallback) {
-    if (out.length >= 3) {
+    if (out.length >= MIN_SLICE_COUNT) {
       break;
     }
     const key = title.toLowerCase();
@@ -2827,7 +2917,7 @@ function deriveInitialSliceTitlesFromBrief(briefText) {
     out.push(title);
   }
 
-  return out.slice(0, 6);
+  return out.slice(0, MAX_SLICE_COUNT);
 }
 
 function buildInitialSlicePlan(briefText) {
@@ -2870,7 +2960,7 @@ function buildInitialSlicePlan(briefText) {
       ],
     };
   });
-  return slices.slice(0, Math.max(3, Math.min(6, slices.length)));
+  return slices.slice(0, Math.max(MIN_SLICE_COUNT, Math.min(MAX_SLICE_COUNT, slices.length)));
 }
 
 function normalizePlanList(rawValues, fallback = []) {
@@ -2906,8 +2996,10 @@ function appendUniqueCaseInsensitive(values, candidate) {
 
 function buildSlicePlanFromStructuredSpecs(rawSpecs) {
   const specs = Array.isArray(rawSpecs) ? rawSpecs : [];
-  if (specs.length < 3 || specs.length > 6) {
-    throw new Error(`Cannot plan slices: expected 3-6 slices, received ${String(specs.length)}.`);
+  if (specs.length < MIN_SLICE_COUNT || specs.length > MAX_SLICE_COUNT) {
+    throw new Error(
+      `Cannot plan slices: expected ${String(MIN_SLICE_COUNT)}-${String(MAX_SLICE_COUNT)} slices, received ${String(specs.length)}.`,
+    );
   }
 
   const titleCounts = new Map();
@@ -3322,7 +3414,7 @@ async function pmPlanSlices({ targetRoot, valuesPath, modelDriven = false, heuri
       const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
       const framingMarkdown = fs.existsSync(framingPath) ? readText(framingPath) : '';
       console.log('fabric pm:plan-slices: starting model-driven planning...');
-      const { settings, slices: structuredSlices } = await generateExecutionSlicePlan({
+      const { settings, purpose, slices: structuredSlices } = await generateExecutionSlicePlan({
         values,
         briefMarkdown: briefText,
         framingMarkdown,
@@ -3332,6 +3424,9 @@ async function pmPlanSlices({ targetRoot, valuesPath, modelDriven = false, heuri
       });
       slices = buildSlicePlanFromStructuredSpecs(structuredSlices);
       planningMode = 'model_driven';
+      if (purpose) {
+        console.log(`fabric pm:plan-slices: llm profile ${purpose}`);
+      }
       console.log(`fabric pm:plan-slices: model planner ${settings.provider}/${settings.model}`);
     } catch (error) {
       const reason = error?.message ? String(error.message) : String(error);

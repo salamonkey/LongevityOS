@@ -1,4 +1,4 @@
-import { resolveLlmSettings, validateLlmSettings } from './config.mjs';
+import { resolveFirstValidLlmSettings } from './config.mjs';
 import { invokeOpenAIStructured } from './provider-openai.mjs';
 import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
 
@@ -45,22 +45,6 @@ const ARCHITECT_VALUE_RECOMMENDATION_SCHEMA = {
     },
   },
 };
-
-function pickArchitectConsultSettings(values = {}) {
-  const attempts = [];
-  for (const purpose of ['architect', 'intake', 'planning']) {
-    const settings = resolveLlmSettings(values, undefined, purpose);
-    const validation = validateLlmSettings(settings);
-    attempts.push({ purpose, validation });
-    if (validation.ok) {
-      return { settings, purpose };
-    }
-  }
-  const messages = attempts
-    .map((attempt) => `${attempt.purpose}: ${attempt.validation.errors.join(' ')}`)
-    .join(' ');
-  throw new Error(`Architect consult LLM unavailable. ${messages}`.trim());
-}
 
 async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
   const progress = typeof onProgress === 'function' ? onProgress : null;
@@ -135,7 +119,11 @@ export async function generateArchitectValueRecommendations({
     };
   }
 
-  const { settings, purpose } = pickArchitectConsultSettings(values);
+  const { settings, purpose } = resolveFirstValidLlmSettings(
+    values,
+    undefined,
+    ['architect', 'intake', 'planning'],
+  );
   const systemPrompt = [
     'You are the Architect role in a virtual software company.',
     'Fill unresolved PM value tokens with concrete MVP-safe defaults.',

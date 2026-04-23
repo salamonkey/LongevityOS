@@ -135,11 +135,11 @@ async function main() {
     return;
   }
   if (command === 'architect:finalize-baseline') {
-    architectFinalizeBaseline({ targetRoot, valuesPath });
+    await architectFinalizeBaseline({ targetRoot, valuesPath });
     return;
   }
   if (command === 'uiux:finalize-current-slice-flow') {
-    uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath });
+    await uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath });
     return;
   }
   if (command === 'coder:prepare-current-slice') {
@@ -147,7 +147,7 @@ async function main() {
     return;
   }
   if (command === 'coder:implement-current-slice') {
-    coderImplementCurrentSlice({ targetRoot, valuesPath, force: Boolean(args.force) });
+    await coderImplementCurrentSlice({ targetRoot, valuesPath, force: Boolean(args.force) });
     return;
   }
   if (command === 'coder:close-current-slice') {

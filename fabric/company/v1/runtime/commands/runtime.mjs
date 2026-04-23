@@ -40,6 +40,7 @@ import {
   getBootstrapReviewRelPaths,
   loadValuesIfPresent,
 } from '../lib/core.mjs';
+import { generateCurrentSliceImplementationPlaybook } from '../lib/llm/coder-implementation.mjs';
 
 function initFactory({ targetRoot, valuesPath, force, initValues, forceValues }) {
   if (initValues) {
@@ -1093,15 +1094,42 @@ function renderManagedHtmlHeader(relPath) {
   return `<!-- generated_from: fabric/company/v1/runtime/commands/runtime.mjs | target: ${relPath} | fabric_version: ${manifest.fabric_version} | generated_at_utc: ${generatedAt} -->\n`;
 }
 
-function buildGeneratedAppFiles(currentSlice) {
-  const titleJson = JSON.stringify(currentSlice.title || 'Current Slice');
-  const objectiveJson = JSON.stringify(currentSlice.objective || 'Deliver the current slice.');
-  const acceptanceJson = JSON.stringify(currentSlice.acceptance_criteria || [], null, 2);
+function buildGeneratedAppFiles(currentSlice, playbookOverride = null) {
+  const playbook = playbookOverride || {};
+  const titleJson = JSON.stringify(playbook.appTitle || currentSlice.title || 'Current Slice');
+  const objectiveJson = JSON.stringify(playbook.appObjective || currentSlice.objective || 'Deliver the current slice.');
+  const acceptanceJson = JSON.stringify(
+    Array.isArray(playbook.acceptanceChecks) && playbook.acceptanceChecks.length > 0
+      ? playbook.acceptanceChecks
+      : (currentSlice.acceptance_criteria || []),
+    null,
+    2,
+  );
   const sliceSlug = slugifySliceTitle(currentSlice.title);
   const inScope = currentSlice.in_scope || [];
-  const todayItems = JSON.stringify(inScope.slice(0, 2).length ? inScope.slice(0, 2) : ['Book a dental appointment', 'Review overdue blood test'], null, 2);
-  const soonItems = JSON.stringify(inScope.slice(2, 4).length ? inScope.slice(2, 4) : ['Schedule a skin check', 'Review vaccinations'], null, 2);
-  const laterItems = JSON.stringify((currentSlice.acceptance_criteria || []).slice(0, 2).length ? (currentSlice.acceptance_criteria || []).slice(0, 2) : ['Add family members', 'Set reminder preferences'], null, 2);
+  const todayItems = JSON.stringify(
+    Array.isArray(playbook.todayItems) && playbook.todayItems.length > 0
+      ? playbook.todayItems
+      : (inScope.slice(0, 2).length ? inScope.slice(0, 2) : ['Book a dental appointment', 'Review overdue blood test']),
+    null,
+    2,
+  );
+  const soonItems = JSON.stringify(
+    Array.isArray(playbook.soonItems) && playbook.soonItems.length > 0
+      ? playbook.soonItems
+      : (inScope.slice(2, 4).length ? inScope.slice(2, 4) : ['Schedule a skin check', 'Review vaccinations']),
+    null,
+    2,
+  );
+  const laterItems = JSON.stringify(
+    Array.isArray(playbook.laterItems) && playbook.laterItems.length > 0
+      ? playbook.laterItems
+      : ((currentSlice.acceptance_criteria || []).slice(0, 2).length
+        ? (currentSlice.acceptance_criteria || []).slice(0, 2)
+        : ['Add family members', 'Set reminder preferences']),
+    null,
+    2,
+  );
 
   const files = new Map();
   files.set('index.html', `${renderManagedHtmlHeader('index.html')}<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1.0" />\n    <title>Health OS MVP</title>\n  </head>\n  <body>\n    <div id="root"></div>\n    <script type="module" src="/src/main.jsx"></script>\n  </body>\n</html>\n`);
@@ -1125,9 +1153,11 @@ function buildGeneratedAppFiles(currentSlice) {
   return files;
 }
 
-function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
+async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const baselinePath = path.join(targetRoot, 'docs/architecture/baseline.md');
+  const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
+  const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
   if (!fs.existsSync(currentSlicePath)) {
     throw new Error('Cannot run coder:implement-current-slice: missing docs/product/current-slice.yaml');
   }
@@ -1144,7 +1174,41 @@ function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
     throw new Error(`Cannot run coder:implement-current-slice: missing ${implementationNotesRelPath}; run coder:prepare-current-slice first`);
   }
   const fileTargets = deriveImplementationTargets(currentSlice);
-  const files = buildGeneratedAppFiles(currentSlice);
+  const baselineText = readText(baselinePath);
+  const uxFlowText = readText(uxPath);
+  const briefText = fs.existsSync(briefPath) ? readText(briefPath) : '';
+  const framingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
+
+  let implementationMode = 'heuristic';
+  let playbookOverride = null;
+  try {
+    const values = loadValuesIfPresent(valuesPath);
+    console.log('fabric coder:implement-current-slice: starting model-driven implementation generation...');
+    const { settings, purpose, playbook } = await generateCurrentSliceImplementationPlaybook({
+      values,
+      slice: currentSlice,
+      baselineMarkdown: baselineText,
+      uxFlowMarkdown: uxFlowText,
+      briefMarkdown: briefText,
+      framingMarkdown: framingText,
+      onProgress: (message) => {
+        console.log(`fabric coder:implement-current-slice: ${String(message)}`);
+      },
+    });
+    playbookOverride = playbook;
+    implementationMode = 'model_driven';
+    if (purpose) {
+      console.log(`fabric coder:implement-current-slice: llm profile ${purpose}`);
+    }
+    console.log(`fabric coder:implement-current-slice: model coder ${settings.provider}/${settings.model}`);
+  } catch (error) {
+    const reason = error?.message ? String(error.message) : String(error);
+    console.warn(`fabric coder:implement-current-slice: model-driven generation unavailable (${reason})`);
+    console.warn('fabric coder:implement-current-slice: falling back to deterministic implementation generation.');
+    implementationMode = 'heuristic_fallback';
+  }
+
+  const files = buildGeneratedAppFiles(currentSlice, playbookOverride);
   const changedFiles = [];
   for (const [relPath, content] of files.entries()) {
     const outPath = path.join(targetRoot, relPath);
@@ -1178,7 +1242,9 @@ function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
       createdPackageJson ? 'Created package.json because the repository did not yet contain one.' : 'Updated the existing package.json in place.',
     ],
     executionNotes: [
-      'This command writes deterministic starter code into src/ and tests/ so the slice becomes customer-testable locally.',
+      implementationMode === 'model_driven'
+        ? 'This command wrote model-driven starter code into src/ and tests/ using the current slice architecture and UX contracts.'
+        : 'This command wrote deterministic starter code into src/ and tests/ so the slice becomes customer-testable locally.',
       'Run npm install after generation to fetch any newly-added React/Vite dependencies.',
       'Use --force only when you want fabric to replace non-generated implementation files.',
     ],
@@ -1195,6 +1261,7 @@ function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
   console.log(`- implemented: ${currentSlice.id} ${currentSlice.title}`);
   console.log(`- changed files: ${String([...new Set(changedFiles)].length)}`);
   console.log('- app scaffold: React + Vite');
+  console.log(`- implementation mode: ${implementationMode}`);
   console.log('- package scripts: dev, build, preview, test');
 }
 
