@@ -987,6 +987,21 @@ What it does not do:
 
 # 4.4) Close current slice (strict closeout gate)
 // Performs strict closeout checks and marks the active slice completed if all pass. Formal quality gate that closes the slice.
+In this repo version, that command is a strict “closeout gate” for the active slice.
+What it checks before allowing closeout:
+  - Required artifacts exist: docs/product/current-slice.yaml, docs/product/backlog.yaml, baseline, UX flow, implementation notes, checklist, package.json + scripts.dev.
+  - Current slice has acceptance criteria.
+  - Implementation notes contain a real “Changed Files” list.
+  - Checklist for that slice exists, matches slice ID, and Result is Pass (not unresolved/fail).
+  - Baseline/UX/notes have no unresolved placeholder tokens.
+  - Expected implementation target paths (derived from slice scope) have actual files under src/tests (and related targets), and changed files align with required targets.
+  - If any check fails, it prints fabric coder:close-current-slice: FAILED with issue bullets and exits non-zero (runtime/commands/runtime.mjs (line 1380)).
+If all checks pass, it:
+  - Rewrites docs/implementation/<slice>-implementation-notes.md with status Completed.
+  - Marks the slice completed in docs/product/backlog.yaml.
+  - Rewrites docs/product/current-slice.yaml to the completed slice state.
+  - Updates .system/project-manifest.yaml (active_slice, active_slice_state, active_milestone, last_updated_utc).
+  - Prints fabric coder:close-current-slice: OK and exits 0 (runtime/commands/runtime.mjs (line 1422)).
 > ./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json
 
 # 4.5) Pre-advance stability check (optional but recommended) 
@@ -994,6 +1009,18 @@ What it does not do:
 
 # 4.6) Advance to next slice
 // Activates the next slice in the backlog. Moves the workflow pointer from finished slice N to slice N+1.
+It advances the workflow pointer from the currently completed slice to the next not-completed slice in your backlog.
+Precisely what it does:
+1. Dispatches orchestrator:advance-slice from CLI to orchestratorAdvanceSlice(...) (fabric.mjs (line 157)).
+2. Requires both docs/product/current-slice.yaml and docs/product/backlog.yaml; otherwise it errors (runtime.mjs (line 1429)).
+3. Requires current-slice.status == completed; otherwise it errors and tells you to run coder:close-current-slice first (runtime.mjs (line 1435)).
+4. Finds current slice in backlog, then picks the next slice after it whose status is not completed (runtime.mjs (line 1438)).
+5. If no next actionable slice exists, it exits successfully with a “no remaining slices” message (no file changes) (runtime.mjs (line 1445)).
+6. If a next slice exists, it:
+  - sets that slice to planned (and ensures milestone exists),
+  - rewrites docs/product/backlog.yaml,
+  - rewrites docs/product/current-slice.yaml,
+  - updates .system/project-manifest.yaml fields: active_slice, active_slice_state, active_milestone, operating_model.current_mode (delivery), last_updated_utc
 > ./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ./fabric.values.json
 
 # 4.7) Post-transition stability check (recommended)
@@ -1012,6 +1039,11 @@ What it does not do:
 ./fabric/company/v1/fabric gate --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric gate --target . --values ./fabric.values.json
+
+
+
+
+
 
 
 
