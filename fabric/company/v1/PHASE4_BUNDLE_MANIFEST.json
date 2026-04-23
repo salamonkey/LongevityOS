@@ -1,0 +1,20 @@
+{
+  "bundle": "fabric-phase4-governed-bundle-refresh",
+  "base": "fabric-model-invocation-layer-bundle.zip",
+  "added_files": [
+    "runtime/lib/llm/retry-policy.mjs",
+    "runtime/lib/llm/validators.mjs",
+    "runtime/lib/llm/review.mjs",
+    "runtime/lib/llm/planning.mjs",
+    "templates/llm/artifact-review.system.md",
+    "templates/llm/artifact-review.user.md",
+    "templates/llm/artifact-revise.system.md",
+    "templates/llm/artifact-revise.user.md",
+    "templates/llm/slice-plan.system.md",
+    "templates/llm/slice-plan.user.md",
+    "templates/reviews/project-brief-review.template.md",
+    "templates/reviews/source-synthesis-review.template.md",
+    "templates/reviews/product-system-framing-review.template.md",
+    "templates/reviews/slice-plan-review.template.md"
+  ]
+}

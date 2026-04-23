@@ -46,6 +46,11 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Gate rule: blocking coverage is required for problem/outcome, target users, and MVP scope, plus no unreadable evidence files and sufficient readable content volume. Missing constraints/non-negotiables is treated as a warning (non-blocking). `docs/customer-input/README.md` does not count as evidence.
   - Failure behavior: on fail, the command now writes `docs/reviews/product-manager/customer-information-request.md` with concrete requested customer inputs, prints those requests in terminal, and points to the full readiness review note.
 
+- `pm:brief-semantic-check --target <project-root> [--values fabric.values.json] [--brief <path>]`
+  - What it does: runs a semantic-only clarity recheck against an operator-edited brief (default `docs/reviews/product-manager/project-brief.failed.md`) and appends findings/fixes/suggestions to `docs/reviews/product-manager/brief-clarity-review.md` under `Post-Edit Semantic Validation Runs`.
+  - When to use: after manually editing a failed brief draft and before deciding to promote it or re-run intake generation.
+  - Exit behavior: returns `0` when semantic findings are clear; returns `1` when findings remain or required inputs are missing.
+
 - `pm:approve-brief --target <project-root> [--values fabric.values.json]`
   - What it does: sets `Brief Approval Status: approved` in `docs/product/project-brief.md` and derives/updates `fabric.values.json` from the approved brief content.
   - When to use: immediately after customer approval of the project brief.
@@ -509,6 +514,7 @@ All commands are still available exactly as before:
 
 Examples:
 - `pm:brief-readiness`
+- `pm:brief-semantic-check`
 - `pm:approve-brief`
 - `execute`
 - `validate`
@@ -859,6 +865,10 @@ This bundle adds a provider-agnostic model invocation layer for intake.
 1. Install the OpenAI SDK in the target repo: `npm install openai`
 2. Export your API key: `export OPENAI_API_KEY=...`
 3. Set `intake_llm_enabled` to `true` in `fabric.values.json`
+   - Optional (defaults shown):
+   - `intake_llm_brief_quality_gate: true`
+   - `intake_llm_brief_retry_count: 1`
+   - `intake_llm_semantic_clarity_gate: true` (alias: `intake_llm_semantic_scope_gate`)
 4. Run `./fabric/company/v1/fabric llm:check --target . --values ./fabric.values.json`
 5. Run `./fabric/company/v1/fabric pm:brief-readiness --target . --values ./fabric.values.json`
 
@@ -868,5 +878,10 @@ With intake LLM invocation enabled, `pm:brief-readiness` writes:
 - `docs/product/source-synthesis.md`
 - `docs/product/product-system-framing.md`
 - `docs/product/project-brief.md`
+- `docs/reviews/product-manager/brief-clarity-review.md`
+- `docs/reviews/product-manager/brief-clarity-ledger.md`
+- `docs/reviews/product-manager/brief-attempt-<n>.md`
 
 The intake now runs in three constrained model passes: source synthesis, product-system framing, then brief authoring.
+
+For brief authoring, the runtime injects the Product Manager role contract from `team/roles.yaml -> product_manager.spec_path` (normally `team/product-manager.md`) as the prompt source of truth.

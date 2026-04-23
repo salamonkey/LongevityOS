@@ -29,7 +29,11 @@ import {
   customerInputEvidenceFiles,
   loadUtf8TextOrNull,
 } from '../lib/core.mjs';
-import { generateIntakeArtifactsWithModel, getLlmCheckReport } from '../lib/llm/intake.mjs';
+import {
+  generateIntakeArtifactsWithModel,
+  getLlmCheckReport,
+  runPostEditSemanticValidation,
+} from '../lib/llm/intake.mjs';
 
 const BRIEF_READINESS_DIMENSIONS = [
   {
@@ -122,13 +126,21 @@ function readEvidenceText(filePath) {
   }
 }
 
-function evaluateBriefInputCoverage({ intakeText, customerInputRoot, evidenceFiles }) {
+function evaluateBriefInputCoverage({ intakeText, customerInputRoot, evidenceFiles, onProgress }) {
+  const progress = typeof onProgress === 'function' ? onProgress : null;
   const reviewedFiles = [];
   const unreadableFiles = [];
   const texts = [];
   const documents = [];
+  if (progress) {
+    progress(`scanning customer input files: ${String(evidenceFiles.length)} found`);
+  }
 
-  for (const rel of evidenceFiles) {
+  for (let index = 0; index < evidenceFiles.length; index += 1) {
+    const rel = evidenceFiles[index];
+    if (progress) {
+      progress(`reading customer input ${String(index + 1)}/${String(evidenceFiles.length)}: docs/customer-input/${rel}`);
+    }
     const absPath = path.join(customerInputRoot, rel);
     const result = readEvidenceText(absPath);
     if (!result.text) {
@@ -136,14 +148,21 @@ function evaluateBriefInputCoverage({ intakeText, customerInputRoot, evidenceFil
         path: rel,
         reason: result.reason || 'unreadable file',
       });
+      if (progress) {
+        progress(`unreadable: docs/customer-input/${rel} (${result.reason || 'unreadable file'})`);
+      }
       continue;
     }
     const text = result.text;
+    const lines = text.split('\n').length;
     reviewedFiles.push({
       path: rel,
       chars: text.length,
-      lines: text.split('\n').length,
+      lines,
     });
+    if (progress) {
+      progress(`readable: docs/customer-input/${rel} (${String(lines)} lines, ${String(text.length)} chars)`);
+    }
     texts.push(text);
     documents.push({
       path: `docs/customer-input/${rel}`,
@@ -152,6 +171,9 @@ function evaluateBriefInputCoverage({ intakeText, customerInputRoot, evidenceFil
   }
 
   if (intakeText && intakeText.trim().length > 0) {
+    if (progress) {
+      progress(`including intake note: docs/product/intake-note.md (${String(intakeText.length)} chars)`);
+    }
     texts.push(intakeText);
     documents.push({
       path: 'docs/product/intake-note.md',
@@ -180,6 +202,10 @@ function evaluateBriefInputCoverage({ intakeText, customerInputRoot, evidenceFil
     unreadableFiles.length === 0 &&
     hasMinimumContentVolume &&
     missingRequiredDimensions.length === 0;
+  if (progress) {
+    progress(`coverage analysis complete: ${sufficient ? 'sufficient' : 'insufficient'}`);
+    progress(`summary: readable=${String(reviewedFiles.length)}, unreadable=${String(unreadableFiles.length)}, combined_chars=${String(totalChars)}`);
+  }
 
   return {
     reviewedFiles,
@@ -1593,6 +1619,88 @@ function writeBriefReadinessReview(
   return outPath;
 }
 
+function readOptionalMarkdown(filePath) {
+  if (!fs.existsSync(filePath)) return '';
+  return readText(filePath);
+}
+
+function appendPostEditSemanticValidationRun({
+  targetRoot,
+  briefPath,
+  verdict,
+  findings,
+  suggestions,
+}) {
+  const outPath = path.join(targetRoot, 'docs/reviews/product-manager/brief-clarity-review.md');
+  ensureDir(outPath);
+  const timestamp = new Date().toISOString();
+  const issueList = Array.isArray(findings) ? findings : [];
+  const suggestionList = Array.isArray(suggestions) ? suggestions : [];
+  const briefRelPath = path.relative(targetRoot, briefPath);
+  const runLines = [
+    `### Run ${timestamp}`,
+    '',
+    `- Input brief path: \`${briefRelPath}\``,
+    '- Mode: `semantic_only`',
+    `- Verdict: \`${verdict}\``,
+    `- Issue count: \`${String(issueList.length)}\``,
+    '',
+  ];
+
+  if (issueList.length > 0) {
+    runLines.push('- Findings:');
+    for (const issue of issueList) {
+      runLines.push(
+        `  - [${issue.rule}] ${issue.section}: "${issue.line}"`,
+      );
+    }
+    runLines.push('- Recommended fixes:');
+    for (const issue of issueList) {
+      runLines.push(
+        `  - [${issue.rule}] ${issue.section}: ${issue.recommended_fix}`,
+      );
+    }
+  } else {
+    runLines.push('- Findings: none');
+    runLines.push('- Recommended fixes: none');
+  }
+
+  if (suggestionList.length > 0) {
+    runLines.push('- Suggestions:');
+    for (const suggestion of suggestionList) {
+      runLines.push(
+        `  - [${suggestion.rule}] ${suggestion.section}: ${suggestion.best_way_forward} (confidence=${suggestion.confidence})`,
+      );
+      runLines.push(`    rationale: ${suggestion.rationale}`);
+      runLines.push(`    implementation note: ${suggestion.implementation_note}`);
+    }
+  } else {
+    runLines.push('- Suggestions: none');
+  }
+
+  const runBlock = `${runLines.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
+  if (!fs.existsSync(outPath)) {
+    const initial = [
+      '# Brief Clarity Review',
+      '',
+      '## Post-Edit Semantic Validation Runs',
+      '',
+      runBlock.trimEnd(),
+      '',
+    ].join('\n');
+    fs.writeFileSync(outPath, initial, 'utf8');
+    return outPath;
+  }
+
+  const existing = readText(outPath);
+  const hasPostEditSection = /^##\s+Post-Edit Semantic Validation Runs\s*$/m.test(existing);
+  const sectionPrefix = hasPostEditSection
+    ? '\n\n'
+    : '\n\n## Post-Edit Semantic Validation Runs\n\n';
+  fs.appendFileSync(outPath, `${sectionPrefix}${runBlock}`, 'utf8');
+  return outPath;
+}
+
 function llmCheck({ targetRoot, valuesPath }) {
   const values = valuesPath && fs.existsSync(valuesPath) ? loadValues(valuesPath) : {};
   const report = getLlmCheckReport(values);
@@ -1605,16 +1713,32 @@ function llmCheck({ targetRoot, valuesPath }) {
   console.log(`- provider: ${report.settings.provider}`);
   console.log(`- model: ${report.settings.model}`);
   if (report.settings.apiKeyEnv) console.log(`- api key env: ${report.settings.apiKeyEnv}`);
+  console.log(`- brief quality gate: ${report.settings.briefQualityGateEnabled ? 'enabled' : 'disabled'}`);
+  console.log(`- brief retry count: ${String(report.settings.briefRetryCount)}`);
+  console.log(`- semantic clarity gate: ${report.settings.semanticClarityGateEnabled ? 'enabled' : 'disabled'}`);
 }
 
 async function pmBriefReadiness({ targetRoot, valuesPath }) {
+  console.log('fabric pm:brief-readiness: starting');
+  console.log(`- target root: ${targetRoot}`);
+  console.log('- checking intake note and customer-input evidence...');
   const intakePath = path.join(targetRoot, 'docs/product/intake-note.md');
   const hasIntake = fs.existsSync(intakePath) && readText(intakePath).trim().length > 0;
   const evidenceFiles = customerInputEvidenceFiles(targetRoot);
+  console.log(`- intake note present: ${hasIntake ? 'yes' : 'no'}`);
+  console.log(`- customer input documents discovered: ${String(evidenceFiles.length)}`);
   const intakeText = hasIntake ? readText(intakePath) : '';
   const customerInputRoot = path.join(targetRoot, 'docs/customer-input');
-  const analysis = evaluateBriefInputCoverage({ intakeText, customerInputRoot, evidenceFiles });
+  console.log('- evaluating input coverage...');
+  const analysis = evaluateBriefInputCoverage({
+    intakeText,
+    customerInputRoot,
+    evidenceFiles,
+    onProgress: (message) => console.log(`  - ${message}`),
+  });
+  console.log('- writing brief-readiness review note...');
   const reviewPath = writeBriefReadinessReview(targetRoot, { hasIntake, evidenceFiles, analysis });
+  console.log(`- review note written: ${path.relative(targetRoot, reviewPath)}`);
 
   if (!analysis.sufficient) {
     console.error('fabric pm:brief-readiness: FAILED');
@@ -1635,17 +1759,40 @@ async function pmBriefReadiness({ targetRoot, valuesPath }) {
   const modelDriven = String(values.intake_llm_enabled ?? values.llm_enabled ?? process.env.INTAKE_LLM_ENABLED ?? process.env.LLM_ENABLED ?? 'false').toLowerCase() === 'true';
 
   if (modelDriven) {
-    const outcome = await generateIntakeArtifactsWithModel({ targetRoot, values, analysis });
+    console.log('- intake LLM mode: enabled');
+    console.log('- generating model-driven intake artifacts (this may take a while)...');
+    const outcome = await generateIntakeArtifactsWithModel({
+      targetRoot,
+      values,
+      analysis,
+      onProgress: (message) => console.log(`  - ${message}`),
+    });
     console.log('fabric pm:brief-readiness: created model-driven intake artifacts');
     console.log(`- evidence pack: ${path.relative(targetRoot, outcome.evidencePath)}`);
     console.log(`- source synthesis: ${path.relative(targetRoot, outcome.synthesisPath)}`);
     console.log(`- product framing: ${path.relative(targetRoot, outcome.framingPath)}`);
     console.log(`- brief draft: ${path.relative(targetRoot, outcome.briefPath)}`);
+    if (outcome.clarityReviewPath) {
+      console.log(`- brief clarity review: ${path.relative(targetRoot, outcome.clarityReviewPath)}`);
+    }
+    if (outcome.clarityLedgerPath) {
+      console.log(`- brief clarity ledger: ${path.relative(targetRoot, outcome.clarityLedgerPath)}`);
+    }
+    if (Array.isArray(outcome.briefAttemptSnapshotPaths) && outcome.briefAttemptSnapshotPaths.length > 0) {
+      console.log(`- brief attempt snapshots: ${String(outcome.briefAttemptSnapshotPaths.length)} written`);
+    }
+    if (outcome.clarity) {
+      console.log(`- brief clarity gate: ${outcome.clarity.gateEnabled ? 'enabled' : 'disabled'}`);
+      console.log(`- brief clarity attempts: ${String(outcome.clarity.attempts)} (retries used: ${String(outcome.clarity.retriesUsed)})`);
+      console.log(`- brief clarity verdict: ${outcome.clarity.passed ? 'pass' : 'fail'}`);
+    }
     console.log(`- model provider: ${outcome.settings.provider}`);
     console.log(`- model: ${outcome.settings.model}`);
   } else {
+    console.log('- intake LLM mode: disabled (using local synthesis)');
     const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
     if (!fs.existsSync(briefPath)) {
+      console.log('- synthesizing docs/product/project-brief.md from coverage analysis...');
       const content = synthesizeProjectBriefDraft({ analysis, values });
       ensureDir(briefPath);
       fs.writeFileSync(briefPath, `${content.replace(/\s+$/, '')}
@@ -1659,6 +1806,70 @@ async function pmBriefReadiness({ targetRoot, valuesPath }) {
   logReadinessWarnings(analysis);
   console.log('fabric pm:brief-readiness: OK');
   console.log(`- review note: ${path.relative(targetRoot, reviewPath)}`);
+}
+
+async function pmBriefSemanticCheck({ targetRoot, valuesPath, briefPath }) {
+  const defaultBriefRelPath = 'docs/reviews/product-manager/project-brief.failed.md';
+  const requestedBriefPath = String(briefPath || defaultBriefRelPath).trim() || defaultBriefRelPath;
+  const inputBriefPath = path.resolve(targetRoot, requestedBriefPath);
+  const inputBriefRelPath = path.relative(targetRoot, inputBriefPath);
+  const evidencePath = path.join(targetRoot, 'docs/product/source-evidence-pack.md');
+  const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
+  const synthesisPath = path.join(targetRoot, 'docs/product/source-synthesis.md');
+
+  console.log('fabric pm:brief-semantic-check: starting');
+  console.log(`- target root: ${targetRoot}`);
+  console.log(`- file checked: ${inputBriefRelPath}`);
+  if (!fs.existsSync(inputBriefPath)) {
+    console.error('fabric pm:brief-semantic-check: FAILED');
+    console.error(`- missing brief file: ${inputBriefRelPath}`);
+    process.exit(1);
+  }
+  const briefMarkdown = readText(inputBriefPath);
+  if (briefMarkdown.trim().length === 0) {
+    console.error('fabric pm:brief-semantic-check: FAILED');
+    console.error(`- brief file is empty: ${inputBriefRelPath}`);
+    process.exit(1);
+  }
+
+  const evidenceContext = readOptionalMarkdown(evidencePath);
+  const framingContext = readOptionalMarkdown(framingPath);
+  const synthesisContext = readOptionalMarkdown(synthesisPath);
+  console.log(`- evidence context: ${evidenceContext.trim().length > 0 ? 'present' : 'missing (optional)'}`);
+  console.log(`- framing context: ${framingContext.trim().length > 0 ? 'present' : 'missing (optional)'}`);
+  console.log(`- synthesis context: ${synthesisContext.trim().length > 0 ? 'present' : 'missing (optional)'}`);
+
+  const values = valuesPath && fs.existsSync(valuesPath) ? loadValues(valuesPath) : {};
+  try {
+    const outcome = await runPostEditSemanticValidation({
+      values,
+      briefMarkdown,
+      evidenceContext,
+      framingContext,
+      synthesisContext,
+      onProgress: (message) => console.log(`  - ${message}`),
+    });
+    const verdict = outcome.review.ok ? 'pass' : 'fail';
+    const reviewPath = appendPostEditSemanticValidationRun({
+      targetRoot,
+      briefPath: inputBriefPath,
+      verdict,
+      findings: outcome.findings,
+      suggestions: outcome.suggestions,
+    });
+
+    console.log(`- semantic verdict: ${verdict}`);
+    console.log(`- issue count: ${String(outcome.review.issues.length)}`);
+    console.log(`- review file path: ${path.relative(targetRoot, reviewPath)}`);
+    if (!outcome.review.ok) {
+      process.exit(1);
+    }
+    console.log('fabric pm:brief-semantic-check: OK');
+  } catch (error) {
+    console.error('fabric pm:brief-semantic-check: FAILED');
+    console.error(`- ${String(error?.message || error)}`);
+    process.exit(1);
+  }
 }
 
 function pmApproveBrief({ targetRoot, valuesPath }) {
@@ -2955,6 +3166,7 @@ function pmPlanSlices({ targetRoot, valuesPath }) {
 export {
   llmCheck,
   pmBriefReadiness,
+  pmBriefSemanticCheck,
   pmApproveBrief,
   pmStatus,
   pmFinalizeBootstrapReviews,

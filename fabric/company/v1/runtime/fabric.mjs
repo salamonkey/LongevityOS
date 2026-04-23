@@ -3,18 +3,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { parseArgs } from './lib/core.mjs';
-import { llmCheck, pmBriefReadiness, pmApproveBrief, pmStatus, pmBootstrapSignoff, pmPlanSlices, pmFinalizeBootstrapReviews, architectFinalizeBaseline, uiuxFinalizeCurrentSliceFlow } from './commands/product.mjs';
+import {
+  llmCheck,
+  pmBriefReadiness,
+  pmBriefSemanticCheck,
+  pmApproveBrief,
+  pmStatus,
+  pmBootstrapSignoff,
+  pmPlanSlices,
+  pmFinalizeBootstrapReviews,
+  architectFinalizeBaseline,
+  uiuxFinalizeCurrentSliceFlow,
+} from './commands/product.mjs';
 import { initFactory, formatFromBrief, instantiate, execute, validate, doctor, gate, dbInit, dbCheck, dbReset, dbSeed, coderPrepareCurrentSlice, coderImplementCurrentSlice, coderCloseCurrentSlice, orchestratorAdvanceSlice } from './commands/runtime.mjs';
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|execute|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|execute|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
   );
   console.log('  llm:check --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:brief-readiness --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  pm:brief-semantic-check --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--brief <path>]');
   console.log('  pm:approve-brief --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:status --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--format <terminal|markdown>]');
   console.log('  pm:finalize-bootstrap-reviews --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
@@ -71,6 +83,10 @@ async function main() {
   }
   if (command === 'pm:brief-readiness') {
     await pmBriefReadiness({ targetRoot, valuesPath });
+    return;
+  }
+  if (command === 'pm:brief-semantic-check') {
+    await pmBriefSemanticCheck({ targetRoot, valuesPath, briefPath: args.brief });
     return;
   }
   if (command === 'pm:approve-brief') {

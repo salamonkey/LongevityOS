@@ -8,6 +8,12 @@ function firstDefined(...values) {
   return null;
 }
 
+function toNonNegativeInt(value, fallback) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed)) return fallback;
+  return Math.max(0, parsed);
+}
+
 export function resolveLlmSettings(values = {}, env = process.env, purpose = 'intake') {
   const upperPurpose = String(purpose || 'intake').toUpperCase();
   const prefix = purpose ? `${purpose}_` : '';
@@ -32,6 +38,43 @@ export function resolveLlmSettings(values = {}, env = process.env, purpose = 'in
     verbosity: String(firstDefined(values[`${prefix}llm_verbosity`], values.llm_verbosity, env[`${upperPurpose}_LLM_VERBOSITY`], env.LLM_VERBOSITY, 'medium')).trim(),
     maxOutputTokens: Number(firstDefined(values[`${prefix}llm_max_output_tokens`], values.llm_max_output_tokens, env[`${upperPurpose}_LLM_MAX_OUTPUT_TOKENS`], env.LLM_MAX_OUTPUT_TOKENS, 12000)),
     temperature: firstDefined(values[`${prefix}llm_temperature`], values.llm_temperature, env[`${upperPurpose}_LLM_TEMPERATURE`], env.LLM_TEMPERATURE),
+    briefQualityGateEnabled: String(firstDefined(
+      values[`${prefix}llm_brief_quality_gate`],
+      values.llm_brief_quality_gate,
+      env[`${upperPurpose}_LLM_BRIEF_QUALITY_GATE`],
+      env.LLM_BRIEF_QUALITY_GATE,
+      'true',
+    )).toLowerCase() !== 'false',
+    briefRetryCount: toNonNegativeInt(firstDefined(
+      values[`${prefix}llm_brief_retry_count`],
+      values.llm_brief_retry_count,
+      env[`${upperPurpose}_LLM_BRIEF_RETRY_COUNT`],
+      env.LLM_BRIEF_RETRY_COUNT,
+      1,
+    ), 1),
+    semanticClarityGateEnabled: String(firstDefined(
+      values[`${prefix}llm_semantic_clarity_gate`],
+      values.llm_semantic_clarity_gate,
+      values[`${prefix}llm_semantic_scope_gate`],
+      values.llm_semantic_scope_gate,
+      env[`${upperPurpose}_LLM_SEMANTIC_CLARITY_GATE`],
+      env.LLM_SEMANTIC_CLARITY_GATE,
+      env[`${upperPurpose}_LLM_SEMANTIC_SCOPE_GATE`],
+      env.LLM_SEMANTIC_SCOPE_GATE,
+      'true',
+    )).toLowerCase() !== 'false',
+    // Backward-compatible alias: older configs use semantic_scope_gate naming.
+    semanticScopeGateEnabled: String(firstDefined(
+      values[`${prefix}llm_semantic_clarity_gate`],
+      values.llm_semantic_clarity_gate,
+      values[`${prefix}llm_semantic_scope_gate`],
+      values.llm_semantic_scope_gate,
+      env[`${upperPurpose}_LLM_SEMANTIC_CLARITY_GATE`],
+      env.LLM_SEMANTIC_CLARITY_GATE,
+      env[`${upperPurpose}_LLM_SEMANTIC_SCOPE_GATE`],
+      env.LLM_SEMANTIC_SCOPE_GATE,
+      'true',
+    )).toLowerCase() !== 'false',
     stdioCommand: firstDefined(values[`${prefix}llm_stdio_command`], values.llm_stdio_command, env[`${upperPurpose}_LLM_STDIO_COMMAND`], env.LLM_STDIO_COMMAND),
     stdioArgs: firstDefined(values[`${prefix}llm_stdio_args`], values.llm_stdio_args, env[`${upperPurpose}_LLM_STDIO_ARGS`], env.LLM_STDIO_ARGS),
   };
