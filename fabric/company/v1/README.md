@@ -14,7 +14,7 @@ This is the canonical, portable fabric package.
 
 ## Portability Model
 
-Copy + initialize + format + execute.
+Copy + initialize + format + scaffold + plan.
 
 - Fabric sources are canonical.
 - Project files are generated outputs.
@@ -93,14 +93,9 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: after `format-from-brief` succeeds and before `pm:plan-slices`.
   - Benefit: isolates scaffolding from planning and preserves customer-approved product framing artifacts.
 
-- `execute --values fabric.values.json --target <project-root> [--force]`
-  - What it does: alias of `scaffold` for compatibility.
-  - When to use: legacy flow/scripts still calling `execute`.
-  - Benefit: preserves backward compatibility while new flow uses `scaffold` explicitly.
-
 - `instantiate --values fabric.values.json --target <project-root> [--force]`
   - What it does: renders fabric sources into project outputs defined in the fabric manifest (`fabric.json` by default), including generated headers (`generated_from`, `fabric_version`, `generated_at`).
-  - When to use: backward-compatible entry point for `execute`; also valid for updating generated artifacts after token/template changes.
+  - When to use: full-manifest regeneration when you explicitly want all manifest targets rendered (including framing/backlog/current-slice), or when updating generated artifacts after token/template changes.
   - Benefit: creates consistent artifacts from one canonical source and removes manual copy/paste drift.
   - Safety behavior: refuses to overwrite non-generated files unless `--force`.
 
@@ -165,7 +160,7 @@ Workflow:
 5. If insufficient, Product Manager requests additional customer information before brief drafting continues.
 6. If sufficient, Product Manager synthesizes available inputs into `docs/product/project-brief.md`.
 7. Customer and Product Manager refine the brief.
-8. Brief approval gates execution generation (`format-from-brief` then `execute`).
+8. Brief approval gates generation flow (`format-from-brief` then `scaffold` + `pm:plan-slices`).
 >> Flow now reflects project-brief -> scaffold -> planning -> execution.
 
 Artifact lifecycle policy:
@@ -450,14 +445,14 @@ Once Phase 4 is complete:
 ## Step 5 — Execute slices
 Typical execution loop:
 ```bash
-./fabric/company/v1/fabric execute --target .
+./fabric/company/v1/fabric scaffold --target .
 ./fabric/company/v1/fabric validate --target .
 ./fabric/company/v1/fabric doctor --target .
 ./fabric/company/v1/fabric gate --target .
 ```
 
 What this does:
-- execute → implements the current slice
+- scaffold → refreshes governed bootstrap artifacts
 - validate → checks structure
 - doctor → checks coherence and completeness
 - gate → confirms readiness to continue
@@ -517,7 +512,7 @@ Examples:
 - `pm:brief-readiness`
 - `pm:brief-semantic-check`
 - `pm:approve-brief`
-- `execute`
+- `scaffold`
 - `validate`
 - `doctor`
 - `gate`
@@ -579,7 +574,7 @@ bash scripts/reset-to-fabric-only.sh --yes --also-values
 ./fabric/company/v1/fabric pm:brief-readiness --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:approve-brief --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric format-from-brief --target .
-./fabric/company/v1/fabric execute --values ./fabric.values.json --target .
+./fabric/company/v1/fabric scaffold --values ./fabric.values.json --target .
 ./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json
@@ -606,7 +601,7 @@ bash scripts/reset-to-fabric-only.sh --yes --also-values
 
 4)
 ./fabric/company/v1/fabric format-from-brief --target .
-./fabric/company/v1/fabric execute --values ./fabric.values.json --target .
+./fabric/company/v1/fabric scaffold --values ./fabric.values.json --target .
 
 5)
 ./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json
@@ -722,7 +717,7 @@ Behavior now (pm:approve-brief)
   - remaining defaulted fields count.
 > ./fabric/company/v1/fabric pm:approve-brief --target . --values ./fabric.values.json
 
-// Gate check before execute: 
+// Gate check before scaffold:
 // confirms docs/product/project-brief.md exists and has Brief Approval Status: approved. Confirms minimum input evidence exists: docs/product/intake-note.md with content, or at least one non-README file in docs/customer-input/.
 
 Current behavior of ./fabric/company/v1/fabric format-from-brief --target .:
@@ -744,15 +739,24 @@ It does not write files, does not call LLM, and does not use fabric.values.json.
 > ./fabric/company/v1/fabric format-from-brief --target .
 
 ### BLOCK 2. Bootstrap execution stage
-./fabric/company/v1/fabric execute --target . --values ./fabric.values.json
-./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json
+./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json
 
 
 
 // The main bootstrap/instantiation phase. Runs full artifact generation from Fabric templates using our values file. Materializes/refreshes the governed project state from Fabric.
-> ./fabric/company/v1/fabric execute --values ./fabric.values.json --target .
+
+1. Loads manifest + values and validates tokens (required_tokens and template tokens for scaffold entries).
+2. Takes source_of_truth entries and excludes:
+  - docs/product/product-system-framing.md
+  - docs/product/backlog.yaml
+  - docs/product/current-slice.yaml
+3. Renders the remaining templates with fabric.values.json and writes them with generated metadata headers.
+4. Refuses to overwrite non-generated existing files unless you pass --force.
+5. Prints generated file count + paths.
+No LLM call happens in scaffold.
+> ./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json
 
 // Create the initial delivery slice plan from the approved brief. Must happen before the coder flow, because coder:prepare-current-slice needs a current slice. Reads docs/product/project-brief.md (must be approved).
 Derives 3–6 MVP slice titles/objectives.
@@ -854,7 +858,7 @@ Marks the slice UX artifact as ready for implementation.
 ./fabric/company/v1/fabric format-from-brief --target .
 
 # 5) Generate governed project artifacts
-./fabric/company/v1/fabric execute --target . --values ./fabric.values.json
+./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json
 
 # 6) Build initial delivery backlog/current slice
 ./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json

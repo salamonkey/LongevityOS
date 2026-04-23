@@ -126,11 +126,6 @@ function scaffold({ targetRoot, valuesPath, force }) {
   outputs.forEach((item) => console.log(`- ${item}`));
 }
 
-function execute({ targetRoot, valuesPath, force }) {
-  scaffold({ targetRoot, valuesPath, force });
-  console.log('fabric execute: OK (alias of scaffold)');
-}
-
 function hasSupabaseCli() {
   const res = spawnSync('supabase', ['--version'], { encoding: 'utf8' });
   return res.status === 0;
@@ -1377,7 +1372,6 @@ export {
   formatFromBrief,
   instantiate,
   scaffold,
-  execute,
   validate,
   doctor,
   gate,

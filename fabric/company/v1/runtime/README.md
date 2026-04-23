@@ -48,7 +48,7 @@ How it’s split:
 - lib/constants.mjs → paths and shared constants
 - lib/core.mjs → file IO, parsing, manifest/values loading, rendering, generic helpers
 - commands/product.mjs → brief readiness, brief approval, bootstrap signoff, slice planning
-- commands/runtime.mjs → init, instantiate/execute, validate/doctor/gate, DB commands
+- commands/runtime.mjs → init, scaffold/instantiate, validate/doctor/gate, DB commands
 - fabric.mjs → thin command dispatcher
 
 One important note: this is a structure-first extraction, not a deep cleanup. It improves transparency immediately, but it does not yet normalize helper boundaries or reduce coupling between some product/runtime helpers. That is exactly what I’d leave for Pass 2.

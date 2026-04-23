@@ -8,8 +8,8 @@ Use a strict four-phase lifecycle:
 
 1. `init-factory`: instantiate project-agnostic factory operating components.
 2. `format-from-brief`: require approved customer project brief.
-3. `execute` (or `instantiate`): generate execution/governance scaffolding artifacts.
-4. `pm:bootstrap-signoff` + `pm:plan-slices`: transition to delivery and create real initial slice plan.
+3. `scaffold` (or `instantiate`): generate execution/governance scaffolding artifacts.
+4. `pm:plan-slices` + `pm:bootstrap-signoff`: create delivery-ready slice plan and transition to delivery mode.
 
 ## 1. Prepare Inputs
 
@@ -48,7 +48,7 @@ Validate the gate:
 
 Run:
 
-`./fabric/company/v1/fabric execute --values <project-root>/fabric.values.json --target <project-root>`
+`./fabric/company/v1/fabric scaffold --values <project-root>/fabric.values.json --target <project-root>`
 
 This generates the execution/governance foundation files:
 
@@ -59,12 +59,14 @@ This generates the execution/governance foundation files:
 
 ## 5. Create Core Product Artifacts
 
-`execute` scaffolds initial product files referenced by the foundation:
+Generate delivery-ready product planning artifacts:
+
+`./fabric/company/v1/fabric pm:plan-slices --target <project-root> --values <project-root>/fabric.values.json`
+
+This creates:
 
 1. `docs/product/backlog.yaml`
 2. `docs/product/current-slice.yaml`
-
-At this stage these files are scaffolding contracts only; they are not yet delivery-ready planning artifacts.
 
 ## 6. Create Review and Delivery Templates
 

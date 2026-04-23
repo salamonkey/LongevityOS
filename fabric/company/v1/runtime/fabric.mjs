@@ -20,7 +20,6 @@ import {
   formatFromBrief,
   instantiate,
   scaffold,
-  execute,
   validate,
   doctor,
   gate,
@@ -36,7 +35,7 @@ import {
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|execute|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
@@ -57,7 +56,6 @@ function usage() {
   console.log('  pm:plan-slices --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--model-driven] [--heuristic]');
   console.log('  format-from-brief --target <project-root>');
   console.log('  scaffold --values <fabric.values.json|fabric.values.yaml> --target <project-root> [--force]');
-  console.log('  execute --values <fabric.values.json|fabric.values.yaml> --target <project-root> [--force]');
   console.log('  instantiate --values <fabric.values.json|fabric.values.yaml> --target <project-root> [--force]');
   console.log('  validate --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  doctor --target <project-root>');
@@ -162,10 +160,6 @@ async function main() {
   }
   if (command === 'format-from-brief') {
     formatFromBrief({ targetRoot });
-    return;
-  }
-  if (command === 'execute') {
-    execute({ targetRoot, valuesPath, force: Boolean(args.force) });
     return;
   }
   if (command === 'instantiate') {
