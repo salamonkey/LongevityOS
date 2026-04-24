@@ -93,26 +93,35 @@ function normalizeList(values, fallback = []) {
   return fallback.map((item) => normalizeSentence(item, '')).filter(Boolean);
 }
 
+const DEFAULT_CUSTOMER_PLAN_ITEMS = Object.freeze({
+  today: [
+    'Take a 15-minute walk after your next meal.',
+    'Schedule a blood pressure check this week.',
+    'Set a hydration reminder for today.',
+  ],
+  soon: [
+    'Book a dental cleaning within the next 2 months.',
+    'Plan a preventive blood panel with your clinician.',
+    'Review sleep routine and target 7-8 hours nightly.',
+  ],
+  later: [
+    'Discuss age-appropriate screening timelines at your next annual visit.',
+    'Review vaccination status before flu season.',
+    'Set quarterly reminders to revisit your health plan.',
+  ],
+});
+
 function normalizePlaybook(raw = {}, slice = {}) {
-  const inScope = Array.isArray(slice?.in_scope) ? slice.in_scope : [];
   const acceptance = Array.isArray(slice?.acceptance_criteria) ? slice.acceptance_criteria : [];
-  const fallbackToday = inScope.slice(0, 2).length > 0
-    ? inScope.slice(0, 2)
-    : ['Book a dental appointment', 'Review overdue blood test'];
-  const fallbackSoon = inScope.slice(2, 4).length > 0
-    ? inScope.slice(2, 4)
-    : ['Schedule a skin check', 'Review vaccinations'];
-  const fallbackLater = acceptance.slice(0, 2).length > 0
-    ? acceptance.slice(0, 2)
-    : ['Add family members', 'Set reminder preferences'];
 
   return {
     appTitle: normalizeSentence(raw?.app_title, slice?.title || 'Current Slice'),
     appObjective: normalizeSentence(raw?.app_objective, slice?.objective || 'Deliver the current slice.'),
     acceptanceChecks: normalizeList(raw?.acceptance_checks, acceptance),
-    todayItems: normalizeList(raw?.today_items, fallbackToday),
-    soonItems: normalizeList(raw?.soon_items, fallbackSoon),
-    laterItems: normalizeList(raw?.later_items, fallbackLater),
+    // Never fallback to internal implementation bullets for customer-facing dashboard items.
+    todayItems: normalizeList(raw?.today_items, DEFAULT_CUSTOMER_PLAN_ITEMS.today),
+    soonItems: normalizeList(raw?.soon_items, DEFAULT_CUSTOMER_PLAN_ITEMS.soon),
+    laterItems: normalizeList(raw?.later_items, DEFAULT_CUSTOMER_PLAN_ITEMS.later),
   };
 }
 
@@ -124,7 +133,7 @@ async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, 
     progress(`llm request started: ${taskName}`);
     heartbeat = setInterval(() => {
       const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request in progress: ${taskName} (${String(elapsedSec)}s elapsed)`);
+      progress(`\tllm request in progress: ${taskName} (${String(elapsedSec)}s elapsed)`);
     }, 10000);
   }
   try {
@@ -228,6 +237,8 @@ export async function generateCurrentSliceImplementationPlaybook({
     '- today_items should represent immediate actions.',
     '- soon_items should represent near-term follow-ups.',
     '- later_items should represent lower urgency backlog items.',
+    '- Each plan item must read like a direct health action for the end user (not an engineering task).',
+    '- Never include internal process terms such as slice, acceptance criteria, tests, coverage, routing, schema, payload, status fields, or bucket rules.',
     '- acceptance_checks must align with the active slice acceptance criteria.',
   ].join('\n');
 

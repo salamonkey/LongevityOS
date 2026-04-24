@@ -78,6 +78,13 @@ if [[ ! -d "$ROOT/fabric/company/v1" ]]; then
   exit 1
 fi
 
+FABRIC_LAUNCHER="$ROOT/fabric/company/v1/fabric"
+if [[ ! -s "$FABRIC_LAUNCHER" ]]; then
+  echo "Fabric launcher missing or empty: $FABRIC_LAUNCHER" >&2
+  echo "Recovery: restore it from git, e.g. git checkout -- fabric/company/v1/fabric" >&2
+  exit 1
+fi
+
 TARGETS="$(
   node - "$MANIFEST_PATH" <<'NODE'
 const fs = require('fs');
@@ -159,9 +166,6 @@ declare -a EXTRA_GENERATED_REL_PATHS=(
   "vite.config.js"
   "vite.config.mjs"
   "vite.config.ts"
-  ".env"
-  ".env.local"
-  ".env.example"
 )
 
 for rel in "${EXTRA_GENERATED_REL_PATHS[@]}"; do
@@ -222,3 +226,12 @@ if [[ "$NUKE_INPUTS" -ne 1 ]]; then
 fi
 
 echo "Reset complete."
+echo
+echo "Next steps (from fabric-only):"
+echo "  1) ./fabric/company/v1/fabric init-factory --target . --values ./fabric.values.json --init-values"
+echo "  2) ./fabric/company/v1/fabric pm:brief-readiness --target . --values ./fabric.values.json"
+echo "  3) ./fabric/company/v1/fabric pm:approve-brief --target . --values ./fabric.values.json"
+echo "  4) ./fabric/company/v1/fabric format-from-brief --target ."
+echo
+echo "Note: a fabric-only reset removes app artifacts (including package.json/scripts)."
+echo "Running npm run dev before scaffold + implementation is expected to fail."

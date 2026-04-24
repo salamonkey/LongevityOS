@@ -1664,6 +1664,53 @@ function readOptionalMarkdown(filePath) {
   return readText(filePath);
 }
 
+function normalizeCustomerReviewLine(value, fallback = 'none') {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return text || String(fallback || 'none');
+}
+
+function customerReviewIssueKey(entry) {
+  return [
+    String(entry?.rule || '').trim().toLowerCase(),
+    String(entry?.section || '').trim().toLowerCase(),
+    String(entry?.line || '').trim().toLowerCase(),
+  ].join('||');
+}
+
+function formatCustomerReviewSuggestionText(entry) {
+  if (!entry) return 'none';
+  const bestWayForward = normalizeCustomerReviewLine(entry.best_way_forward, 'none');
+  const confidence = normalizeCustomerReviewLine(entry.confidence, 'medium');
+  const rationale = normalizeCustomerReviewLine(entry.rationale, 'none');
+  const implementationNote = normalizeCustomerReviewLine(entry.implementation_note, 'none');
+  return `${bestWayForward} (confidence=${confidence}; rationale=${rationale}; implementation note=${implementationNote})`;
+}
+
+function buildCustomerReviewEntries(issueList, suggestionList) {
+  const issues = Array.isArray(issueList) ? issueList : [];
+  const suggestions = Array.isArray(suggestionList) ? suggestionList : [];
+  const suggestionsByIssue = new Map();
+
+  for (const suggestion of suggestions) {
+    const key = customerReviewIssueKey(suggestion);
+    if (!suggestionsByIssue.has(key)) suggestionsByIssue.set(key, []);
+    suggestionsByIssue.get(key).push(suggestion);
+  }
+
+  return issues.map((issue) => {
+    const key = customerReviewIssueKey(issue);
+    const matches = suggestionsByIssue.get(key) || [];
+    const suggestionText = matches.length > 0
+      ? matches.map((entry) => formatCustomerReviewSuggestionText(entry)).join(' | ')
+      : 'none';
+    return {
+      finding: normalizeCustomerReviewLine(`[${issue.rule}] ${issue.section}: "${issue.line}"`),
+      recommendedFix: normalizeCustomerReviewLine(issue.recommended_fix, 'none'),
+      suggestion: normalizeCustomerReviewLine(suggestionText),
+    };
+  });
+}
+
 function appendPostEditSemanticValidationRun({
   targetRoot,
   briefPath,
@@ -1687,35 +1734,18 @@ function appendPostEditSemanticValidationRun({
     '',
   ];
 
-  if (issueList.length > 0) {
-    runLines.push('- Findings:');
-    for (const issue of issueList) {
-      runLines.push(
-        `  - [${issue.rule}] ${issue.section}: "${issue.line}"`,
-      );
-    }
-    runLines.push('- Recommended fixes:');
-    for (const issue of issueList) {
-      runLines.push(
-        `  - [${issue.rule}] ${issue.section}: ${issue.recommended_fix}`,
-      );
-    }
+  const customerReviewEntries = buildCustomerReviewEntries(issueList, suggestionList);
+  runLines.push('# FOR CUSTOMER REVIEW:', '');
+  if (customerReviewEntries.length === 0) {
+    runLines.push('None.', '');
   } else {
-    runLines.push('- Findings: none');
-    runLines.push('- Recommended fixes: none');
-  }
-
-  if (suggestionList.length > 0) {
-    runLines.push('- Suggestions:');
-    for (const suggestion of suggestionList) {
-      runLines.push(
-        `  - [${suggestion.rule}] ${suggestion.section}: ${suggestion.best_way_forward} (confidence=${suggestion.confidence})`,
-      );
-      runLines.push(`    rationale: ${suggestion.rationale}`);
-      runLines.push(`    implementation note: ${suggestion.implementation_note}`);
-    }
-  } else {
-    runLines.push('- Suggestions: none');
+    customerReviewEntries.forEach((item, index) => {
+      runLines.push(`${String(index + 1)})`);
+      runLines.push(`\tFinding: ${item.finding}`);
+      runLines.push(`\tRecommended fix: ${item.recommendedFix}`);
+      runLines.push(`\tSuggestion: ${item.suggestion}`);
+      runLines.push('');
+    });
   }
 
   const runBlock = `${runLines.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;

@@ -514,6 +514,48 @@ function recommendedFixForIssue(issue) {
   return 'Rewrite the line to satisfy the clarity rules while preserving section intent and compactness.';
 }
 
+function normalizeCustomerReviewLine(value, fallback = 'none') {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return text || String(fallback || 'none');
+}
+
+function formatCustomerReviewSuggestionText(entry) {
+  if (!entry) return 'none';
+  const bestWayForward = normalizeCustomerReviewLine(entry.bestWayForward, 'none');
+  const confidence = normalizeCustomerReviewLine(entry.confidence, 'medium');
+  const rationale = normalizeCustomerReviewLine(entry.rationale, 'none');
+  const implementationNote = normalizeCustomerReviewLine(entry.implementationNote, 'none');
+  return `${bestWayForward} (confidence=${confidence}; rationale=${rationale}; implementation note=${implementationNote})`;
+}
+
+function buildCustomerReviewEntries({ issues, suggestions }) {
+  const issueList = Array.isArray(issues) ? issues : [];
+  const suggestionList = Array.isArray(suggestions) ? suggestions : [];
+  const suggestionsByIssue = new Map();
+
+  for (const suggestion of suggestionList) {
+    const key = issueKey(suggestion);
+    if (!suggestionsByIssue.has(key)) suggestionsByIssue.set(key, []);
+    suggestionsByIssue.get(key).push(suggestion);
+  }
+
+  return issueList.map((issue) => {
+    const boundaryMeta = issue.boundaryType && issue.boundaryType !== '-'
+      ? ` (boundary_type=${issue.boundaryType}${issue.evidenceSpan ? `; evidence="${issue.evidenceSpan}"` : ''})`
+      : '';
+    const key = issueKey(issue);
+    const matches = suggestionsByIssue.get(key) || [];
+    const suggestionText = matches.length > 0
+      ? matches.map((entry) => formatCustomerReviewSuggestionText(entry)).join(' | ')
+      : 'none';
+    return {
+      finding: normalizeCustomerReviewLine(`[${issue.rule}] ${issue.section}: "${issue.line}"${boundaryMeta}`),
+      recommendedFix: normalizeCustomerReviewLine(recommendedFixForIssue(issue)),
+      suggestion: normalizeCustomerReviewLine(suggestionText),
+    };
+  });
+}
+
 function normalizeSuggestionText(text, fallback) {
   const value = String(text || '').replace(/\s+/g, ' ').trim();
   return value || String(fallback || '').trim();
@@ -1065,30 +1107,21 @@ function writeBriefClarityReview({ targetRoot, gateEnabled, retryBudget, attempt
         );
       }
     }
-    if (entry.review.issues.length > 0) {
-      lines.push('- Findings:');
-      for (const issue of entry.review.issues) {
-        const boundaryMeta = issue.boundaryType && issue.boundaryType !== '-'
-          ? ` (boundary_type=${issue.boundaryType}${issue.evidenceSpan ? `; evidence="${issue.evidenceSpan}"` : ''})`
-          : '';
-        lines.push(`  - [${issue.rule}] ${issue.section}: "${issue.line}"${boundaryMeta}`);
-      }
-      lines.push('- Recommended fixes:');
-      for (const issue of entry.review.issues) {
-        lines.push(
-          `  - [${issue.rule}] ${issue.section}: ${recommendedFixForIssue(issue)}`,
-        );
-      }
-      if (Array.isArray(entry.suggestions) && entry.suggestions.length > 0) {
-        lines.push('- Suggestions:');
-        for (const suggestion of entry.suggestions) {
-          lines.push(
-            `  - [${suggestion.rule}] ${suggestion.section}: ${suggestion.bestWayForward} (confidence=${suggestion.confidence})`,
-          );
-          lines.push(`    rationale: ${suggestion.rationale}`);
-          lines.push(`    implementation note: ${suggestion.implementationNote}`);
-        }
-      }
+    const customerReviewEntries = buildCustomerReviewEntries({
+      issues: entry.review.issues,
+      suggestions: entry.suggestions,
+    });
+    lines.push('# FOR CUSTOMER REVIEW:', '');
+    if (customerReviewEntries.length === 0) {
+      lines.push('None.', '');
+    } else {
+      customerReviewEntries.forEach((item, index) => {
+        lines.push(`${String(index + 1)})`);
+        lines.push(`\tFinding: ${item.finding}`);
+        lines.push(`\tRecommended fix: ${item.recommendedFix}`);
+        lines.push(`\tSuggestion: ${item.suggestion}`);
+        lines.push('');
+      });
     }
     lines.push('');
   }
@@ -1275,7 +1308,7 @@ async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, 
     progress(`llm request started: ${label}`);
     heartbeat = setInterval(() => {
       const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request in progress: ${label} (${String(elapsedSec)}s elapsed)`);
+      progress(`\tllm request in progress: ${label} (${String(elapsedSec)}s elapsed)`);
     }, 10000);
   }
   try {
