@@ -1,0 +1,61 @@
+# generated_from: templates/project-manifest.template.yaml
+# fabric_version: v1
+# generated_at: 2026-04-25T05:38:57.547Z
+schema_version: 1
+manifest_version: 1
+generated_at_utc: '2026-04-25T05:35:21.246Z'
+last_updated_utc: "2026-04-25T08:01:04.877Z"
+project:
+  id: 'longevity-health-os-health-app-mvp'
+  name: 'Longevity Health OS (Health App MVP)'
+  summary: 'Preventive health navigation app that tells users what health action to take next, when to take it, and why it matters.
+
+    '
+  product_type: 'mobile_first_web_app'
+  source_description: .system/project-description.yaml
+operating_model:
+  architecture_preference: 'modular_monolith'
+  delivery_style: agile_slice_based
+  bootstrap_status: "completed"
+  bootstrap_completed_at_utc: "2026-04-25T05:46:07.755Z"
+  current_mode: "delivery"
+roles:
+  enabled:
+  - orchestrator
+  - product_manager
+  - architect
+  - uiux
+  - coder
+stack_direction:
+  backend: 'typescript_fastify'
+  frontend: 'nextjs_react'
+  database: 'postgresql'
+  orm: 'prisma'
+governance:
+  product_review_gate: required
+  escalation_mode: only_when_material_decisions_are_required
+  prefers_small_vertical_slices: true
+scope:
+  v1_priorities:
+  - 'onboarding_to_generated_plan'
+  - 'status_and_reminder_tracking'
+  explicitly_out_of_scope:
+  - 'Doctor or provider integration.'
+  - 'External API integrations.'
+status:
+  initialized: true
+  requires_customer_escalation: false
+  blocking_decision: null
+  active_slice: "SL-001"
+  active_slice_state: "in_progress"
+  active_milestone: "SL-001_implementation"
+  approved_reviews:
+    - "docs/reviews/product-manager/bootstrap-foundation-review.md"
+    - "docs/reviews/product-manager/bootstrap-backlog-slice-review.md"
+  customer_checkpoint_summaries: []
+artifacts:
+  registry: .system/artifact-registry.yaml
+  workflow_rules: .system/workflow-rules.yaml
+  backlog: docs/product/backlog.yaml
+  current_slice: docs/product/current-slice.yaml
+  product_system_framing: docs/product/product-system-framing.md

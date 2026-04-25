@@ -2,18 +2,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { parseArgs } from './lib/core.mjs';
+import { parseArgs, parseSliceBlockWithLists, readText } from './lib/core.mjs';
 import {
   llmCheck,
+  pmIntake,
+  pmBriefDraft,
   pmBriefReadiness,
+  pmBriefApprove,
+  pmDeriveValues,
   pmBriefSemanticCheck,
   pmApproveBrief,
   pmStatus,
   pmBootstrapSignoff,
   pmPlanSlices,
   pmFinalizeBootstrapReviews,
-  architectFinalizeBaseline,
-  uiuxFinalizeCurrentSliceFlow,
+  architectGenerateCurrentSliceBaseline,
+  uiuxGenerateCurrentSliceFlow,
 } from './commands/product.mjs';
 import {
   initFactory,
@@ -26,7 +30,6 @@ import {
   dbInit,
   dbCheck,
   dbReset,
-  dbSeed,
   coderPrepareCurrentSlice,
   coderImplementCurrentSlice,
   coderCloseCurrentSlice,
@@ -71,31 +74,104 @@ function buildFabricCommand(commandName, {
   return parts.map(shellQuote).join(' ');
 }
 
+function normalizedSliceIdForPath(sliceId) {
+  return String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
+}
+
+function baselineRelPathForSlice(sliceId) {
+  return `docs/architecture/${normalizedSliceIdForPath(sliceId)}-baseline.md`;
+}
+
+function uxFlowRelPathForSlice(sliceId) {
+  return `docs/ux/${normalizedSliceIdForPath(sliceId)}-current-slice-flow.md`;
+}
+
+function resolveGateNextSteps({ cmd, targetRoot }) {
+  const fallback = [
+    cmd('pm:status'),
+    cmd('db:check', { includeValues: false }),
+  ];
+  const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
+  if (!fs.existsSync(currentSlicePath)) {
+    return fallback;
+  }
+  try {
+    const slice = parseSliceBlockWithLists(readText(currentSlicePath));
+    const sliceId = String(slice?.id || '').trim();
+    const sliceStatus = String(slice?.status || '').trim().toLowerCase();
+    if (!sliceId) {
+      return fallback;
+    }
+    if (sliceStatus === 'planned') {
+      const baselineExists = fs.existsSync(path.join(targetRoot, baselineRelPathForSlice(sliceId)));
+      const uxExists = fs.existsSync(path.join(targetRoot, uxFlowRelPathForSlice(sliceId)));
+      if (!baselineExists) {
+        return [
+          cmd('architect:generate-current-slice-baseline'),
+          cmd('uiux:generate-current-slice-flow'),
+        ];
+      }
+      if (!uxExists) {
+        return [
+          cmd('uiux:generate-current-slice-flow'),
+          cmd('coder:prepare-current-slice'),
+        ];
+      }
+      return [
+        cmd('coder:prepare-current-slice'),
+        cmd('coder:implement-current-slice'),
+      ];
+    }
+    if (sliceStatus === 'in_progress') {
+      return [
+        cmd('coder:implement-current-slice'),
+        cmd('coder:close-current-slice'),
+      ];
+    }
+    if (sliceStatus === 'completed') {
+      return [
+        cmd('orchestrator:advance-slice'),
+        cmd('pm:status'),
+      ];
+    }
+    return fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
 const NEXT_STEP_BUILDERS = {
   'init-factory': ({ cmd }) => [
-    cmd('pm:brief-readiness'),
-    cmd('pm:approve-brief'),
+    cmd('pm:intake', { includeValues: false }),
+    cmd('pm:brief-readiness', { includeValues: false }),
   ],
   'llm:check': ({ cmd }) => [
-    cmd('pm:brief-readiness'),
+    cmd('pm:intake', { includeValues: false }),
+    cmd('pm:brief-readiness', { includeValues: false }),
     cmd('pm:plan-slices'),
   ],
+  'pm:intake': ({ cmd }) => [
+    cmd('pm:brief-readiness', { includeValues: false }),
+  ],
   'pm:brief-readiness': ({ cmd }) => [
-    cmd('pm:approve-brief'),
+    cmd('pm:brief-draft', { includeValues: false }),
+  ],
+  'pm:brief-draft': ({ cmd }) => [
+    cmd('pm:brief-approve', { includeValues: false }),
+  ],
+  'pm:brief-approve': ({ cmd }) => [
+    cmd('pm:derive-values', { includeValues: false }),
+  ],
+  'pm:derive-values': ({ cmd }) => [
     cmd('format-from-brief', { includeValues: false }),
   ],
   'pm:brief-semantic-check': ({ cmd }) => [
     'ensure the validated brief is saved at docs/product/project-brief.md',
-    cmd('pm:approve-brief'),
+    cmd('pm:brief-approve', { includeValues: false }),
   ],
   'pm:approve-brief': ({ cmd }) => [
+    cmd('pm:derive-values', { includeValues: false }),
     cmd('format-from-brief', { includeValues: false }),
-    cmd('scaffold'),
-    cmd('pm:plan-slices'),
-  ],
-  'pm:status': ({ cmd }) => [
-    'continue with the lifecycle command that matches the status report above',
-    cmd('gate'),
   ],
   'pm:finalize-bootstrap-reviews': ({ cmd }) => [
     cmd('pm:bootstrap-signoff'),
@@ -106,15 +182,15 @@ const NEXT_STEP_BUILDERS = {
     cmd('gate'),
   ],
   'pm:plan-slices': ({ cmd }) => [
-    cmd('architect:finalize-baseline'),
-    cmd('uiux:finalize-current-slice-flow'),
+    cmd('architect:generate-current-slice-baseline'),
+    cmd('uiux:generate-current-slice-flow'),
     cmd('coder:prepare-current-slice'),
   ],
-  'architect:finalize-baseline': ({ cmd }) => [
-    cmd('uiux:finalize-current-slice-flow'),
+  'architect:generate-current-slice-baseline': ({ cmd }) => [
+    cmd('uiux:generate-current-slice-flow'),
     cmd('coder:prepare-current-slice'),
   ],
-  'uiux:finalize-current-slice-flow': ({ cmd }) => [
+  'uiux:generate-current-slice-flow': ({ cmd }) => [
     cmd('coder:prepare-current-slice'),
     cmd('coder:implement-current-slice'),
   ],
@@ -132,7 +208,7 @@ const NEXT_STEP_BUILDERS = {
   ],
   'orchestrator:advance-slice': ({ cmd }) => [
     cmd('pm:status'),
-    cmd('architect:finalize-baseline'),
+    cmd('architect:generate-current-slice-baseline'),
   ],
   'format-from-brief': ({ cmd }) => [
     cmd('scaffold'),
@@ -154,23 +230,17 @@ const NEXT_STEP_BUILDERS = {
     cmd('gate'),
     cmd('pm:status'),
   ],
-  gate: ({ cmd }) => [
-    cmd('pm:status'),
-    cmd('db:check', { includeValues: false }),
-  ],
+  gate: ({ cmd, targetRoot }) => resolveGateNextSteps({ cmd, targetRoot }),
   'db:init': ({ cmd }) => [
     cmd('db:check', { includeValues: false }),
-    cmd('db:seed', { includeValues: false, extraArgs: ['--yes'] }),
+    cmd('architect:generate-current-slice-baseline'),
   ],
   'db:check': ({ cmd }) => [
-    cmd('db:seed', { includeValues: false }),
+    cmd('architect:generate-current-slice-baseline'),
+    cmd('uiux:generate-current-slice-flow'),
     cmd('gate'),
   ],
   'db:reset': ({ cmd }) => [
-    cmd('db:seed', { includeValues: false, extraArgs: ['--yes'] }),
-    cmd('db:check', { includeValues: false }),
-  ],
-  'db:seed': ({ cmd }) => [
     cmd('db:check', { includeValues: false }),
     cmd('gate'),
   ],
@@ -186,7 +256,7 @@ function printNextSteps({ command, targetRoot, valuesPath }) {
     valuesPath,
     ...options,
   });
-  const steps = builder({ cmd }).filter(Boolean);
+  const steps = builder({ cmd, targetRoot, valuesPath, command }).filter(Boolean);
   if (steps.length === 0) {
     return;
   }
@@ -199,19 +269,23 @@ function printNextSteps({ command, targetRoot, valuesPath }) {
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:brief-readiness|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:finalize-baseline|uiux:finalize-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset|db:seed> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
   );
   console.log('  llm:check --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
-  console.log('  pm:brief-readiness --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  pm:intake --target <project-root>');
+  console.log('  pm:brief-readiness --target <project-root>');
+  console.log('  pm:brief-draft --target <project-root>');
+  console.log('  pm:brief-approve --target <project-root>');
+  console.log('  pm:derive-values --target <project-root>');
   console.log('  pm:brief-semantic-check --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--brief <path>]');
   console.log('  pm:approve-brief --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:status --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--format <terminal|markdown>]');
   console.log('  pm:finalize-bootstrap-reviews --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
-  console.log('  architect:finalize-baseline --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
-  console.log('  uiux:finalize-current-slice-flow --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  architect:generate-current-slice-baseline --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  uiux:generate-current-slice-flow --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:prepare-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:implement-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
   console.log('  coder:close-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
@@ -227,7 +301,6 @@ function usage() {
   console.log('  db:init --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
   console.log('  db:check --target <project-root>');
   console.log('  db:reset --target <project-root> --yes');
-  console.log('  db:seed --target <project-root> [--yes]');
   console.log('  --no-next-steps (global): suppress post-command next-step guidance');
 }
 
@@ -269,8 +342,24 @@ async function main() {
     await runWithGuidance(() => llmCheck({ targetRoot, valuesPath }));
     return;
   }
+  if (command === 'pm:intake') {
+    await runWithGuidance(() => pmIntake({ targetRoot }));
+    return;
+  }
   if (command === 'pm:brief-readiness') {
     await runWithGuidance(() => pmBriefReadiness({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'pm:brief-draft') {
+    await runWithGuidance(() => pmBriefDraft({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'pm:brief-approve') {
+    await runWithGuidance(() => pmBriefApprove({ targetRoot }));
+    return;
+  }
+  if (command === 'pm:derive-values') {
+    await runWithGuidance(() => pmDeriveValues({ targetRoot, valuesPath }));
     return;
   }
   if (command === 'pm:brief-semantic-check') {
@@ -306,12 +395,12 @@ async function main() {
     await runWithGuidance(() => scaffold({ targetRoot, valuesPath, force: Boolean(args.force) }));
     return;
   }
-  if (command === 'architect:finalize-baseline') {
-    await runWithGuidance(() => architectFinalizeBaseline({ targetRoot, valuesPath }));
+  if (command === 'architect:generate-current-slice-baseline') {
+    await runWithGuidance(() => architectGenerateCurrentSliceBaseline({ targetRoot, valuesPath }));
     return;
   }
-  if (command === 'uiux:finalize-current-slice-flow') {
-    await runWithGuidance(() => uiuxFinalizeCurrentSliceFlow({ targetRoot, valuesPath }));
+  if (command === 'uiux:generate-current-slice-flow') {
+    await runWithGuidance(() => uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }));
     return;
   }
   if (command === 'coder:prepare-current-slice') {
@@ -360,10 +449,6 @@ async function main() {
   }
   if (command === 'db:reset') {
     await runWithGuidance(() => dbReset({ targetRoot, yes: Boolean(args.yes) }));
-    return;
-  }
-  if (command === 'db:seed') {
-    await runWithGuidance(() => dbSeed({ targetRoot, yes: Boolean(args.yes) }));
     return;
   }
 

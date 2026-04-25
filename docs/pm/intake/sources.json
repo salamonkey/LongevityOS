@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-04-25T05:06:32.906Z",
+  "inputDir": "docs/customer-input",
+  "outputDir": "docs/pm/intake",
+  "summary": {
+    "sourceCount": 4,
+    "usableSourceCount": 4,
+    "failedSourceCount": 0,
+    "totalCharacters": 4945,
+    "estimatedTokens": 1236
+  },
+  "sources": [
+    {
+      "id": "source_001",
+      "filename": "Health_App_Wireframes.pdf",
+      "relativePath": "docs/customer-input/Health_App_Wireframes.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 3625,
+      "status": "ok",
+      "characters": 509,
+      "estimatedTokens": 127,
+      "extractedTextPath": "docs/pm/intake/extracted-text/health_app_wireframes.txt",
+      "error": null
+    },
+    {
+      "id": "source_002",
+      "filename": "Longevity_Health_OS_MVP_HighEnd.pdf",
+      "relativePath": "docs/customer-input/Longevity_Health_OS_MVP_HighEnd.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 4891,
+      "status": "ok",
+      "characters": 2303,
+      "estimatedTokens": 576,
+      "extractedTextPath": "docs/pm/intake/extracted-text/longevity_health_os_mvp_highend.txt",
+      "error": null
+    },
+    {
+      "id": "source_003",
+      "filename": "README.md",
+      "relativePath": "docs/customer-input/README.md",
+      "extension": ".md",
+      "sizeBytes": 552,
+      "status": "ok",
+      "characters": 551,
+      "estimatedTokens": 138,
+      "extractedTextPath": "docs/pm/intake/extracted-text/readme.txt",
+      "error": null
+    },
+    {
+      "id": "source_004",
+      "filename": "UX_Copy_Health_App.pdf",
+      "relativePath": "docs/customer-input/UX_Copy_Health_App.pdf",
+      "extension": ".pdf",
+      "sizeBytes": 3732,
+      "status": "ok",
+      "characters": 1582,
+      "estimatedTokens": 396,
+      "extractedTextPath": "docs/pm/intake/extracted-text/ux_copy_health_app.txt",
+      "error": null
+    }
+  ]
+}

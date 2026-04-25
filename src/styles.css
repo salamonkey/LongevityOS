@@ -1,0 +1,88 @@
+/* generated_from: fabric/company/v1/runtime/commands/runtime.mjs
+ * target: src/styles.css
+ * fabric_version: v1
+ * generated_at_utc: 2026-04-25T08:33:51.954Z
+ */
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select { font: inherit; }
+
+.app-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  display: grid;
+  gap: 20px;
+}
+
+.panel {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.hero {
+  background: linear-gradient(135deg, #ecfeff, #eff6ff);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: #0f766e;
+  margin: 0 0 8px;
+}
+
+.lede {
+  color: #334155;
+  margin-top: 8px;
+}
+
+.callout {
+  margin-top: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.callout ul, .priority-list {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.section-header h2 { margin-bottom: 4px; }
+.section-header p { margin-top: 0; color: #475569; }
+
+.toggle-row { display: flex; gap: 12px; margin: 20px 0; }
+.toggle-row button, .primary, .secondary {
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 12px 16px;
+  background: white;
+  cursor: pointer;
+}
+.toggle-row button.active, .primary {
+  background: #0f766e;
+  color: white;
+  border-color: #0f766e;
+}
+.secondary { margin-top: 12px; }
+.stack { display: grid; gap: 16px; }
+label { display: grid; gap: 8px; font-weight: 600; }
+input, select { border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; }
+.helper { color: #64748b; margin: 0; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+
+@media (max-width: 640px) {
+  .app-shell { padding: 20px 16px 40px; }
+  .toggle-row { flex-direction: column; }
+}

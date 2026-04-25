@@ -130,11 +130,6 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: local rebuild/test-data reset workflows.
   - Benefit: deterministic reset path for development environments.
 
-- `db:seed --target <project-root>`
-  - What it does: executes configured seed command after validating seed artifact presence.
-  - When to use: after schema apply/reset when baseline data is needed for smoke/review flows.
-  - Benefit: consistent seed workflow across projects.
-
 ## Inputs
 
 - `fabric.values.json`: token values used during generation (recommended, dependency-free).

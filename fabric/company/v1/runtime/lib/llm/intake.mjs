@@ -1,10 +1,10 @@
 
 import path from 'node:path';
+import process from 'node:process';
 import { FABRIC_ROOT } from '../constants.mjs';
 import { readText, writeTextAtomic } from '../core.mjs';
 import { resolveLlmSettings, validateLlmSettings } from './config.mjs';
-import { invokeOpenAIStructured } from './provider-openai.mjs';
-import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+import { invokeStructured } from './brief-context.mjs';
 
 const SOURCE_SYNTHESIS_SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -562,6 +562,7 @@ function normalizeSuggestionText(text, fallback) {
 }
 
 async function suggestBestWayForwardForFindings({
+  targetRoot,
   settings,
   issues,
   framing,
@@ -616,9 +617,15 @@ async function suggestBestWayForwardForFindings({
     const output = await invokeStructured({
       settings,
       taskName: 'brief_clarity_suggestions',
+      caller: 'intake.suggestBestWayForwardForFindings',
+      targetRoot,
       systemPrompt,
       userPrompt,
       schema: CLARITY_SUGGESTIONS_SCHEMA,
+      promptSourceFiles: [
+        String(pmRoleContractSource || ''),
+        'docs/product/product-system-framing.md',
+      ],
       onProgress,
     });
     const byId = new Map();
@@ -1252,6 +1259,145 @@ function renderEvidencePack(analysis) {
   return `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 
+function resolvePositiveInt(candidates, fallback) {
+  for (const value of candidates) {
+    if (value === undefined || value === null || String(value).trim() === '') {
+      continue;
+    }
+    const parsed = Number.parseInt(String(value), 10);
+    if (Number.isFinite(parsed) && !Number.isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function estimateTokenCountFromChars(charCount) {
+  const chars = Number.isFinite(charCount) ? Math.max(0, Math.floor(charCount)) : 0;
+  return Math.ceil(chars / 4);
+}
+
+function truncateTextForModelContext(text, maxChars) {
+  const raw = String(text || '');
+  if (raw.length <= maxChars) {
+    return raw;
+  }
+  const hardCap = Math.max(0, Math.floor(maxChars));
+  const breakCandidates = [
+    raw.lastIndexOf('\n\n', hardCap),
+    raw.lastIndexOf('\n', hardCap),
+    raw.lastIndexOf('. ', hardCap),
+    raw.lastIndexOf(' ', hardCap),
+  ];
+  let cutIndex = hardCap;
+  for (const candidate of breakCandidates) {
+    if (candidate >= Math.floor(hardCap * 0.6)) {
+      cutIndex = candidate;
+      break;
+    }
+  }
+  const head = raw.slice(0, cutIndex).trimEnd();
+  return `${head}\n[truncated]`;
+}
+
+function buildModelContextBoundedAnalysis(analysis, {
+  maxContextChars,
+  maxSources,
+}) {
+  const docs = Array.isArray(analysis?.documents)
+    ? analysis.documents.map((doc, index) => ({
+      index,
+      path: String(doc?.path || `source-${String(index + 1)}`),
+      text: String(doc?.text || ''),
+    }))
+    : [];
+  const usable = docs.filter((doc) => doc.text.trim().length > 0);
+  const sourceCount = usable.length;
+  const totalChars = usable.reduce((sum, doc) => sum + doc.text.length, 0);
+  const largestSourceChars = usable.reduce((max, doc) => Math.max(max, doc.text.length), 0);
+
+  const budget = Math.max(1000, Math.floor(maxContextChars));
+  const sourceLimit = Math.max(1, Math.floor(maxSources));
+  let selected = [...usable];
+  if (selected.length > sourceLimit) {
+    selected = [...selected]
+      .sort((a, b) => b.text.length - a.text.length)
+      .slice(0, sourceLimit);
+  }
+  selected.sort((a, b) => a.index - b.index);
+
+  const perSourceBudget = Math.max(800, Math.floor(budget / Math.max(1, selected.length)));
+  const boundedDocs = selected.map((doc) => ({
+    path: doc.path,
+    text: truncateTextForModelContext(doc.text, perSourceBudget),
+  }));
+
+  let boundedTotalChars = boundedDocs.reduce((sum, doc) => sum + doc.text.length, 0);
+  if (boundedTotalChars > budget) {
+    const scale = budget / boundedTotalChars;
+    for (let i = 0; i < boundedDocs.length; i += 1) {
+      const hardCap = Math.max(400, Math.floor(boundedDocs[i].text.length * scale));
+      boundedDocs[i].text = truncateTextForModelContext(boundedDocs[i].text, hardCap);
+    }
+    boundedTotalChars = boundedDocs.reduce((sum, doc) => sum + doc.text.length, 0);
+  }
+
+  const truncated = (
+    sourceCount !== boundedDocs.length
+    || boundedTotalChars < totalChars
+    || boundedDocs.some((doc) => /\n\[truncated\]$/.test(doc.text))
+  );
+
+  return {
+    boundedAnalysis: {
+      ...analysis,
+      documents: boundedDocs,
+    },
+    stats: {
+      sourceCount,
+      largestSourceChars,
+      totalChars,
+      boundedTotalChars,
+      estimatedTokens: estimateTokenCountFromChars(boundedTotalChars),
+      truncated,
+      budget,
+      selectedSources: boundedDocs.length,
+    },
+  };
+}
+
+function resolveBriefDraftModelControls(values = {}, env = process.env) {
+  const maxContextChars = resolvePositiveInt([
+    values.brief_draft_llm_max_context_chars,
+    values.pm_llm_max_context_chars,
+    values.llm_max_context_chars,
+    env.BRIEF_DRAFT_LLM_MAX_CONTEXT_CHARS,
+    env.PM_LLM_MAX_CONTEXT_CHARS,
+    env.LLM_MAX_CONTEXT_CHARS,
+  ], 40000);
+  const maxSources = resolvePositiveInt([
+    values.brief_draft_llm_max_sources,
+    values.pm_llm_max_sources,
+    values.llm_max_sources,
+    env.BRIEF_DRAFT_LLM_MAX_SOURCES,
+    env.PM_LLM_MAX_SOURCES,
+    env.LLM_MAX_SOURCES,
+  ], 8);
+  const timeoutMs = resolvePositiveInt([
+    values.brief_draft_llm_timeout_ms,
+    values.pm_llm_timeout_ms,
+    values.llm_timeout_ms,
+    env.BRIEF_DRAFT_LLM_TIMEOUT_MS,
+    env.PM_LLM_TIMEOUT_MS,
+    env.LLM_TIMEOUT_MS,
+  ], 90000);
+  return {
+    maxContextChars,
+    maxSources,
+    timeoutMs,
+  };
+}
+
 function renderSourceSynthesisMarkdown(data) {
   const lines = ['# Source Synthesis', '', '## Product Identity', '', `- Product name: ${data.product_name}`, `- Core promise: ${data.core_promise}`, '', '## Source Comparison', ''];
   for (const item of data.source_comparison || []) {
@@ -1299,43 +1445,6 @@ function renderProjectBriefMarkdown(projectName, data, analysis) {
   return `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()}\n`;
 }
 
-async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
-  const progress = typeof onProgress === 'function' ? onProgress : null;
-  const startedAt = Date.now();
-  const label = String(taskName || 'llm_task');
-  let heartbeat = null;
-  if (progress) {
-    progress(`llm request started: ${label}`);
-    heartbeat = setInterval(() => {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`\tllm request in progress: ${label} (${String(elapsedSec)}s elapsed)`);
-    }, 10000);
-  }
-  try {
-    let result;
-    if (settings.provider === 'openai') {
-      result = await invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-    } else if (settings.provider === 'stdio_json') {
-      result = await invokeStdioJsonStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-    } else {
-      throw new Error(`Unsupported llm provider: ${settings.provider}`);
-    }
-    if (progress) {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request completed: ${label} (${String(elapsedSec)}s)`);
-    }
-    return result;
-  } catch (error) {
-    if (progress) {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request failed: ${label} (${String(elapsedSec)}s)`);
-    }
-    throw error;
-  } finally {
-    if (heartbeat) clearInterval(heartbeat);
-  }
-}
-
 function semanticFindingId(index) {
   return `finding-${String(index + 1).padStart(3, '0')}`;
 }
@@ -1361,7 +1470,7 @@ function normalizeSemanticIssues(rawIssues) {
     .filter((issue) => issue.line.length > 0);
 }
 
-async function adjudicatePassOneFindingsWithSemantic({ settings, markdown, findings, onProgress }) {
+async function adjudicatePassOneFindingsWithSemantic({ targetRoot, settings, markdown, findings, onProgress }) {
   const seededFindings = findings.map((issue, idx) => ({
     id: semanticFindingId(idx),
     rule: issue.rule,
@@ -1401,9 +1510,14 @@ async function adjudicatePassOneFindingsWithSemantic({ settings, markdown, findi
   const output = await invokeStructured({
     settings,
     taskName: 'brief_clarity_finding_adjudication',
+    caller: 'intake.adjudicatePassOneFindingsWithSemantic',
+    targetRoot,
     systemPrompt,
     userPrompt,
     schema: CLARITY_FINDING_ADJUDICATION_SCHEMA,
+    promptSourceFiles: [
+      'docs/product/project-brief.md',
+    ],
     onProgress,
   });
   const assessments = Array.isArray(output?.assessments) ? output.assessments : [];
@@ -1411,6 +1525,7 @@ async function adjudicatePassOneFindingsWithSemantic({ settings, markdown, findi
 }
 
 async function reviewGeneratedBriefClarityPassOne({
+  targetRoot,
   settings,
   markdown,
   semanticClarityGateEnabled = true,
@@ -1449,6 +1564,7 @@ async function reviewGeneratedBriefClarityPassOne({
   try {
     if (progress) progress('running semantic adjudication for pass-1 clarity findings...');
     const semantic = await adjudicatePassOneFindingsWithSemantic({
+      targetRoot,
       settings,
       markdown,
       findings: base.issues,
@@ -1575,6 +1691,7 @@ async function reviewGeneratedBriefClarityPassOne({
 }
 
 async function reviewGeneratedBriefClarityAllSemantic({
+  targetRoot,
   settings,
   markdown,
   evidencePack = '',
@@ -1669,9 +1786,18 @@ async function reviewGeneratedBriefClarityAllSemantic({
     const output = await invokeStructured({
       settings,
       taskName: 'brief_clarity_semantic_validation',
+      caller: 'intake.reviewGeneratedBriefClarityAllSemantic',
+      targetRoot,
       systemPrompt,
       userPrompt,
       schema: CLARITY_SEMANTIC_REVIEW_SCHEMA,
+      promptSourceFiles: [
+        String(pmRoleContractSource || ''),
+        'docs/product/project-brief.md',
+        'docs/product/source-evidence-pack.md',
+        'docs/product/source-synthesis.md',
+        'docs/product/product-system-framing.md',
+      ],
       onProgress: progress,
     });
     const issues = normalizeSemanticIssues(output?.issues);
@@ -1707,6 +1833,7 @@ export function getLlmCheckReport(values = {}) {
 }
 
 export async function runPostEditSemanticValidation({
+  targetRoot,
   values = {},
   briefMarkdown,
   evidenceContext = '',
@@ -1731,6 +1858,7 @@ export async function runPostEditSemanticValidation({
   if (!validation.ok) throw new Error(validation.errors.join(' '));
 
   const review = await reviewGeneratedBriefClarityAllSemantic({
+    targetRoot,
     settings,
     markdown: String(briefMarkdown || ''),
     evidencePack: String(evidenceContext || ''),
@@ -1751,6 +1879,7 @@ export async function runPostEditSemanticValidation({
   }));
   const suggestionsRaw = findings.length > 0
     ? await suggestBestWayForwardForFindings({
+      targetRoot,
       settings,
       issues: findings,
       framing: {},
@@ -1783,6 +1912,7 @@ export async function runPostEditSemanticValidation({
 }
 
 async function generateProjectBriefStructured({
+  targetRoot,
   settings,
   evidencePack,
   synthesis,
@@ -1797,6 +1927,8 @@ async function generateProjectBriefStructured({
   return invokeStructured({
     settings,
     taskName: 'project_brief',
+    caller: 'intake.generateProjectBriefStructured',
+    targetRoot,
     systemPrompt: renderTemplate('project-brief.system.md', {
       pm_role_contract_source: pmRoleContractSource,
       pm_role_contract_brief_focus: pmRoleContractBriefFocus,
@@ -1811,11 +1943,21 @@ async function generateProjectBriefStructured({
       previous_brief_markdown: previousBriefMarkdown,
     }),
     schema: PROJECT_BRIEF_SCHEMA,
+    promptSourceFiles: [
+      'templates/llm/project-brief.system.md',
+      'templates/llm/project-brief.user.md',
+      String(pmRoleContractSource || ''),
+      'docs/product/source-evidence-pack.md',
+      'docs/product/source-synthesis.md',
+      'docs/product/product-system-framing.md',
+      'docs/product/project-brief.md',
+    ],
     onProgress,
   });
 }
 
 async function generateProjectBriefStructuredTargetedRepair({
+  targetRoot,
   settings,
   evidencePack,
   synthesis,
@@ -1892,9 +2034,17 @@ async function generateProjectBriefStructuredTargetedRepair({
   const candidate = await invokeStructured({
     settings,
     taskName: 'project_brief_targeted_repair',
+    caller: 'intake.generateProjectBriefStructuredTargetedRepair',
+    targetRoot,
     systemPrompt,
     userPrompt,
     schema: PROJECT_BRIEF_SCHEMA,
+    promptSourceFiles: [
+      'docs/product/project-brief.md',
+      'docs/product/source-evidence-pack.md',
+      'docs/product/source-synthesis.md',
+      'docs/product/product-system-framing.md',
+    ],
     onProgress,
   });
 
@@ -1913,235 +2063,5 @@ async function generateProjectBriefStructuredTargetedRepair({
       patchedPaths: applied.patchedPaths.length,
       unmappedIssues: plan.unmappedIssues.length,
     },
-  };
-}
-
-export async function generateIntakeArtifactsWithModel({ targetRoot, values = {}, analysis, onProgress }) {
-  const progress = typeof onProgress === 'function' ? onProgress : null;
-  const settings = resolveLlmSettings(values, undefined, 'intake');
-  const validation = validateLlmSettings(settings);
-  if (!validation.ok) throw new Error(validation.errors.join(' '));
-  const pmRole = loadProductManagerRoleContract();
-  if (progress) {
-    const guidanceCount = String(pmRole.roleContractBriefFocus || '')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => /^-\s+/.test(line)).length;
-    progress(`loaded Product Manager role contract: ${pmRole.relPath} (brief-focus clauses: ${String(guidanceCount)})`);
-  }
-
-  if (progress) progress('preparing source evidence pack...');
-  const evidencePack = renderEvidencePack(analysis);
-  const evidencePath = path.join(targetRoot, 'docs/product/source-evidence-pack.md');
-  const synthesisPath = path.join(targetRoot, 'docs/product/source-synthesis.md');
-  const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
-  const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
-  writeTextAtomic(evidencePath, evidencePack);
-  if (progress) progress(`wrote evidence pack: ${path.relative(targetRoot, evidencePath)}`);
-
-  if (progress) progress('invoking model pass 1/3: source synthesis...');
-  const synthesis = await invokeStructured({
-    settings,
-    taskName: 'source_synthesis',
-    systemPrompt: renderTemplate('source-synthesis.system.md', {}),
-    userPrompt: renderTemplate('source-synthesis.user.md', { evidence_pack: evidencePack }),
-    schema: SOURCE_SYNTHESIS_SCHEMA,
-    onProgress: progress,
-  });
-  writeTextAtomic(synthesisPath, renderSourceSynthesisMarkdown(synthesis));
-  if (progress) progress(`completed model pass 1/3 and wrote: ${path.relative(targetRoot, synthesisPath)}`);
-
-  if (progress) progress('invoking model pass 2/3: product system framing...');
-  const framing = await invokeStructured({
-    settings,
-    taskName: 'product_system_framing',
-    systemPrompt: renderTemplate('product-system-framing.system.md', {}),
-    userPrompt: renderTemplate('product-system-framing.user.md', { evidence_pack: evidencePack, source_synthesis_json: JSON.stringify(synthesis, null, 2) }),
-    schema: PRODUCT_SYSTEM_FRAMING_SCHEMA,
-    onProgress: progress,
-  });
-  writeTextAtomic(framingPath, renderProductSystemFramingMarkdown(framing));
-  if (progress) progress(`completed model pass 2/3 and wrote: ${path.relative(targetRoot, framingPath)}`);
-
-  const projectName = synthesis.product_name || values.project_name || 'Untitled Project';
-  const gateEnabled = settings.briefQualityGateEnabled !== false;
-  const retryBudget = Number.isFinite(settings.briefRetryCount)
-    ? Math.max(0, Math.floor(settings.briefRetryCount))
-    : 1;
-  const attempts = [];
-  let attempt = 0;
-  let clarityGateFeedback = '';
-  let previousBriefMarkdown = '';
-  let previousBriefData = null;
-  let previousFailedReview = null;
-  let finalBrief = null;
-  let finalBriefMarkdown = '';
-  let finalReview = { ok: true, issues: [], stats: {} };
-
-  while (attempt <= retryBudget) {
-    if (progress) progress(`invoking model pass 3/3: project brief draft (attempt ${String(attempt + 1)}/${String(retryBudget + 1)})...`);
-    let brief = null;
-    let draftingMode = 'full_regeneration';
-    let repairPlan = null;
-    if (!gateEnabled || attempt === 0 || !previousBriefData || !previousFailedReview) {
-      brief = await generateProjectBriefStructured({
-        settings,
-        evidencePack,
-        synthesis,
-        framing,
-        projectName,
-        pmRoleContractSource: pmRole.relPath,
-        pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
-        clarityGateFeedback,
-        previousBriefMarkdown,
-        onProgress: progress,
-      });
-    } else {
-      if (progress) progress('applying targeted retry repair on flagged lines only (non-target lines frozen)...');
-      const targeted = await generateProjectBriefStructuredTargetedRepair({
-        settings,
-        evidencePack,
-        synthesis,
-        framing,
-        projectName,
-        previousBriefData,
-        previousBriefMarkdown,
-        review: previousFailedReview,
-        onProgress: progress,
-      });
-      brief = targeted.brief;
-      draftingMode = targeted.repairPlan?.mode || 'targeted_patch';
-      repairPlan = targeted.repairPlan || null;
-      if (progress && repairPlan) {
-        progress(
-          `targeted repair summary: editable_paths=${String(repairPlan.editablePaths)}, patched_paths=${String(repairPlan.patchedPaths)}, unmapped_issues=${String(repairPlan.unmappedIssues)}`,
-        );
-      }
-    }
-    const briefMarkdown = renderProjectBriefMarkdown(projectName, brief, analysis);
-    const semanticGateEnabled =
-      settings.semanticClarityGateEnabled !== false
-      && settings.semanticScopeGateEnabled !== false;
-    const reviewMode = gateEnabled
-      ? 'pass1_adjudicated_plus_global_semantic'
-      : 'gate_disabled';
-    const review = gateEnabled
-      ? mergePassOneAndSemanticReviews({
-        passOneReview: await reviewGeneratedBriefClarityPassOne({
-          settings,
-          markdown: briefMarkdown,
-          semanticClarityGateEnabled: semanticGateEnabled,
-          onProgress: progress,
-        }),
-        semanticReview: await reviewGeneratedBriefClarityAllSemantic({
-          settings,
-          markdown: briefMarkdown,
-          evidencePack,
-          synthesis,
-          framing,
-          pmRoleContractSource: pmRole.relPath,
-          pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
-          semanticClarityGateEnabled: semanticGateEnabled,
-          onProgress: progress,
-        }),
-      })
-      : { ok: true, issues: [], stats: {} };
-    const suggestions = gateEnabled && review.issues.length > 0
-      ? await suggestBestWayForwardForFindings({
-        settings,
-        issues: review.issues,
-        framing,
-        pmRoleContractSource: pmRole.relPath,
-        pmRoleContractBriefFocus: pmRole.roleContractBriefFocus,
-        onProgress: progress,
-      })
-      : [];
-    const snapshotPath = writeBriefAttemptSnapshot({
-      targetRoot,
-      attempt: attempt + 1,
-      markdown: briefMarkdown,
-    });
-    const snapshotRelPath = path.relative(targetRoot, snapshotPath);
-
-    attempts.push({
-      attempt: attempt + 1,
-      review,
-      reviewMode,
-      draftingMode,
-      repairPlan,
-      suggestions,
-      briefMarkdown,
-      snapshotPath,
-      snapshotRelPath,
-    });
-    finalBrief = brief;
-    finalBriefMarkdown = briefMarkdown;
-    finalReview = review;
-    if (progress) {
-      const verdict = review.ok ? 'pass' : 'fail';
-      progress(`clarity gate attempt ${String(attempt + 1)}: ${verdict} (${String(review.issues.length)} issue(s); mode=${reviewMode})`);
-    }
-
-    if (!gateEnabled || review.ok || attempt === retryBudget) {
-      break;
-    }
-
-    clarityGateFeedback = buildClarityRepairFeedback(review);
-    previousBriefMarkdown = briefMarkdown;
-    previousBriefData = brief;
-    previousFailedReview = review;
-    if (progress) progress('retrying project brief generation with clarity feedback...');
-    attempt += 1;
-  }
-
-  const clarityReviewPath = writeBriefClarityReview({
-    targetRoot,
-    gateEnabled,
-    retryBudget,
-    attempts,
-    finalReview,
-  });
-  const clarityLedgerPath = writeBriefClarityLedger({
-    targetRoot,
-    attempts,
-  });
-  if (progress) progress(`wrote brief clarity review: ${path.relative(targetRoot, clarityReviewPath)}`);
-  if (progress) progress(`wrote brief clarity ledger: ${path.relative(targetRoot, clarityLedgerPath)}`);
-
-  if (gateEnabled && !finalReview.ok) {
-    const failedBriefPath = path.join(targetRoot, 'docs/reviews/product-manager/project-brief.failed.md');
-    writeTextAtomic(failedBriefPath, finalBriefMarkdown);
-    if (progress) progress(`wrote failed brief draft: ${path.relative(targetRoot, failedBriefPath)}`);
-    const preview = finalReview.issues
-      .slice(0, 4)
-      .map((issue) => `[${issue.rule}] ${issue.section}`)
-      .join('; ');
-    throw new Error(
-      `Project brief failed clarity gate after ${String(attempts.length)} attempt(s). ${preview || 'See clarity review.'} Review: ${path.relative(targetRoot, clarityReviewPath)} Failed draft: ${path.relative(targetRoot, failedBriefPath)}`,
-    );
-  }
-
-  writeTextAtomic(briefPath, finalBriefMarkdown);
-  if (progress) progress(`wrote brief draft: ${path.relative(targetRoot, briefPath)}`);
-  if (progress) progress('model-driven intake pipeline complete.');
-
-  return {
-    evidencePath,
-    synthesisPath,
-    framingPath,
-    briefPath,
-    clarityReviewPath,
-    clarityLedgerPath,
-    briefAttemptSnapshotPaths: attempts.map((entry) => entry.snapshotPath),
-    settings,
-    clarity: {
-      gateEnabled,
-      retryBudget,
-      attempts: attempts.length,
-      retriesUsed: Math.max(0, attempts.length - 1),
-      passed: finalReview.ok,
-      issueCount: finalReview.issues.length,
-    },
-    briefData: finalBrief,
   };
 }

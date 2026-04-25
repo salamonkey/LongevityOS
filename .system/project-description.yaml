@@ -1,0 +1,57 @@
+# generated_from: templates/project-description.template.yaml
+# fabric_version: v1
+# generated_at: 2026-04-25T05:38:57.547Z
+project:
+  name: "Longevity Health OS (Health App MVP)"
+  summary: >
+    Preventive health navigation app that tells users what health action to take next, when to take it, and why it matters.
+
+product:
+  type: "mobile_first_web_app"
+
+users:
+  - "Professionals aged 30–65 who want a fast view of relevant preventive actions."
+  - "Parents who manage health tasks for multiple family members in one account."
+
+primary_goal: >
+  Preventive health navigation app that tells users what health action to take next, when to take it, and why it matters.
+
+core_workflow:
+  - "onboard_profile"
+  - "review_dashboard"
+  - "act_on_item"
+
+key_concepts:
+  - "profile"
+  - "health_item"
+  - "reminder"
+
+scope:
+  v1_priorities:
+    - "onboarding_to_generated_plan"
+    - "status_and_reminder_tracking"
+  explicitly_out_of_scope:
+    - "Doctor or provider integration."
+    - "External API integrations."
+
+constraints:
+  tech_preferences:
+    backend: "typescript_fastify"
+    frontend: "nextjs_react"
+    database: "postgresql"
+    orm: "prisma"
+  architecture_preference: "modular_monolith"
+  working_style: "vertical_slices"
+  editor: "vscode"
+  non_functional:
+    - "privacy_by_default"
+    - "mobile_performance"
+
+customer_preferences:
+  wants_product_review_gate: true
+  prefers_small_vertical_slices: true
+  escalation_mode: only_when_material_decisions_are_required
+
+success_criteria:
+  - "A new user reaches a generated health plan and prioritized dashboard within 60 seconds of tapping Start."
+  - "100% of completed onboardings with age and gender inputs produce a non-empty health plan."

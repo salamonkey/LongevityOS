@@ -1,0 +1,242 @@
+# generated_from: method/workflow-rules.template.yaml
+# fabric_version: v1
+# generated_at: 2026-04-25T05:38:57.547Z
+schema_version: 1
+rules_version: 1
+generated_at_utc: "2026-04-25T05:35:21.246Z"
+mode_detection:
+  bootstrap_mode_when:
+    - foundational_project_description_exists
+    - project_brief_exists_and_approved
+    - any_required_foundation_artifact_missing_or_empty
+    - backlog_missing
+    - current_slice_missing
+  delivery_mode_when:
+    - manifest_exists_and_not_empty
+    - artifact_registry_exists_and_not_empty
+    - workflow_rules_exist_and_not_empty
+    - backlog_exists_and_not_empty
+    - current_slice_exists_and_not_empty
+    - no_unresolved_material_customer_decision
+  review_recovery_mode_when:
+    - artifact_drift_or_contradiction_detected
+    - major_review_failed
+    - current_slice_no_longer_coherent_or_implementable
+
+bootstrap_workflow:
+  entry_gate:
+    required_before_bootstrap_instantiate:
+      - project_brief_exists
+      - project_brief_status_approved
+    on_failure: halt_and_request_brief_approval
+  steps:
+    - collect_or_update_project_intake_note
+    - draft_project_brief
+    - customer_review_and_brief_approval
+    - read_project_description
+    - draft_manifest
+    - draft_artifact_registry
+    - draft_workflow_rules
+    - product_manager_review_foundation_artifacts
+    - draft_initial_backlog
+    - draft_initial_current_slice
+    - product_manager_review_backlog_and_slice
+    - run_bootstrap_signoff_gate
+    - plan_initial_delivery_slices
+    - finalize_bootstrap_and_transition_to_delivery
+  completion_gate:
+    required_artifacts:
+      - .system/project-manifest.yaml
+      - .system/artifact-registry.yaml
+      - .system/workflow-rules.yaml
+      - docs/product/backlog.yaml
+      - docs/product/current-slice.yaml
+    required_reviews:
+      - "docs/reviews/product-manager/bootstrap-foundation-review.md"
+      - "docs/reviews/product-manager/bootstrap-backlog-slice-review.md"
+    required_commands:
+      - pm:bootstrap-signoff
+      - pm:plan-slices
+      - doctor
+    no_material_customer_decision_required: true
+
+delivery_workflow:
+  principle: smallest_valuable_slice_first
+  pause_policy:
+    pause_only_when:
+      - unresolved_material_customer_decision
+      - explicit_customer_requested_pause
+    auto_continue_when:
+      - internal_gate_only
+      - no_customer_action_required
+      - optional_review_checkpoint_with_execution_state_continues
+  sequence:
+    - confirm_or_select_current_slice
+    - check_slice_readiness
+    - invoke_minimum_required_specialists
+    - implement_and_update_artifacts
+    - run_product_review_gate
+    - accept_revise_or_escalate
+  readiness_criteria:
+    - objective_clear
+    - scope_bounded
+    - acceptance_criteria_defined
+    - dependencies_known
+    - no_material_customer_blocker
+
+release_workflow:
+  required_order:
+    - run_release_verification_gate
+    - confirm_migration_status
+    - apply_database_migrations
+    - rollout_application
+    - run_post_deploy_smoke_checks
+  command_contract:
+    preflight: "npm run release:preflight"
+    deploy: "npm run release:deploy"
+  release_gate:
+    required_checks:
+      - lint
+      - typecheck
+      - automated_tests
+      - build
+      - db_migration_applied_or_not_required
+  database_migration_command:
+    status: "npm run db:migrate:status"
+    deploy: "npm run db:migrate:deploy"
+  policy:
+    allow_startup_auto_migrations: false
+
+routing_rules:
+  invoke_product_manager_when:
+    - bootstrap_foundation_artifacts_created_or_revised
+    - backlog_created_or_revised
+    - current_slice_created_or_revised
+    - implementation_milestone_reached
+    - product_tradeoff_or_scope_decision_exists
+  invoke_architect_when:
+    - architecture_baseline_missing_for_structural_slice
+    - domain_model_or_module_boundary_changes
+    - new_or_changed_business_invariants
+  invoke_uiux_when:
+    - slice_has_meaningful_user_facing_flow
+    - ux_guidance_missing_or_unclear
+    - user_facing_output_needs_review
+  invoke_coder_when:
+    - slice_ready_for_implementation
+    - product_constraints_clear
+    - required_architecture_and_ux_guidance_available
+
+review_gates:
+  product_manager:
+    mandatory:
+      - bootstrap_foundation_artifacts
+      - initial_backlog
+      - initial_current_slice
+      - slice_completion_milestones
+      - schema_change_migration_status_recorded
+  architect:
+    mandatory_when:
+      - structural_or_invariant_changes
+  uiux:
+    mandatory_when:
+      - meaningful_user_flow_or_screen_changes
+
+escalation_policy:
+  escalate_only_when_material_customer_owned_decision: true
+  material_decision_examples:
+    - v1_scope_tradeoff_that_changes_user_value
+    - prioritization_tradeoff_with_meaningful_impact
+    - workflow_or_permission_choice_with_product_implications
+  non_material_examples:
+    - naming
+    - implementation_technique
+    - routine_refactoring
+
+slice_policy:
+  target_slice_size: 1_to_3_days
+  include_in_every_slice:
+    - objective
+    - in_scope
+    - out_of_scope
+    - acceptance_criteria
+    - dependencies
+    - done_definition
+  avoid:
+    - speculative_scope
+    - oversized_batching
+    - cross_cutting_epics_without_end_to_end_value
+
+coder_handoff_contract:
+  migration_reporting:
+    applies_when:
+      - database_schema_changed
+      - migration_files_added_or_modified
+    required_fields:
+      - migration_required
+      - migration_command
+      - migration_evidence
+    defaults:
+      migration_required: "no"
+      migration_command_when_required: "npm run db:migrate:deploy"
+
+customer_checkpoint_policy:
+  template_path: "docs/templates/customer-checkpoint-template.md"
+  required_fields:
+    - current_slice
+    - objective
+    - status
+    - customer_action_classification
+    - execution_state
+    - exact_recommended_reply
+    - what_happens_next
+  action_classifications:
+    - no_action_required
+    - optional_review
+    - decision_required
+  blocking_semantics:
+    no_action_required_blocks_delivery: false
+    optional_review_blocks_delivery: false
+    decision_required_blocks_delivery: true
+  migration_reporting_rules:
+    when_schema_change_detected:
+      require_fields:
+        - migration_required
+        - migration_command
+        - migration_evidence
+  review_instruction_rules:
+    require_access_ready_before_customer_testing: true
+    require_team_pre_customer_test_verification: true
+    if_access_not_ready:
+      force_action_classification: no_action_required
+      include_team_next_steps: true
+      reissue_when_ready: true
+    if_access_ready_and_review_requested:
+      require_fields:
+        - availability_confirmed_by_team_yes
+        - entry_point_or_url
+        - credentials_if_required
+        - exact_steps_to_relevant_screen
+        - exact_review_flow
+        - expected_result
+        - team_verification_evidence
+  pre_customer_test_verification:
+    required_checks:
+      - lint
+      - typecheck
+      - automated_tests
+      - live_smoke_review_flow
+      - entry_url_probe_expected_response
+      - db_migration_applied_or_not_required
+    gate_behavior:
+      block_customer_testing_until_all_pass: true
+      on_failure: fix_and_reverify
+
+slice_closeout_transition_rules:
+  milestone_checkpoint_is_not_closeout: true
+  require_closeout_review_after_implementation: true
+  require_state_updates_after_closeout:
+    - docs/product/backlog.yaml
+    - docs/product/current-slice.yaml
+    - .system/project-manifest.yaml
+  do_not_wait_for_optional_review_reply: true

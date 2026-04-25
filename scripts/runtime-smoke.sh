@@ -43,8 +43,22 @@ assert_contains() {
   fi
 }
 
-cp "$ROOT/fabric.values.json" "$TMP_DIR/fabric.values.json"
+if [[ -f "$ROOT/fabric.values.json" ]]; then
+  cp "$ROOT/fabric.values.json" "$TMP_DIR/fabric.values.json"
+else
+  cp "$ROOT/fabric/company/v1/fabric.values.example.json" "$TMP_DIR/fabric.values.json"
+fi
+node --input-type=module -e "import fs from 'node:fs'; const p=process.argv[1]; const v=JSON.parse(fs.readFileSync(p,'utf8')); v.llm_enabled=false; v.brief_draft_llm_enabled=false; v.pm_llm_enabled=false; v.planning_llm_enabled=false; v.architect_llm_enabled=false; v.coder_llm_enabled=false; fs.writeFileSync(p, JSON.stringify(v, null, 2)+'\\n', 'utf8');" "$TMP_DIR/fabric.values.json"
 mkdir -p "$TMP_DIR/docs/product"
+mkdir -p "$TMP_DIR/docs/customer-input"
+
+cat > "$TMP_DIR/docs/customer-input/customer-request.md" <<'EOF'
+# Customer Input
+
+Need a coordinated workflow to track risk posture across teams.
+Primary users are security operators and engineering leads.
+MVP scope includes asset intake, risk registration, mitigation tracking, and milestone reporting.
+EOF
 
 cat > "$TMP_DIR/docs/product/intake-note.md" <<'EOF'
 # Intake Note
@@ -57,8 +71,11 @@ Constraints and non-negotiables: Existing deployment process, compliance obligat
 EOF
 
 run "$FABRIC" init-factory --target "$TMP_DIR" --values "$TMP_DIR/fabric.values.json"
-run "$FABRIC" pm:brief-readiness --target "$TMP_DIR" --values "$TMP_DIR/fabric.values.json"
-run "$FABRIC" pm:approve-brief --target "$TMP_DIR" --values "$TMP_DIR/fabric.values.json"
+run "$FABRIC" pm:intake --target "$TMP_DIR"
+run "$FABRIC" pm:brief-readiness --target "$TMP_DIR"
+run "$FABRIC" pm:brief-draft --target "$TMP_DIR"
+run "$FABRIC" pm:brief-approve --target "$TMP_DIR"
+run "$FABRIC" pm:derive-values --target "$TMP_DIR"
 run "$FABRIC" format-from-brief --target "$TMP_DIR"
 run "$FABRIC" execute --target "$TMP_DIR" --values "$TMP_DIR/fabric.values.json"
 run "$FABRIC" db:init --target "$TMP_DIR" --values "$TMP_DIR/fabric.values.json" --force

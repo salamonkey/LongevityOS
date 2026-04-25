@@ -185,12 +185,10 @@
       "db:init": "npm run fabric -- db:init --target .",
       "db:check": "npm run fabric -- db:check --target .",
       "db:reset": "npm run fabric -- db:reset --target . --yes",
-      "db:seed": "npm run fabric -- db:seed --target . --yes",
       "db:migrate:status": "supabase migration list",
       "db:migrate:deploy": "supabase db push"
     },
-    "reset_command": "supabase db reset",
-    "seed_command": "supabase db reset"
+    "reset_command": "supabase db reset"
   },
   "drift_exemptions": [
     "docs/product/product-system-framing.md",

@@ -1,0 +1,41 @@
+# generated_from: templates/current-slice.template.yaml
+# fabric_version: v1
+# generated_at: 2026-04-25T08:01:04.877Z
+schema_version: 1
+generated_at_utc: "2026-04-25T08:01:04.877Z"
+slice:
+  id: "SL-001"
+  title: "First-profile Onboarding to Generated Dashboard"
+  milestone: "SL-001_implementation"
+  owner_role: "Product Manager"
+  status: "in_progress"
+  objective: "Enable a new user to enter age and gender for the first profile, generate a deterministic health plan, and land on a prioritized dashboard within 60 seconds."
+  in_scope:
+    - "Start onboarding and capture age and gender for the first profile"
+    - "Support the self-only onboarding path"
+    - "Generate a non-empty personal health plan from deterministic age-and-gender rules before dashboard load"
+    - "Show the active profile dashboard grouped into Today, Soon, and Later"
+    - "Display a read-only health score on the dashboard for the active profile"
+  out_of_scope:
+    - "Add-family onboarding path"
+    - "Health item detail view"
+    - "Mark item Done"
+    - "Reminder creation"
+    - "Vaccination tracking or settings"
+  acceptance_criteria:
+    - "A completed onboarding with valid age and gender inputs produces a non-empty health plan before the user lands on the dashboard"
+    - "The tested happy path from tapping Start to seeing the generated dashboard completes within 60 seconds"
+    - "Every dashboard health item appears in exactly one priority group: Today, Soon, or Later"
+    - "The dashboard shows a read-only health score for the active profile"
+    - "Dashboard content reflects deterministic rule output from the entered age and gender only"
+  dependencies:
+    - "None; first deliverable"
+  done_definition:
+    - "Only minimum MVP onboarding data is collected: age and gender"
+    - "Onboarding and dashboard copy present guidance as rule-based, non-AI, and not a medical record"
+    - "End-to-end mobile viewport QA passes for the self-only onboarding to dashboard path"
+    - "No provider integrations, external APIs, or analytics features are introduced in this slice"
+    - "docs/testing/SL-001-user-checklist.md is completed and marked Pass for SL-001."
+    - "Implementation artifacts exist for SL-001 targets: src/features/onboarding/, src/features/profile/, src/routes/onboarding*, tests/onboarding/."
+    - "docs/implementation/SL-001-implementation-notes.md is updated with verification evidence and changed files for SL-001."
+    - "fabric doctor passes without bootstrap semantic issues."

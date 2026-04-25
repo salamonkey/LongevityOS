@@ -1,0 +1,64 @@
+UX Copy – Health App (MVP)
+Tonalität: klar, ruhig, vertrauensvoll, leicht motivierend.
+Ziel: maximale Klarheit für den Nutzer.
+
+Onboarding
+Titel: Dein Gesundheits-Navigator
+Subline: Wir zeigen dir, was du wann für deine Gesundheit tun solltest.
+Button: Starten
+Input:
+Titel: Erzähl uns kurz von dir
+Helper: Daraus erstellen wir deinen persönlichen Gesundheitsplan.
+Button: Weiter
+Family:
+Titel: Für wen möchtest du planen?
+Optionen: Nur für mich / Familie hinzufügen
+
+Dashboard
+Header: Hallo – Dein Überblick für heute
+Heute wichtig:
+Zahnarzttermin vereinbaren
+Bluttest überfällig
+In nächster Zeit:
+Hautcheck in 2 Monaten
+Health Score:
+Du bist zu 70% auf dem aktuellen Stand
+
+Health Plan
+Titel: Dein Gesundheitsplan
+Subline: Alle wichtigen Vorsorge- und Gesundheitsschritte auf einen Blick.
+Item:
+Zahnarzt – empfohlen alle 6 Monate
+Status: erledigt / fällig / geplant
+
+Detail Screen
+Bluttest
+Empfohlen einmal pro Jahr.
+
+Warum: Frühzeitige Erkennung von Risiken.
+Status: Letzter Test vor 3 Jahren
+Buttons: Erledigt markieren / Erinnerung setzen
+
+Family
+Titel: Familie
+Subline: Behalte alle im Blick.
+Beispiel:
+Lucius – 80% up to date, 1 Impfung fällig
+
+Impfpass
+Titel: Impfungen
+Subline: Dein Impfstatus auf einen Blick.
+Tetanus – Auffrischung empfohlen
+Letzte Impfung: 2015
+Button: Impfung hinzufügen
+
+Reminder
+Titel: Erinnerung setzen
+Optionen: 1 Monat / 3 Monate / Datum wählen
+Bestätigung: Wir erinnern dich rechtzeitig.
+
+Microcopy
+Alles im grünen Bereich ■
+Das solltest du bald erledigen.
+Super – wieder ein Schritt für deine Gesundheit.
+Kleine Schritte machen den Unterschied.

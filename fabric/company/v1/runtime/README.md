@@ -72,6 +72,6 @@ Introduce clearer interfaces:
 
 
 Additional delivery preparation commands:
-- `architect:finalize-baseline`
-- `uiux:finalize-current-slice-flow`
+- `architect:generate-current-slice-baseline`
+- `uiux:generate-current-slice-flow`
 - `pm:finalize-bootstrap-reviews`

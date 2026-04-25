@@ -1,6 +1,5 @@
 import { resolveFirstValidLlmSettings } from './config.mjs';
-import { invokeOpenAIStructured } from './provider-openai.mjs';
-import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+import { invokeStructured } from './brief-context.mjs';
 import { loadRoleContractForModule } from './role-contracts.mjs';
 
 const UIUX_FLOW_SCHEMA = {
@@ -103,48 +102,8 @@ function normalizePlaybook(raw, slice = {}) {
   };
 }
 
-async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
-  const progress = typeof onProgress === 'function' ? onProgress : null;
-  const startedAt = Date.now();
-  let heartbeat = null;
-  if (progress) {
-    progress(`llm request started: ${taskName}`);
-    heartbeat = setInterval(() => {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`\tllm request in progress: ${taskName} (${String(elapsedSec)}s elapsed)`);
-    }, 10000);
-  }
-
-  try {
-    if (settings.provider === 'openai') {
-      const result = await invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    if (settings.provider === 'stdio_json') {
-      const result = await invokeStdioJsonStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    throw new Error(`Unsupported llm provider: ${settings.provider}`);
-  } catch (error) {
-    if (progress) {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request failed: ${taskName} (${String(elapsedSec)}s)`);
-    }
-    throw error;
-  } finally {
-    if (heartbeat) clearInterval(heartbeat);
-  }
-}
-
 export async function generateCurrentSliceUxPlaybook({
+  targetRoot,
   values = {},
   slice = {},
   briefMarkdown = '',
@@ -213,9 +172,17 @@ export async function generateCurrentSliceUxPlaybook({
   const output = await invokeStructured({
     settings,
     taskName: 'uiux_current_slice_flow',
+    caller: 'uiux-flow.generateCurrentSliceUxPlaybook',
+    targetRoot,
     systemPrompt,
     userPrompt,
     schema: UIUX_FLOW_SCHEMA,
+    promptSourceFiles: [
+      String(uiuxRole.relPath || ''),
+      'docs/product/current-slice.yaml',
+      'docs/product/product-system-framing.md',
+      'docs/product/project-brief.md',
+    ],
     onProgress,
   });
 

@@ -1,6 +1,5 @@
 import { resolveFirstValidLlmSettings } from './config.mjs';
-import { invokeOpenAIStructured } from './provider-openai.mjs';
-import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+import { invokeStructured } from './brief-context.mjs';
 
 export const ARCHITECT_CONSULTABLE_TOKENS = Object.freeze([
   'product_type',
@@ -46,46 +45,6 @@ const ARCHITECT_VALUE_RECOMMENDATION_SCHEMA = {
   },
 };
 
-async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
-  const progress = typeof onProgress === 'function' ? onProgress : null;
-  const startedAt = Date.now();
-  let heartbeat = null;
-  if (progress) {
-    progress(`llm request started: ${taskName}`);
-    heartbeat = setInterval(() => {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`\tllm request in progress: ${taskName} (${String(elapsedSec)}s elapsed)`);
-    }, 10000);
-  }
-  try {
-    if (settings.provider === 'openai') {
-      const result = await invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    if (settings.provider === 'stdio_json') {
-      const result = await invokeStdioJsonStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    throw new Error(`Unsupported llm provider: ${settings.provider}`);
-  } catch (error) {
-    if (progress) {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request failed: ${taskName} (${String(elapsedSec)}s)`);
-    }
-    throw error;
-  } finally {
-    if (heartbeat) clearInterval(heartbeat);
-  }
-}
-
 function uniqueTokenList(tokens = []) {
   const out = [];
   const seen = new Set();
@@ -101,11 +60,13 @@ function uniqueTokenList(tokens = []) {
 }
 
 export async function generateArchitectValueRecommendations({
+  targetRoot,
   values = {},
   unresolvedTokens = [],
   briefMarkdown = '',
   framingMarkdown = '',
   architectRoleMarkdown = '',
+  architectRoleSourcePath = '',
   currentValues = {},
   onProgress,
 }) {
@@ -173,9 +134,17 @@ export async function generateArchitectValueRecommendations({
   const output = await invokeStructured({
     settings,
     taskName: 'architect_values_enrichment',
+    caller: 'architect-values.generateArchitectValueRecommendations',
+    targetRoot,
     systemPrompt,
     userPrompt,
     schema: ARCHITECT_VALUE_RECOMMENDATION_SCHEMA,
+    promptSourceFiles: [
+      String(architectRoleSourcePath || ''),
+      'docs/product/product-system-framing.md',
+      'docs/product/project-brief.md',
+      'fabric.values.json',
+    ],
     onProgress,
   });
 

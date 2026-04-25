@@ -39,12 +39,33 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Values behavior: without `--init-values`, `init-factory` runs in brief-first mode and does not require a values file (if factory-init templates do not require tokens).
   - Values convenience: `--init-values` explicitly opts into early values creation from `fabric.values.example.json`; use `--force-values` to overwrite an existing values file.
 
-- `pm:brief-readiness --target <project-root> [--values fabric.values.json]`
-  - What it does: runs Product Manager brief-readiness content gate, reads every readable file under `docs/customer-input/*` plus `docs/product/intake-note.md` (when present), writes `docs/reviews/product-manager/brief-readiness-review.md`, and generates a synthesized first draft `docs/product/project-brief.md` from the template structure when input coverage is sufficient and brief does not already exist.
-  - When to use: after customer input is placed and before brief refinement/approval.
-  - Benefit: turns step 6 into an explicit, repeatable command with a persisted decision artifact.
+- `pm:intake --target <project-root>`
+  - What it does: deterministically scans `docs/customer-input/*` for supported sources (`.pdf`, `.md`, `.txt`, `.json`), extracts normalized text, and writes intake artifacts under `docs/pm/intake/` (`sources.json`, `intake-report.md`, and per-source `extracted-text/*.txt`).
+  - When to use: first PM lifecycle command after customer input files are placed in `docs/customer-input/`.
+  - Benefit: makes source ingestion explicit, validated, and observable before readiness/brief drafting.
+  - Failure behavior: exits non-zero when input directory is missing, no supported files are found, or no usable text can be extracted.
+
+- `pm:brief-readiness --target <project-root>`
+  - What it does: runs Product Manager brief-readiness content gate, reads every readable file under `docs/customer-input/*` plus `docs/product/intake-note.md` (when present), and writes `docs/reviews/product-manager/brief-readiness-review.md`.
+  - When to use: after `pm:intake`.
+  - Benefit: makes readiness an explicit, repeatable command with a persisted decision artifact.
   - Gate rule: blocking coverage is required for problem/outcome, target users, and MVP scope, plus no unreadable evidence files and sufficient readable content volume. Missing constraints/non-negotiables is treated as a warning (non-blocking). `docs/customer-input/README.md` does not count as evidence.
   - Failure behavior: on fail, the command now writes `docs/reviews/product-manager/customer-information-request.md` with concrete requested customer inputs, prints those requests in terminal, and points to the full readiness review note.
+
+- `pm:brief-draft --target <project-root>`
+  - What it does: runs the deterministic brief drafting pass after readiness checks so the project brief draft is present and up to date.
+  - When to use: after `pm:brief-readiness`.
+  - Values behavior: does not require an existing `fabric.values.json`.
+
+- `pm:brief-approve --target <project-root>`
+  - What it does: applies brief approval workflow for `docs/product/project-brief.md`.
+  - When to use: after `pm:brief-draft` and customer sign-off.
+  - Values behavior: does not require an existing `fabric.values.json`.
+
+- `pm:derive-values --target <project-root>`
+  - What it does: derives/updates `fabric.values.json` from approved brief context.
+  - When to use: after `pm:brief-approve`.
+  - Values behavior: creates values when missing; no pre-existing values file required.
 
 - `pm:brief-semantic-check --target <project-root> [--values fabric.values.json] [--brief <path>]`
   - What it does: runs a semantic-only clarity recheck against an operator-edited brief (default `docs/reviews/product-manager/project-brief.failed.md`) and appends findings/fixes/suggestions to `docs/reviews/product-manager/brief-clarity-review.md` under `Post-Edit Semantic Validation Runs`.
@@ -52,10 +73,8 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Exit behavior: returns `0` when semantic findings are clear; returns `1` when findings remain or required inputs are missing.
 
 - `pm:approve-brief --target <project-root> [--values fabric.values.json]`
-  - What it does: sets `Brief Approval Status: approved` in `docs/product/project-brief.md`, derives/updates `fabric.values.json` from the approved brief content, and attempts Architect LLM consultation to fill unresolved default planning/architecture values (using `team/architect.md` + `docs/product/product-system-framing.md` when available).
-  - When to use: immediately after customer approval of the project brief.
-  - Benefit: combines brief approval and value-token derivation into one explicit transition command.
-  - Creation behavior: if `fabric.values.json` does not exist, this command now creates it with neutral defaults + machine-readable `defaulted_fields`, then overlays brief-derived values.
+  - What it does: backward-compatible combined alias for approval + value derivation.
+  - When to use: legacy flow only. Preferred sequence is `pm:brief-approve` then `pm:derive-values`.
 
 - `pm:finalize-bootstrap-reviews --target <project-root> [--values fabric.values.json]`
   - What it does: generates finalized PM bootstrap review artifacts for foundation and backlog/current-slice state, removes template placeholders automatically, and sets explicit machine-readable assessments (`approved` or `needs_revision`).
@@ -73,15 +92,22 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: immediately after `scaffold` and before bootstrap review finalization.
   - Benefit: converts bootstrap scaffolding into execution-ready slice definitions.
 
-- `architect:finalize-baseline --target <project-root> [--values fabric.values.json]`
-  - What it does: generates a slice-specific `docs/architecture/baseline.md` for the active slice from current slice state, project brief, and product-system framing.
+- `architect:generate-current-slice-baseline --target <project-root> [--values fabric.values.json]`
+  - What it does: generates a slice-specific `docs/architecture/<SLICE_ID>-baseline.md` for the active slice from current slice state, project brief, and product-system framing.
   - When to use: after `pm:plan-slices` and before implementation of the active slice.
   - Benefit: turns the architecture baseline from a generic template into implementation-ready structural guidance.
 
-- `uiux:finalize-current-slice-flow --target <project-root> [--values fabric.values.json]`
+- `uiux:generate-current-slice-flow --target <project-root> [--values fabric.values.json]`
   - What it does: generates a slice-specific `docs/ux/<SLICE_ID>-current-slice-flow.md` for the active slice from current slice state, project brief, and product-system framing.
   - When to use: after `pm:plan-slices` and before implementation of user-facing slices.
   - Benefit: turns the UX flow artifact from a generic template into implementation-ready interaction guidance.
+
+LLM transparency and logging:
+- All model-driven commands now print prompt source file paths right after `llm request started`, one source per line under a `prompt content:` header.
+- Prompt content lists are strict: only explicitly registered source files are shown (not path-like strings merely mentioned inside prompt text).
+- Every model call writes two artifacts under `/.llm-logs/` (project root):
+  - `<timestamp>-<caller>-<task>-prompt.md`
+  - `<timestamp>-<caller>-<task>-response.json`
 
 - `format-from-brief --target <project-root>`
   - What it does: validates that `docs/product/project-brief.md` exists and is approved (`Brief Approval Status: approved`), and enforces minimum input sufficiency (`docs/product/intake-note.md` or one/more files in `docs/customer-input/*`).
@@ -130,11 +156,6 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: local rebuild/test-data reset workflows.
   - Benefit: deterministic reset path for development environments.
 
-- `db:seed --target <project-root>`
-  - What it does: executes configured seed command after validating seed artifact presence.
-  - When to use: after schema apply/reset when baseline data is needed for smoke/review flows.
-  - Benefit: consistent seed workflow across projects.
-
 ## Inputs
 
 - `fabric.values.json`: token values used during generation (recommended, dependency-free).
@@ -155,13 +176,24 @@ Workflow:
 
 1. Verbal customer request -> capture into `docs/product/intake-note.md`.
 2. Existing customer documentation -> store in `docs/customer-input/`.
-3. Minimum input gate: at least one source must exist (`docs/product/intake-note.md` or one/more files in `docs/customer-input/*`).
-4. Product Manager evaluates whether available input is sufficient to draft a reliable brief.
-5. If insufficient, Product Manager requests additional customer information before brief drafting continues.
-6. If sufficient, Product Manager synthesizes available inputs into `docs/product/project-brief.md`.
-7. Customer and Product Manager refine the brief.
-8. Brief approval gates generation flow (`format-from-brief` then `scaffold` + `pm:plan-slices`).
+3. Product Manager runs `pm:intake` to extract and normalize customer source text into `docs/pm/intake/`.
+4. Minimum input gate: at least one source must exist (`docs/product/intake-note.md` or one/more files in `docs/customer-input/*`).
+5. Product Manager evaluates whether available input is sufficient to draft a reliable brief.
+6. If insufficient, Product Manager requests additional customer information before brief drafting continues.
+7. If sufficient, Product Manager synthesizes available inputs into `docs/product/project-brief.md`.
+8. Customer and Product Manager refine the brief.
+9. Brief approval gates generation flow (`format-from-brief` then `scaffold` + `pm:plan-slices`).
 >> Flow now reflects project-brief -> scaffold -> planning -> execution.
+
+After placing customer input files into `docs/customer-input/`, run:
+
+```bash
+./fabric/company/v1/fabric pm:intake --target .
+./fabric/company/v1/fabric pm:brief-readiness --target .
+./fabric/company/v1/fabric pm:brief-draft --target .
+./fabric/company/v1/fabric pm:brief-approve --target .
+./fabric/company/v1/fabric pm:derive-values --target .
+```
 
 Artifact lifecycle policy:
 
@@ -178,50 +210,61 @@ This is the only canonical end-to-end sequence. It matches the current runtime b
 STAGE 1
 1. (Optional, repo-specific) reset to fabric-only:
    - `bash scripts/reset-to-fabric-only.sh --yes --also-values`
-2. Initialize factory:
+2. Initialize factory (without or with values):
+   - `./fabric/company/v1/fabric init-factory --target . --values ./fabric.values.json`
    - `./fabric/company/v1/fabric init-factory --target . --values ./fabric.values.json --init-values`
-3. Build/review brief readiness:
-   - `./fabric/company/v1/fabric pm:brief-readiness --target . --values ./fabric.values.json`
-4. Approve brief and derive values:
-   - `./fabric/company/v1/fabric pm:approve-brief --target . --values ./fabric.values.json`
-5. Gate before scaffold:
+3. Run deterministic PM intake normalization:
+   - `./fabric/company/v1/fabric pm:intake --target .`
+4. Build/review brief readiness:
+   - `./fabric/company/v1/fabric pm:brief-readiness --target .`
+5. Draft brief (deterministic and LLM modes):
+   - `./fabric/company/v1/fabric pm:brief-draft --target .`
+   - `BRIEF_DRAFT_LLM_ENABLED=true ./fabric/company/v1/fabric pm:brief-draft --target .`
+6. Approve brief:
+   - `./fabric/company/v1/fabric pm:brief-approve --target .`
+7. Derive values:
+   - `./fabric/company/v1/fabric pm:derive-values --target .`
+8. Gate before scaffold:
    - `./fabric/company/v1/fabric format-from-brief --target .`
 STAGE 2
-6. Generate bootstrap/governance artifacts:
+9. Generate bootstrap/governance artifacts scaffold:
    - `./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json`
-7. Generate initial backlog/current-slice:
+10. Generate initial backlog of slices:
    - `./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json`
-8. Finalize bootstrap reviews:
+11. Finalize bootstrap reviews:
    - `./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json`
-9. Bootstrap signoff into delivery mode:
+12. Bootstrap signoff into delivery mode:
    - `./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json`
-10. Initialize DB baseline:
+13. Initialize DB baseline:
     - `./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json`
+13b. Verify DB readiness:
+    - `./fabric/company/v1/fabric db:check --target .`
 STAGE 3
-11. Generate architecture baseline for active slice:
-    - `./fabric/company/v1/fabric architect:finalize-baseline --target . --values ./fabric.values.json`
-12. Generate UX flow for active slice:
-    - `./fabric/company/v1/fabric uiux:finalize-current-slice-flow --target . --values ./fabric.values.json`
-13. Run readiness gate (recommended):
+14. Generate architecture baseline for active slice:
+    - `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json`
+15. Generate UX flow for active slice:
+    - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
+16. Run readiness gate (recommended):
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
 STAGE 4
-14. Start implementation state:
+17. Start implementation state:
     - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
-15. Generate implementation artifacts:
+18. Generate implementation artifacts:
     - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
-16. Validate in app:
+19. Validate in app:
     - `npm install`
     - `npm run dev`
-17. Close current slice:
+20. Close current slice:
     - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
-18. Run readiness gate:
+21. Run readiness gate:
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
-19. Advance to next slice:
+22. Advance to next slice:
     - `./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ./fabric.values.json`
-20. Run gate again:
+23. Run gate again:
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
-21. For each remaining slice, execute Steps 11-20 in order.
-    - Re-run Step 10 (`db:init`) only when DB baseline/scripts require refresh.
+24. For each remaining slice, execute Steps 14-23 in order.
+    - Re-run Step 13 (`db:init`) only when DB baseline/scripts require refresh.
+    - Re-run Step 13b (`db:check`) after DB/env/script changes and before proceeding.
 
 ## Detailed Step logic
 
@@ -246,28 +289,54 @@ STAGE 4
 - Safety behavior:
   - Refuses to overwrite non-generated files unless `--force`.
 
-#### Step 3: `pm:brief-readiness`
+#### Step 3: `pm:intake`
 
 - Command:
-  - `./fabric/company/v1/fabric pm:brief-readiness --target . --values ./fabric.values.json`
+  - `./fabric/company/v1/fabric pm:intake --target .`
+- What it does:
+  - Scans `docs/customer-input/*` for supported source files (`.pdf`, `.md`, `.txt`, `.json`).
+  - Extracts normalized text into `docs/pm/intake/extracted-text/*.txt`.
+  - Writes `docs/pm/intake/sources.json` and `docs/pm/intake/intake-report.md`.
+- Failure behavior:
+  - Exits non-zero if input directory is missing, no supported files are present, or no usable text can be extracted.
+
+#### Step 4: `pm:brief-readiness`
+
+- Command:
+  - `./fabric/company/v1/fabric pm:brief-readiness --target .`
 - What it does:
   - Reads evidence from `docs/customer-input/*` plus optional `docs/product/intake-note.md`.
   - Writes `docs/reviews/product-manager/brief-readiness-review.md`.
-  - On sufficient coverage, creates/updates synthesized brief artifacts (model-driven when configured, deterministic otherwise).
+  - Evaluates whether inputs are sufficient to proceed to drafting.
+- When to use:
+  - Run immediately after `pm:intake`.
 - Failure behavior:
   - Writes `docs/reviews/product-manager/customer-information-request.md`.
   - Exits non-zero and prints requested customer inputs.
 
-#### Step 4: `pm:approve-brief`
+#### Step 5: `pm:brief-draft`
 
 - Command:
-  - `./fabric/company/v1/fabric pm:approve-brief --target . --values ./fabric.values.json`
+  - `./fabric/company/v1/fabric pm:brief-draft --target .`
+- What it does:
+  - Performs the explicit draft step after readiness and ensures the project brief draft is in place.
+
+#### Step 6: `pm:brief-approve`
+
+- Command:
+  - `./fabric/company/v1/fabric pm:brief-approve --target .`
 - What it does:
   - Marks brief approved (`Brief Approval Status: approved`).
-  - Derives/updates `fabric.values.json` from approved brief content.
-  - May consult model-driven value assistance when configured.
 
-#### Step 5: `format-from-brief`
+#### Step 7: `pm:derive-values`
+
+- Command:
+  - `./fabric/company/v1/fabric pm:derive-values --target .`
+- What it does:
+  - Derives/updates `fabric.values.json` from approved brief content.
+  - Creates `fabric.values.json` when it does not already exist.
+
+#### Step 8: `format-from-brief`
 
 - Command:
   - `./fabric/company/v1/fabric format-from-brief --target .`
@@ -278,7 +347,7 @@ STAGE 4
 
 ### Stage 2: Bootstrap to delivery mode + environment baseline
 
-#### Step 6: `scaffold`
+#### Step 9: `scaffold`
 
 - Command:
   - `./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json`
@@ -294,7 +363,7 @@ STAGE 4
 - Safety behavior:
   - Refuses to overwrite non-generated files unless `--force`.
 
-#### Step 7: `pm:plan-slices`
+#### Step 10: `pm:plan-slices`
 
 - Command:
   - `./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json`
@@ -310,7 +379,7 @@ STAGE 4
 - Option rule:
   - `--model-driven` and `--heuristic` together is invalid.
 
-#### Step 8: `pm:finalize-bootstrap-reviews`
+#### Step 11: `pm:finalize-bootstrap-reviews`
 
 - Command:
   - `./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json`
@@ -328,7 +397,7 @@ STAGE 4
 - Important:
   - Do not manually pre-edit these reviews as the primary workflow; this command is the source of truth for review content.
 
-#### Step 9: `pm:bootstrap-signoff`
+#### Step 12: `pm:bootstrap-signoff`
 
 - Command:
   - `./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json`
@@ -345,7 +414,7 @@ STAGE 4
     - `status.approved_reviews` (merged unique review paths)
     - top-level `last_updated_utc`
 
-#### Step 10: `db:init`
+#### Step 13: `db:init`
 
 - Command:
   - `./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json`
@@ -358,25 +427,36 @@ STAGE 4
     - `.env.example`
   - Ensures `package.json` exists (creates minimal one when missing).
   - Upserts required DB scripts in `package.json`.
+- Operator follow-up:
+  - Run `./fabric/company/v1/fabric db:check --target .` immediately after this step before Stage 3 commands.
+
+#### Step 13b: `db:check`
+
+- Command:
+  - `./fabric/company/v1/fabric db:check --target .`
+- What it does:
+  - Verifies DB required files, required env keys in `.env.example`, required package scripts, and Supabase CLI availability.
+- Why it is in the canonical flow:
+  - Confirms DB baseline readiness deterministically before moving into Stage 3 delivery-prep commands.
 
 ### Stage 3: Delivery preparation
 
-#### Step 11: `architect:finalize-baseline`
+#### Step 14: `architect:generate-current-slice-baseline`
 
 - Command:
-  - `./fabric/company/v1/fabric architect:finalize-baseline --target . --values ./fabric.values.json`
+  - `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json`
 - What it does:
   - Requires `docs/product/current-slice.yaml`.
   - Reads active slice + optional brief/framing context.
-  - Generates `docs/architecture/baseline.md` (model-driven when available, heuristic fallback otherwise).
+  - Generates `docs/architecture/<SLICE_ID>-baseline.md` (model-driven when available, heuristic fallback otherwise).
   - Regenerates `docs/testing/<SLICE_ID>-user-checklist.md`.
   - Prints baseline mode (`model_driven|heuristic_fallback`) and written paths.
   - Does not mutate backlog/current-slice/manifest.
 
-#### Step 12: `uiux:finalize-current-slice-flow`
+#### Step 15: `uiux:generate-current-slice-flow`
 
 - Command:
-  - `./fabric/company/v1/fabric uiux:finalize-current-slice-flow --target . --values ./fabric.values.json`
+  - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
 - What it does:
   - Requires `docs/product/current-slice.yaml`.
   - Reads active slice + optional brief/framing context.
@@ -385,7 +465,7 @@ STAGE 4
   - Prints UX mode (`model_driven|heuristic_fallback`) and written paths.
   - Does not mutate backlog/current-slice/manifest.
 
-#### Step 13: `gate` (recommended before implementation)
+#### Step 16: `gate` (recommended before implementation)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
@@ -394,12 +474,15 @@ STAGE 4
   - `validate` checks token completeness + generated artifact drift.
   - `doctor` checks governance coherence (manifest/backlog/current-slice alignment), placeholder integrity, delivery review state, and DB readiness requirements.
   - Fails on drift, placeholder/governance inconsistencies, or DB readiness issues.
+- Next-step guidance behavior:
+  - CLI suggestions after `gate` are now context-aware (active slice status + artifact presence).
+  - In the Step 16 state (slice `planned` and baseline/UX present), the first suggested next step is `coder:prepare-current-slice`.
 
 ### Stage 4: Per-slice implementation loop
 
-Before each slice implementation loop, ensure the active slice baseline + UX are refreshed (step 11 and step 12).
+Before each slice implementation loop, ensure the active slice baseline + UX are refreshed (step 14 and step 15).
 
-#### Step 14: `coder:prepare-current-slice`
+#### Step 17: `coder:prepare-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
@@ -411,7 +494,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Regenerates `docs/testing/<SLICE_ID>-user-checklist.md`.
   - Transitions active slice to implementation (`status: in_progress`, milestone `<SLICE_ID>_implementation`) in backlog/current-slice/manifest.
 
-#### Step 15: `coder:implement-current-slice`
+#### Step 18: `coder:implement-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
@@ -425,7 +508,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Does not transition slice status to completed.
   - Does not run `npm install`, `npm run dev`, or tests automatically.
 
-#### Step 16: Test in UI
+#### Step 19: Test in UI
 
 - Commands:
   - `npm install`
@@ -433,7 +516,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Goal:
   - Validate active slice behavior from a customer perspective before closeout.
 
-#### Step 17: `coder:close-current-slice`
+#### Step 20: `coder:close-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
@@ -449,14 +532,14 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Marks slice `completed` in backlog/current-slice.
   - Updates manifest active slice state/milestone and timestamp.
 
-#### Step 18: `gate` (pre-advance)
+#### Step 21: `gate` (pre-advance)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
 - Purpose:
   - Catch drift/coherence regressions before advancing the pointer.
 
-#### Step 19: `orchestrator:advance-slice`
+#### Step 22: `orchestrator:advance-slice`
 
 - Command:
   - `./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ./fabric.values.json`
@@ -466,7 +549,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Rewrites backlog/current-slice and updates manifest active pointers.
   - If no actionable next slice exists, exits OK with no file changes.
 
-#### Step 20: `gate` (post-transition)
+#### Step 23: `gate` (post-transition)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
@@ -488,17 +571,17 @@ This bundle supports provider-agnostic model invocation for intake, planning, ar
    - `export OPENAI_API_KEY=...`
 2. Enable the desired model profile(s) in `fabric.values.json`:
    - global toggle: `llm_enabled: true`
-   - per-purpose toggles (optional override): `intake_llm_enabled`, `planning_llm_enabled`, `architect_llm_enabled`, `coder_llm_enabled`
+   - per-purpose toggles (optional override): `brief_draft_llm_enabled`, `pm_llm_enabled`, `planning_llm_enabled`, `architect_llm_enabled`, `coder_llm_enabled`
 3. (Optional) configure quality gates/retries:
-   - `intake_llm_brief_quality_gate: true`
-   - `intake_llm_brief_retry_count: 1`
-   - `intake_llm_semantic_clarity_gate: true` (alias: `intake_llm_semantic_scope_gate`)
+   - `brief_draft_llm_brief_quality_gate: true`
+   - `brief_draft_llm_brief_retry_count: 1`
+   - `brief_draft_llm_semantic_clarity_gate: true` (alias: `brief_draft_llm_semantic_scope_gate`)
 4. Validate config:
    - `./fabric/company/v1/fabric llm:check --target . --values ./fabric.values.json`
 
-### Intake model outputs (`pm:brief-readiness`)
+### Brief drafting model outputs (`pm:brief-draft`)
 
-With intake model invocation enabled, `pm:brief-readiness` writes:
+With brief drafting model invocation enabled, `pm:brief-draft` writes:
 
 - `docs/product/source-evidence-pack.md`
 - `docs/product/source-synthesis.md`
@@ -508,4 +591,4 @@ With intake model invocation enabled, `pm:brief-readiness` writes:
 - `docs/reviews/product-manager/brief-clarity-ledger.md`
 - `docs/reviews/product-manager/brief-attempt-<n>.md`
 
-The intake flow runs in constrained model passes: source synthesis, product framing, then brief authoring.
+The brief drafting flow runs in constrained model passes: source synthesis, product framing, then brief authoring.

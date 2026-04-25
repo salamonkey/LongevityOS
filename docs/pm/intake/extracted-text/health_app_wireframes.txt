@@ -1,0 +1,47 @@
+1. Onboarding
+
+Welcome Screen
+[Title + Start Button]
+
+Input Screen
+[Age | Gender]
+
+Family Option
+[Add profiles]
+
+2. Dashboard
+
+Health Score
++ Sections:
+Today / Soon / Later
+
+3. Health Plan
+
+List of Health Items
+[Status + Frequency]
+
+4. Detail Screen
+
+Description
+Why it matters
+Actions: Done / Reminder
+
+5. Family Screen
+
+Profiles Overview
+Health Score per person
+
+6. Impfpass
+
+Vaccination List
+Status + Add Entry
+
+7. Reminder
+
+Set Reminder
+[1M / 3M / Custom]
+
+8. Profile
+
+User Settings
+Family + Preferences

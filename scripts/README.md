@@ -21,3 +21,8 @@ Notes:
 Runtime quality checks:
 
 - `bash scripts/runtime-smoke.sh` runs a temp-project smoke flow across runtime commands.
+- `bash scripts/pm-semantics-smoke.sh` verifies PM lifecycle semantics:
+  - `pm:brief-readiness` does not generate `docs/product/project-brief.md`
+  - `pm:brief-draft` is the generator
+  - `pm:brief-approve` fails when draft is missing
+  - `pm:derive-values` fails when approved brief is missing

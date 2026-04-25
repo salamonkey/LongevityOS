@@ -14,7 +14,6 @@ Runtime commands in `runtime/fabric.mjs` consume DB settings from `fabric.yaml`:
 - `db:init`: provisions baseline DB artifacts and required package scripts.
 - `db:check`: verifies DB artifact/env/script readiness.
 - `db:reset`: executes configured reset command (requires `--yes`).
-- `db:seed`: executes configured seed command.
 
 ## Defaults
 

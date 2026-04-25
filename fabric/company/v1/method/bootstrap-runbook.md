@@ -29,18 +29,17 @@ Run:
 
 `./fabric/company/v1/fabric init-factory --values <project-root>/fabric.values.json --target <project-root>`
 
-## 3. Create and Approve Project Brief
+## 3. Run PM Bootstrap Sequence
 
-Before execution generation, create customer-entry artifacts:
+After placing customer files in `docs/customer-input/`, run:
 
-1. `docs/product/intake-note.md` (optional but recommended) from `templates/intake-note.template.md`
-2. `docs/product/project-brief.md` from `templates/project-brief.template.md`
+1. `./fabric/company/v1/fabric pm:intake --target <project-root>`
+2. `./fabric/company/v1/fabric pm:brief-readiness --target <project-root>`
+3. `./fabric/company/v1/fabric pm:brief-draft --target <project-root>`
+4. `./fabric/company/v1/fabric pm:brief-approve --target <project-root>`
+5. `./fabric/company/v1/fabric pm:derive-values --target <project-root>`
 
-Set in `docs/product/project-brief.md`:
-
-- `Brief Approval Status: approved`
-
-Validate the gate:
+Then validate the brief gate:
 
 `./fabric/company/v1/fabric format-from-brief --target <project-root>`
 
@@ -76,7 +75,7 @@ Create project copies from fabric templates:
 - `docs/templates/slice-closeout-review-template.md`
 - `docs/reviews/product-manager/bootstrap-foundation-review.md`
 - `docs/reviews/product-manager/bootstrap-backlog-slice-review.md`
-- `docs/architecture/baseline.md` (if structural slice or invariants require it)
+- `docs/architecture/<SLICE_ID>-baseline.md` (if structural slice or invariants require it)
 - `docs/ux/{slice_id}-current-slice-flow.md` (if slice has meaningful user-facing flow)
 - `docs/implementation/{slice_id}-implementation-notes.md` (when implementation starts)
 - `docs/operations/deployment-flow.md` (before first release process)

@@ -34,7 +34,7 @@ function summarizeOpenAiError(status, responseJson, responseText) {
   return `OpenAI request failed (${status}${code ? ` ${code}` : ''}): ${message}`;
 }
 
-export async function invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema }) {
+export async function invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema, signal }) {
   if (typeof fetch !== 'function') {
     throw new Error('Global fetch is unavailable in this Node runtime.');
   }
@@ -74,6 +74,7 @@ export async function invokeOpenAIStructured({ settings, taskName, systemPrompt,
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
+    signal,
   });
   const responseText = await response.text();
   let responseJson = null;

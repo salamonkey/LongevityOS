@@ -1,0 +1,100 @@
+CONFIDENTIAL – MVP PROJECT DOCUMENT
+Longevity Health OS
+A preventive health navigation platform.
+Purpose: Build a lean but high-impact MVP that guides users on what health actions to take, when,
+and why.
+
+1. Vision & Positioning
+From data storage to health intelligence.
+This product is not a medical record. It is a proactive health operating system focused on
+prevention, clarity and execution.
+Core promise: Users always know their next health step.
+
+2. Core Problem
+Today, users:
+- do not know which check-ups are relevant
+- miss preventive actions
+- have fragmented health data
+Existing solutions store data but do not guide behavior.
+
+3. Target Users
+- Professionals 30–65
+- Parents managing family health
+- Health-conscious individuals
+
+4. MVP Objective
+- Immediate user value within 60 seconds
+- Simple UX
+- Lean architecture
+- Ready for future expansion
+
+5. Core Features
+1. Personal Health Plan
+Dynamic checklist based on age & gender.
+2. Smart Reminder System
+
+Context-aware reminders.
+3. Vaccination Tracker
+Manual entry + status guidance.
+4. Family Mode
+Multiple profiles in one account.
+5. Dashboard
+Clear prioritisation: Now / Soon / Later.
+6. Smart Insights
+Rule-based guidance (AI-like).
+
+6. User Experience Flow
+1. Onboarding (age, gender)
+2. Immediate health plan generated
+3. Dashboard shows priorities
+4. User sets reminders
+5. Ongoing engagement via notifications
+
+7. Design Principles
+- Simplicity over completeness
+- Clarity over medical complexity
+- Mobile-first
+- High trust feel
+
+8. Technical Scope
+- Web App or cross-platform (React / Flutter)
+- Simple backend
+- Rule-based logic
+- Modular structure
+
+9. Out of Scope (MVP)
+- No doctor integration
+- No external APIs (mednet etc.)
+- No real AI
+- No complex analytics
+
+10. Data & Privacy
+
+- Minimal sensitive data
+- Secure architecture
+- Test data for development
+
+11. Timeline Expectation
+Target: 4–8 weeks MVP
+Phases:
+- Setup
+- Core features
+- Testing
+- Launch
+
+12. Success Criteria
+- User understands next health steps instantly
+- Engagement via reminders
+- Clear perceived value
+
+13. Future Roadmap (Not MVP)
+- AI-driven recommendations
+- Integration with providers
+- Advanced analytics
+- Insurance & ecosystem links
+
+14. Expectations to Developer
+- Lean mindset
+- No overengineering
+- Clear cost estimate
+- Scalable base

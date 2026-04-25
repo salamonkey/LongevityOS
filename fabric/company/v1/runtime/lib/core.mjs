@@ -820,7 +820,7 @@ function writeEntries({ targetRoot, valuesPath, force, entries, checkBriefApprov
         throw new Error(
           `Values file missing for init-factory render path: ${valuesPath}. Required template tokens: ${requiredTokens.join(', ')}. `
           + `Recovery: run ./fabric/company/v1/fabric init-factory --target ${targetRoot === process.cwd() ? '.' : '<project-root>'} --values ${valuesArg} --init-values `
-          + 'or run pm:approve-brief first to create values from approved brief context.',
+          + 'or run pm:derive-values first to create values from approved brief context.',
         );
       }
       values = {};

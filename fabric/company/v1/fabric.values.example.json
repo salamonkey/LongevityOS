@@ -52,9 +52,9 @@
   "llm_provider": "openai",
   "llm_model": "gpt-5.4",
   "llm_api_key_env": "OPENAI_API_KEY",
-  "intake_llm_enabled": true,
-  "intake_llm_provider": "openai",
-  "intake_llm_model": "gpt-5.4",
-  "intake_llm_reasoning_effort": "medium",
-  "intake_llm_verbosity": "medium"
+  "brief_draft_llm_enabled": true,
+  "brief_draft_llm_provider": "openai",
+  "brief_draft_llm_model": "gpt-5.4",
+  "brief_draft_llm_reasoning_effort": "medium",
+  "brief_draft_llm_verbosity": "medium"
 }

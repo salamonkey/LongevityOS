@@ -49,11 +49,11 @@ function initFactory({ targetRoot, valuesPath, force, initValues, forceValues })
       'fabric init-factory: NOTE --init-values requested; values file was intentionally initialized early from fabric.values.example.json.',
     );
     console.log(
-      'fabric init-factory: To defer values creation until brief approval, omit --init-values and run pm:approve-brief later.',
+      'fabric init-factory: To defer values creation until brief approval, omit --init-values and run pm:derive-values later.',
     );
   } else if (!fs.existsSync(valuesPath)) {
     console.log(
-      'fabric init-factory: values file not found; continuing in brief-first mode (values will be created by pm:approve-brief).',
+      'fabric init-factory: values file not found; continuing in brief-first mode (values will be created by pm:derive-values).',
     );
   }
   const manifest = loadManifest();
@@ -192,20 +192,6 @@ function dbReset({ targetRoot, yes }) {
   }
   const command = manifest?.db?.reset_command || 'supabase db reset';
   console.log(`fabric db:reset: executing '${command}'`);
-  runShellCommand(command, targetRoot);
-}
-
-function dbSeed({ targetRoot, yes }) {
-  const manifest = loadManifest();
-  const seedPath = path.join(targetRoot, 'supabase/seed.sql');
-  if (!fs.existsSync(seedPath)) {
-    throw new Error('Cannot run db:seed: missing supabase/seed.sql');
-  }
-  const command = manifest?.db?.seed_command || 'supabase db reset';
-  if (/\breset\b/i.test(command) && !yes) {
-    throw new Error("db:seed requires --yes when seed_command includes 'reset' (destructive operation)");
-  }
-  console.log(`fabric db:seed: executing '${command}'`);
   runShellCommand(command, targetRoot);
 }
 
@@ -753,6 +739,37 @@ function ensureSliceImplementationNotesPath(targetRoot, sliceId) {
   return { relPath, absPath };
 }
 
+function architectureBaselineRelPathForSlice(sliceId) {
+  const normalizedSliceId = String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
+  return `docs/architecture/${normalizedSliceId}-baseline.md`;
+}
+
+function architectureBaselinePathForSlice(targetRoot, sliceId) {
+  return path.join(targetRoot, architectureBaselineRelPathForSlice(sliceId));
+}
+
+function architectureBaselineMatchesSliceId(baselineText, sliceId) {
+  return new RegExp(`^Scope:\\s.*\\b${String(sliceId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'm').test(String(baselineText || ''));
+}
+
+function ensureSliceArchitectureBaselinePath(targetRoot, sliceId) {
+  const relPath = architectureBaselineRelPathForSlice(sliceId);
+  const absPath = architectureBaselinePathForSlice(targetRoot, sliceId);
+  if (fs.existsSync(absPath)) {
+    return { relPath, absPath };
+  }
+  const legacyRelPath = 'docs/architecture/baseline.md';
+  const legacyAbsPath = path.join(targetRoot, legacyRelPath);
+  if (fs.existsSync(legacyAbsPath)) {
+    const legacyText = readText(legacyAbsPath);
+    if (architectureBaselineMatchesSliceId(legacyText, sliceId)) {
+      writeTextAtomic(absPath, legacyText.endsWith('\n') ? legacyText : `${legacyText}\n`);
+      return { relPath, absPath };
+    }
+  }
+  return { relPath, absPath };
+}
+
 function deriveImplementationTargets(slice) {
   const slug = slugifySliceTitle(slice.title);
   const scopeHints = String([slice.title, slice.objective, ...(slice.in_scope || [])].join(' ')).toLowerCase();
@@ -853,20 +870,20 @@ function updateManifestActiveSliceState({ targetRoot, activeSlice, generatedAt, 
 
 function coderPrepareCurrentSlice({ targetRoot, valuesPath }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
-  const baselinePath = path.join(targetRoot, 'docs/architecture/baseline.md');
   if (!fs.existsSync(currentSlicePath)) {
     throw new Error('Cannot run coder:prepare-current-slice: missing docs/product/current-slice.yaml');
   }
-  if (!fs.existsSync(baselinePath)) {
-    throw new Error('Cannot run coder:prepare-current-slice: missing docs/architecture/baseline.md');
-  }
   const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+  const { relPath: baselineRelPath, absPath: baselinePath } = ensureSliceArchitectureBaselinePath(targetRoot, currentSlice.id);
+  if (!fs.existsSync(baselinePath)) {
+    throw new Error(`Cannot run coder:prepare-current-slice: missing ${baselineRelPath}; run architect:generate-current-slice-baseline first`);
+  }
   const { relPath: uxRelPath, absPath: uxPath } = ensureSliceUxFlowPath(targetRoot, currentSlice.id);
   if (!fs.existsSync(uxPath)) {
-    throw new Error(`Cannot run coder:prepare-current-slice: missing ${uxRelPath}; run uiux:finalize-current-slice-flow first`);
+    throw new Error(`Cannot run coder:prepare-current-slice: missing ${uxRelPath}; run uiux:generate-current-slice-flow first`);
   }
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
-  assertNoPlaceholdersInArtifact('docs/architecture/baseline.md', readText(baselinePath));
+  assertNoPlaceholdersInArtifact(baselineRelPath, readText(baselinePath));
   const uxFlowText = readText(uxPath);
   assertNoPlaceholdersInArtifact(uxRelPath, uxFlowText);
   const fileTargets = deriveImplementationTargets(currentSlice);
@@ -1195,19 +1212,19 @@ function buildGeneratedAppFiles(currentSlice, playbookOverride = null) {
 
 async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
-  const baselinePath = path.join(targetRoot, 'docs/architecture/baseline.md');
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
   if (!fs.existsSync(currentSlicePath)) {
     throw new Error('Cannot run coder:implement-current-slice: missing docs/product/current-slice.yaml');
   }
-  if (!fs.existsSync(baselinePath)) {
-    throw new Error('Cannot run coder:implement-current-slice: missing docs/architecture/baseline.md');
-  }
   const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+  const { relPath: baselineRelPath, absPath: baselinePath } = ensureSliceArchitectureBaselinePath(targetRoot, currentSlice.id);
+  if (!fs.existsSync(baselinePath)) {
+    throw new Error(`Cannot run coder:implement-current-slice: missing ${baselineRelPath}; run architect:generate-current-slice-baseline first`);
+  }
   const { relPath: uxRelPath, absPath: uxPath } = ensureSliceUxFlowPath(targetRoot, currentSlice.id);
   if (!fs.existsSync(uxPath)) {
-    throw new Error(`Cannot run coder:implement-current-slice: missing ${uxRelPath}; run uiux:finalize-current-slice-flow first`);
+    throw new Error(`Cannot run coder:implement-current-slice: missing ${uxRelPath}; run uiux:generate-current-slice-flow first`);
   }
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
   if (!fs.existsSync(implementationNotesPath)) {
@@ -1225,6 +1242,7 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
     const values = loadValuesIfPresent(valuesPath);
     console.log('fabric coder:implement-current-slice: starting model-driven implementation generation...');
     const { settings, purpose, playbook } = await generateCurrentSliceImplementationPlaybook({
+      targetRoot,
       values,
       slice: currentSlice,
       baselineMarkdown: baselineText,
@@ -1232,7 +1250,7 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
       briefMarkdown: briefText,
       framingMarkdown: framingText,
       onProgress: (message) => {
-        console.log(`fabric coder:implement-current-slice: ${String(message)}`);
+        console.log(`  - ${String(message)}`);
       },
     });
     playbookOverride = playbook;
@@ -1307,12 +1325,12 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
 
 function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
-  const baselinePath = path.join(targetRoot, 'docs/architecture/baseline.md');
   const backlogPath = path.join(targetRoot, 'docs/product/backlog.yaml');
   if (!fs.existsSync(currentSlicePath) || !fs.existsSync(backlogPath)) {
     throw new Error('Cannot run coder:close-current-slice: missing current-slice or backlog artifact');
   }
   const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+  const { relPath: baselineRelPath, absPath: baselinePath } = ensureSliceArchitectureBaselinePath(targetRoot, currentSlice.id);
   const { relPath: uxRelPath, absPath: uxPath } = ensureSliceUxFlowPath(targetRoot, currentSlice.id);
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
   const issues = [];
@@ -1347,7 +1365,7 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
     }
   }
   for (const [rel, p] of [
-    ['docs/architecture/baseline.md', baselinePath],
+    [baselineRelPath, baselinePath],
     [uxRelPath, uxPath],
     [implementationNotesRelPath, implementationNotesPath],
   ]) {
@@ -1485,7 +1503,6 @@ export {
   dbInit,
   dbCheck,
   dbReset,
-  dbSeed,
   coderPrepareCurrentSlice,
   coderImplementCurrentSlice,
   coderCloseCurrentSlice,

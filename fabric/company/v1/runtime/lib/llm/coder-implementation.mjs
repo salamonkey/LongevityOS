@@ -2,8 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveFirstValidLlmSettings } from './config.mjs';
-import { invokeOpenAIStructured } from './provider-openai.mjs';
-import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+import { invokeStructured } from './brief-context.mjs';
 
 const FABRIC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -93,6 +92,10 @@ function normalizeList(values, fallback = []) {
   return fallback.map((item) => normalizeSentence(item, '')).filter(Boolean);
 }
 
+function normalizeSliceIdForPath(sliceId) {
+  return String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
+}
+
 const DEFAULT_CUSTOMER_PLAN_ITEMS = Object.freeze({
   today: [
     'Take a 15-minute walk after your next meal.',
@@ -125,47 +128,8 @@ function normalizePlaybook(raw = {}, slice = {}) {
   };
 }
 
-async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
-  const progress = typeof onProgress === 'function' ? onProgress : null;
-  const startedAt = Date.now();
-  let heartbeat = null;
-  if (progress) {
-    progress(`llm request started: ${taskName}`);
-    heartbeat = setInterval(() => {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`\tllm request in progress: ${taskName} (${String(elapsedSec)}s elapsed)`);
-    }, 10000);
-  }
-  try {
-    if (settings.provider === 'openai') {
-      const result = await invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    if (settings.provider === 'stdio_json') {
-      const result = await invokeStdioJsonStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    throw new Error(`Unsupported llm provider: ${settings.provider}`);
-  } catch (error) {
-    if (progress) {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request failed: ${taskName} (${String(elapsedSec)}s)`);
-    }
-    throw error;
-  } finally {
-    if (heartbeat) clearInterval(heartbeat);
-  }
-}
-
 export async function generateCurrentSliceImplementationPlaybook({
+  targetRoot,
   values = {},
   slice = {},
   baselineMarkdown = '',
@@ -181,6 +145,7 @@ export async function generateCurrentSliceImplementationPlaybook({
     ['coder', 'architect', 'planning', 'intake'],
   );
 
+  const normalizedSliceId = normalizeSliceIdForPath(slice?.id);
   const systemPrompt = [
     'You are the Coder role in a virtual software company.',
     'Generate an implementation playbook for a deterministic React/Vite scaffold.',
@@ -245,9 +210,19 @@ export async function generateCurrentSliceImplementationPlaybook({
   const output = await invokeStructured({
     settings,
     taskName: 'coder_current_slice_implementation',
+    caller: 'coder-implementation.generateCurrentSliceImplementationPlaybook',
+    targetRoot,
     systemPrompt,
     userPrompt,
     schema: CODER_IMPLEMENTATION_SCHEMA,
+    promptSourceFiles: [
+      String(coderRole.relPath || ''),
+      'docs/product/current-slice.yaml',
+      `docs/architecture/${normalizedSliceId}-baseline.md`,
+      `docs/ux/${normalizedSliceId}-current-slice-flow.md`,
+      'docs/product/product-system-framing.md',
+      'docs/product/project-brief.md',
+    ],
     onProgress,
   });
 

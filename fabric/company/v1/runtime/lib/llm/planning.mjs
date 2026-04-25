@@ -2,8 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveFirstValidLlmSettings } from './config.mjs';
-import { invokeOpenAIStructured } from './provider-openai.mjs';
-import { invokeStdioJsonStructured } from './provider-stdio-json.mjs';
+import { invokeStructured } from './brief-context.mjs';
 
 const FABRIC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const MIN_SLICE_COUNT = 5;
@@ -215,46 +214,6 @@ export function deriveWorkflowDrivenSlices(briefMarkdown) {
   return slices.slice(0, Math.max(MIN_SLICE_COUNT, Math.min(MAX_SLICE_COUNT, slices.length)));
 }
 
-async function invokeStructured({ settings, taskName, systemPrompt, userPrompt, schema, onProgress }) {
-  const progress = typeof onProgress === 'function' ? onProgress : null;
-  const startedAt = Date.now();
-  let heartbeat = null;
-  if (progress) {
-    progress(`llm request started: ${taskName}`);
-    heartbeat = setInterval(() => {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`\tllm request in progress: ${taskName} (${String(elapsedSec)}s elapsed)`);
-    }, 10000);
-  }
-  try {
-    if (settings.provider === 'openai') {
-      const result = await invokeOpenAIStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    if (settings.provider === 'stdio_json') {
-      const result = await invokeStdioJsonStructured({ settings, taskName, systemPrompt, userPrompt, schema });
-      if (progress) {
-        const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-        progress(`llm request completed: ${taskName} (${String(elapsedSec)}s)`);
-      }
-      return result;
-    }
-    throw new Error(`Unsupported llm provider: ${settings.provider}`);
-  } catch (error) {
-    if (progress) {
-      const elapsedSec = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
-      progress(`llm request failed: ${taskName} (${String(elapsedSec)}s)`);
-    }
-    throw error;
-  } finally {
-    if (heartbeat) clearInterval(heartbeat);
-  }
-}
-
 function normalizeSlicePlan(rawSlices) {
   const slices = Array.isArray(rawSlices) ? rawSlices : [];
   const normalized = slices.map((slice, index) => {
@@ -298,6 +257,7 @@ function normalizeSlicePlan(rawSlices) {
 }
 
 export async function generateExecutionSlicePlan({
+  targetRoot,
   values = {},
   briefMarkdown,
   framingMarkdown = '',
@@ -339,9 +299,16 @@ export async function generateExecutionSlicePlan({
   const output = await invokeStructured({
     settings,
     taskName: 'execution_slice_plan',
+    caller: 'planning.generateExecutionSlicePlan',
+    targetRoot,
     systemPrompt,
     userPrompt,
     schema: SLICE_PLAN_SCHEMA,
+    promptSourceFiles: [
+      String(pmRole.relPath || ''),
+      'docs/product/project-brief.md',
+      'docs/product/product-system-framing.md',
+    ],
     onProgress,
   });
   const slices = normalizeSlicePlan(output?.slices);
