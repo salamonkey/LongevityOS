@@ -1,13 +1,34 @@
-/* generated_from: fabric/company/v1/runtime/commands/runtime.mjs
- * target: tests/first-profile-onboarding-to-generated-dashboard/first-profile-onboarding-to-generated-dashboard.smoke.test.mjs
- * fabric_version: v1
- * generated_at_utc: 2026-04-25T08:33:51.954Z
- */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-test('generated first-profile-onboarding-to-generated-dashboard bridge artifacts exist', () => {
-  assert.equal(fs.existsSync(new URL('../../src/features/first-profile-onboarding-to-generated-dashboard/SliceEntryBridge.jsx', import.meta.url)), true);
-  assert.equal(fs.existsSync(new URL('../../src/routes/first-profile-onboarding-to-generated-dashboard.jsx', import.meta.url)), true);
+const APP_SOURCE = fs.readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+const ONBOARDING_SOURCE = fs.readFileSync(
+  new URL('../../src/features/onboarding/OnboardingPage.jsx', import.meta.url),
+  'utf8',
+);
+const DASHBOARD_SOURCE = fs.readFileSync(
+  new URL('../../src/routes/first-profile-onboarding-to-generated-dashboard.jsx', import.meta.url),
+  'utf8',
+);
+
+test('the slice flow is wired from welcome to generating to dashboard', () => {
+  assert.match(APP_SOURCE, /WelcomeScreen/);
+  assert.match(APP_SOURCE, /GeneratingScreen/);
+  assert.match(APP_SOURCE, /setScreen\('generating'\)/);
+  assert.match(APP_SOURCE, /createProfileSnapshot/);
+  assert.match(APP_SOURCE, /GeneratedDashboardPage/);
+  assert.match(APP_SOURCE, /Start/);
+  assert.match(APP_SOURCE, /Rule-based guidance only/);
+
+  assert.match(ONBOARDING_SOURCE, /Build your first profile/);
+  assert.match(ONBOARDING_SOURCE, /ProfileForm/);
+  assert.match(ONBOARDING_SOURCE, /age and gender/);
+  assert.match(ONBOARDING_SOURCE, /No family mode/);
+
+  assert.match(DASHBOARD_SOURCE, /Read-only health score/);
+  assert.match(DASHBOARD_SOURCE, /Today/);
+  assert.match(DASHBOARD_SOURCE, /Soon/);
+  assert.match(DASHBOARD_SOURCE, /Later/);
+  assert.match(DASHBOARD_SOURCE, /groupPlanItems/);
 });

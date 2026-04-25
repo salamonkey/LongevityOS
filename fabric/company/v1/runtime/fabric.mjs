@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { parseArgs, parseSliceBlockWithLists, readText } from './lib/core.mjs';
 import {
   llmCheck,
@@ -35,6 +36,45 @@ import {
   coderCloseCurrentSlice,
   orchestratorAdvanceSlice,
 } from './commands/runtime.mjs';
+
+const FABRIC_FACTORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const FABRIC_FACTORY_ENV_PATH = path.join(FABRIC_FACTORY_ROOT, '.factory.env');
+
+function parseFactoryEnvLine(line) {
+  const trimmed = String(line || '').trim();
+  if (!trimmed || trimmed.startsWith('#')) return null;
+  const match = trimmed.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+  if (!match) return null;
+  const key = String(match[1]).trim();
+  let value = String(match[2] ?? '');
+  if (
+    (value.startsWith('"') && value.endsWith('"'))
+    || (value.startsWith('\'') && value.endsWith('\''))
+  ) {
+    value = value.slice(1, -1);
+  }
+  return { key, value };
+}
+
+function applyFactoryEnvDefaults(envFilePath) {
+  if (!fs.existsSync(envFilePath)) {
+    return { loaded: false, appliedCount: 0 };
+  }
+  const text = fs.readFileSync(envFilePath, 'utf8');
+  const lines = text.split(/\r?\n/);
+  let appliedCount = 0;
+  for (const line of lines) {
+    const parsed = parseFactoryEnvLine(line);
+    if (!parsed) continue;
+    if (process.env[parsed.key] === undefined) {
+      process.env[parsed.key] = parsed.value;
+      appliedCount += 1;
+    }
+  }
+  return { loaded: true, appliedCount };
+}
+
+applyFactoryEnvDefaults(FABRIC_FACTORY_ENV_PATH);
 
 function shellQuote(value) {
   const text = String(value);

@@ -1,3 +1,4 @@
 .env
 .env.local
 .env.*.local
+fabric/company/v1/.factory.env

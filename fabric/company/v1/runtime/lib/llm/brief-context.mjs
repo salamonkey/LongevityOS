@@ -477,7 +477,14 @@ async function invokeStructured({
     timeoutMs,
     settings?.modelCallTimeoutMs,
   ], 180000);
-  const timeoutSec = Math.max(1, Math.round(resolvedTimeoutMs / 1000));
+  const idleTimeoutSec = Math.max(1, Math.round(resolvedTimeoutMs / 1000));
+  const resolvedMaxElapsedMs = Math.max(
+    resolvedTimeoutMs,
+    resolvePositiveInt([
+      settings?.modelCallMaxElapsedMs,
+    ], resolvedTimeoutMs * 3),
+  );
+  const maxElapsedSec = Math.max(1, Math.round(resolvedMaxElapsedMs / 1000));
   const promptChars = String(systemPrompt || '').length + String(userPrompt || '').length;
   const promptEstimatedTokens = estimateTokenCountFromChars(promptChars);
   const promptSourcePaths = collectPromptSourcePaths({
@@ -491,7 +498,10 @@ async function invokeStructured({
   let promptLogRelPath = null;
   let responseLogRelPath = null;
   let heartbeat = null;
-  let timeoutHandle = null;
+  let idleTimeoutHandle = null;
+  let hardTimeoutHandle = null;
+  let lastActivityAt = Date.now();
+  let lastTimeoutResetAt = 0;
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   if (progress) {
     progress(
@@ -537,6 +547,38 @@ async function invokeStructured({
     }
 
     let result;
+    let rejectTimeout = null;
+    const scheduleIdleTimeout = () => {
+      if (typeof rejectTimeout !== 'function') {
+        return;
+      }
+      if (idleTimeoutHandle) {
+        clearTimeout(idleTimeoutHandle);
+      }
+      idleTimeoutHandle = setTimeout(() => {
+        if (controller) {
+          try {
+            controller.abort();
+          } catch (_) {
+            // Ignore abort errors; timeout error below is authoritative.
+          }
+        }
+        const idleMs = Date.now() - lastActivityAt;
+        const idleSec = Math.max(1, Math.round(idleMs / 1000));
+        rejectTimeout(new Error(
+          `Model call idle timeout after ${String(idleTimeoutSec)}s during ${modelCallStageName} `
+          + `(last activity ${String(idleSec)}s ago)`,
+        ));
+      }, resolvedTimeoutMs);
+      lastTimeoutResetAt = Date.now();
+    };
+    const markActivity = () => {
+      lastActivityAt = Date.now();
+      if ((Date.now() - lastTimeoutResetAt) < 250) {
+        return;
+      }
+      scheduleIdleTimeout();
+    };
     const providerCall = async () => {
       if (settings.provider === 'openai') {
         return invokeOpenAIStructured({
@@ -546,6 +588,7 @@ async function invokeStructured({
           userPrompt,
           schema,
           signal: controller?.signal,
+          onActivity: markActivity,
         });
       }
       if (settings.provider === 'stdio_json') {
@@ -556,14 +599,15 @@ async function invokeStructured({
           userPrompt,
           schema,
           signal: controller?.signal,
+          onActivity: markActivity,
         });
       }
       throw new Error(`Unsupported llm provider: ${settings.provider}`);
     };
 
-    const providerPromise = providerCall();
     const timeoutPromise = new Promise((_, reject) => {
-      timeoutHandle = setTimeout(() => {
+      rejectTimeout = reject;
+      hardTimeoutHandle = setTimeout(() => {
         if (controller) {
           try {
             controller.abort();
@@ -571,9 +615,20 @@ async function invokeStructured({
             // Ignore abort errors; timeout error below is authoritative.
           }
         }
-        reject(new Error(`Model call timeout after ${String(timeoutSec)}s during ${modelCallStageName}`));
+        reject(new Error(`Model call max timeout after ${String(maxElapsedSec)}s during ${modelCallStageName}`));
+      }, resolvedMaxElapsedMs);
+      idleTimeoutHandle = setTimeout(() => {
+        const idleMs = Date.now() - lastActivityAt;
+        const idleSec = Math.max(1, Math.round(idleMs / 1000));
+        reject(new Error(
+          `Model call idle timeout after ${String(idleTimeoutSec)}s during ${modelCallStageName} `
+          + `(last activity ${String(idleSec)}s ago)`,
+        ));
       }, resolvedTimeoutMs);
+      lastTimeoutResetAt = Date.now();
     });
+    markActivity();
+    const providerPromise = providerCall();
 
     result = await Promise.race([providerPromise, timeoutPromise]);
     try {
@@ -640,8 +695,11 @@ async function invokeStructured({
     }
     throw error;
   } finally {
-    if (timeoutHandle) {
-      clearTimeout(timeoutHandle);
+    if (idleTimeoutHandle) {
+      clearTimeout(idleTimeoutHandle);
+    }
+    if (hardTimeoutHandle) {
+      clearTimeout(hardTimeoutHandle);
     }
     if (heartbeat) clearInterval(heartbeat);
   }

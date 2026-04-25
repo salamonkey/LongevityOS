@@ -500,8 +500,15 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
 - What it does:
   - Requires current slice, baseline, UX flow, and implementation notes (legacy fallback for `docs/implementation/current-slice-notes.md`).
-  - Tries model-driven playbook generation first; on failure uses deterministic fallback.
-  - Writes app artifacts (managed files under `index.html`, `src/*`, `tests/*`; slug bridge files for non-onboarding slices).
+  - Supports two model output modes:
+    - `source_files`: model returns concrete file outputs (`path + content`) and fabric writes them directly.
+    - `playbook`: model returns implementation guidance and fabric fills deterministic source templates.
+  - Default output mode behavior:
+    - default is `source_files` (Codex-compatible authoring path).
+    - set `coder_llm_output_mode: playbook` only when you explicitly want template-fill behavior.
+  - You can override with `coder_llm_output_mode` (`source_files|playbook`) in `fabric.values.json`.
+  - On model failure, uses deterministic fallback.
+  - Writes app artifacts under `index.html`, `src/*`, and `tests/*` (including slug bridge files for non-onboarding slices in deterministic fallback mode).
   - Ensures package scripts/deps baseline.
   - Rewrites implementation notes with changed files and execution summary.
 - What it does not do:
@@ -567,17 +574,41 @@ This bundle supports provider-agnostic model invocation for intake, planning, ar
 
 ### Setup
 
+0. (Optional, recommended for factory-global defaults) create `fabric/company/v1/.factory.env`.
+   - This file is auto-loaded by fabric runtime on each command.
+   - It only sets env vars that are not already defined in your shell.
+   - `fabric.values.json` still overrides env values when both exist.
 1. Export API key:
    - `export OPENAI_API_KEY=...`
 2. Enable the desired model profile(s) in `fabric.values.json`:
    - global toggle: `llm_enabled: true`
    - per-purpose toggles (optional override): `brief_draft_llm_enabled`, `pm_llm_enabled`, `planning_llm_enabled`, `architect_llm_enabled`, `coder_llm_enabled`
+   - coder output mode (optional override): `coder_llm_output_mode: source_files|playbook`
 3. (Optional) configure quality gates/retries:
    - `brief_draft_llm_brief_quality_gate: true`
    - `brief_draft_llm_brief_retry_count: 1`
    - `brief_draft_llm_semantic_clarity_gate: true` (alias: `brief_draft_llm_semantic_scope_gate`)
 4. Validate config:
    - `./fabric/company/v1/fabric llm:check --target . --values ./fabric.values.json`
+
+Coder source-file authoring via local Codex-compatible stdio bridge:
+- Set coder profile to `stdio_json`.
+- Set `coder_llm_output_mode` to `source_files`.
+- Provide bridge command fields:
+  - `coder_llm_stdio_command`
+  - `coder_llm_stdio_args`
+- Factory-global alternative (recommended):
+  - Put env keys in `fabric/company/v1/.factory.env` instead of each project `fabric.values.json`.
+  - Default bridge script provided: `fabric/company/v1/runtime/lib/llm/codex-stdio-bridge.mjs`.
+  - Recommended env pair:
+    - `CODER_LLM_STDIO_COMMAND=node`
+    - `CODER_LLM_STDIO_ARGS=fabric/company/v1/runtime/lib/llm/codex-stdio-bridge.mjs`
+  - Recommended timeout override for source-file generation:
+    - `CODER_LLM_TIMEOUT_MS=600000`
+  - Optional CLI live trace (shows raw Codex progress/error stream):
+    - `CODER_LLM_STDIO_TRACE=true`
+  - If `codex` is not on PATH, set `CODEX_BIN=/absolute/path/to/codex`.
+  - Ensure Codex CLI is authenticated once (`codex login`).
 
 ### Brief drafting model outputs (`pm:brief-draft`)
 

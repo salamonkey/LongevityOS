@@ -1,65 +1,118 @@
-/* generated_from: fabric/company/v1/runtime/commands/runtime.mjs
- * target: src/App.jsx
- * fabric_version: v1
- * generated_at_utc: 2026-04-25T08:33:51.954Z
- */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { OnboardingPage } from './features/onboarding/OnboardingPage.jsx';
-import { HealthPlanPage } from './routes/onboarding.jsx';
+import { createProfileSnapshot } from './features/profile/profilePlan.js';
+import { GeneratedDashboardPage } from './routes/first-profile-onboarding-to-generated-dashboard.jsx';
 
-const seedPlan = {
-  today: [
-  "Check your blood pressure.",
-  "Review when your last cholesterol screening was done."
-],
-  soon: [
-  "Schedule routine preventive blood work for your age group.",
-  "Ask about the screening schedule that fits your age and sex."
-],
-  later: [
-  "Discuss age-appropriate screening timelines at your next annual visit.",
-  "Review vaccination status before flu season.",
-  "Set quarterly reminders to revisit your health plan."
-],
+const DEFAULT_DRAFT = {
+  ageYears: '',
+  gender: '',
 };
 
 export default function App() {
+  const [screen, setScreen] = useState('welcome');
+  const [draft, setDraft] = useState(DEFAULT_DRAFT);
+  const [pendingDraft, setPendingDraft] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [screen, setScreen] = useState('onboarding');
 
-  const generatedPlan = useMemo(() => {
-    if (!profile) return null;
-    return {
-      today: [...seedPlan.today],
-      soon: [...seedPlan.soon],
-      later: [...seedPlan.later],
-    };
-  }, [profile]);
+  useEffect(() => {
+    if (screen !== 'generating' || !pendingDraft) {
+      return undefined;
+    }
 
-  return screen === 'onboarding' ? (
-    <OnboardingPage
-      title={"Longevity Health OS"}
-      objective={"Let a first-time user enter age and gender, generate a deterministic rule-based personal health plan, and land on a read-only dashboard with a stored health score in under 60 seconds."}
-      acceptanceCriteria={[
-  "Starting from the welcome screen, a user can enter a valid age from 30 to 65 and a gender of Female or Male, submit once, and reach a dashboard only after a non-empty plan is created.",
-  "The happy path from tapping Start to seeing the dashboard completes within 60 seconds on a mobile viewport.",
-  "Each health item appears exactly once under one section only: Today, Soon, or Later.",
-  "The dashboard shows a visible read-only health score for the active profile above the grouped items.",
-  "Entering the same age, gender, and rule set again produces the same dashboard items, order, priority groups, and health score."
-]}
-      onComplete={(nextProfile) => {
-        setProfile(nextProfile);
-        setScreen('dashboard');
-      }}
-    />
-  ) : (
-    <HealthPlanPage
+    const timerId = globalThis.setTimeout(() => {
+      const nextProfile = createProfileSnapshot(pendingDraft);
+      setProfile(nextProfile);
+      setPendingDraft(null);
+      setScreen('dashboard');
+    }, 160);
+
+    return () => globalThis.clearTimeout(timerId);
+  }, [pendingDraft, screen]);
+
+  if (screen === 'welcome') {
+    return (
+      <WelcomeScreen
+        onStart={() => {
+          setScreen('onboarding');
+        }}
+      />
+    );
+  }
+
+  if (screen === 'onboarding') {
+    return (
+      <OnboardingPage
+        draft={draft}
+        onDraftChange={(updates) => {
+          setDraft((current) => ({ ...current, ...updates }));
+        }}
+        onSubmit={(nextDraft) => {
+          setPendingDraft(nextDraft);
+          setScreen('generating');
+        }}
+        onBack={() => {
+          setScreen('welcome');
+        }}
+      />
+    );
+  }
+
+  if (screen === 'generating') {
+    return <GeneratingScreen draft={pendingDraft ?? draft} />;
+  }
+
+  return (
+    <GeneratedDashboardPage
       profile={profile}
-      plan={generatedPlan}
-      onReset={() => {
+      onRestart={() => {
         setProfile(null);
-        setScreen('onboarding');
+        setPendingDraft(null);
+        setScreen('welcome');
       }}
     />
   );
+}
+
+function WelcomeScreen({ onStart }) {
+  return (
+    <main className="app-shell">
+      <section className="panel hero welcome-hero">
+        <p className="eyebrow">Longevity Health OS</p>
+        <h1>Your preventive plan starts with two answers</h1>
+        <p className="lede">
+          A self-only flow turns age and gender into a rule-based dashboard in seconds.
+        </p>
+        <div className="actions">
+          <button type="button" className="primary" onClick={onStart}>
+            Start
+          </button>
+        </div>
+        <p className="helper">Rule-based guidance only. Not a medical record.</p>
+      </section>
+    </main>
+  );
+}
+
+function GeneratingScreen({ draft }) {
+  return (
+    <main className="app-shell">
+      <section className="panel hero generating-panel">
+        <div className="loading-mark" aria-hidden="true" />
+        <p className="eyebrow">Building your dashboard</p>
+        <h1>We are generating your first plan</h1>
+        <p className="lede">
+          Age {draft?.ageYears || '—'} · {capitalize(draft?.gender) || '—'}
+        </p>
+        <p className="helper">The plan is created locally before the dashboard appears.</p>
+      </section>
+    </main>
+  );
+}
+
+function capitalize(value) {
+  if (!value) {
+    return '';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

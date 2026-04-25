@@ -1,42 +1,32 @@
-/* generated_from: fabric/company/v1/runtime/commands/runtime.mjs
- * target: src/features/onboarding/OnboardingPage.jsx
- * fabric_version: v1
- * generated_at_utc: 2026-04-25T08:33:51.954Z
- */
-import React, { useState } from 'react';
+import React from 'react';
 import { ProfileForm } from '../profile/ProfileForm.jsx';
 
-export function OnboardingPage({ title, objective, acceptanceCriteria, onComplete }) {
-  const [familyMode, setFamilyMode] = useState(false);
-
+export function OnboardingPage({ draft, onDraftChange, onSubmit, onBack }) {
   return (
     <main className="app-shell">
       <section className="panel hero">
-        <p className="eyebrow">Longevity Health OS MVP</p>
-        <h1>{title}</h1>
-        <p className="lede">{objective}</p>
-        <div className="callout">
-          <strong>Slice promise</strong>
-          <ul>
-            {acceptanceCriteria.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+        <p className="eyebrow">Self-only onboarding</p>
+        <h1>Build your first profile</h1>
+        <p className="lede">
+          Enter age and gender. The plan is generated locally from rule-based guidance before the dashboard opens.
+        </p>
+        <div className="microcopy">
+          Only age and gender are collected in this slice. No family mode, reminders, or item editing are included.
         </div>
       </section>
 
       <section className="panel">
         <header className="section-header">
-          <h2>Tell us a little about you</h2>
-          <p>We use this to generate an immediate health plan and dashboard priorities.</p>
+          <h2>Profile details</h2>
+          <p>The generated dashboard will appear only after the first profile plan is built.</p>
         </header>
 
-        <div className="toggle-row">
-          <button type="button" className={familyMode ? '' : 'active'} onClick={() => setFamilyMode(false)}>Only for me</button>
-          <button type="button" className={familyMode ? 'active' : ''} onClick={() => setFamilyMode(true)}>Family mode</button>
-        </div>
-
-        <ProfileForm familyMode={familyMode} onSubmit={onComplete} />
+        <ProfileForm
+          draft={draft}
+          onDraftChange={onDraftChange}
+          onSubmit={onSubmit}
+          onBack={onBack}
+        />
       </section>
     </main>
   );

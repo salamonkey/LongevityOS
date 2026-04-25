@@ -13,10 +13,21 @@ export async function invokeStdioJsonStructured({
   userPrompt,
   schema,
   signal,
+  onActivity,
 }) {
+  const touch = () => {
+    if (typeof onActivity === 'function') {
+      try {
+        onActivity();
+      } catch (_) {
+        // Activity callbacks are best-effort only.
+      }
+    }
+  };
   const args = Array.isArray(settings.stdioArgs) ? settings.stdioArgs : splitArgs(settings.stdioArgs);
   return new Promise((resolve, reject) => {
     const child = spawn(String(settings.stdioCommand), args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    touch();
     let settled = false;
     let stdout = '';
     let stderr = '';
@@ -52,8 +63,18 @@ export async function invokeStdioJsonStructured({
       signal.addEventListener('abort', abortListener, { once: true });
     }
 
-    child.stdout.on('data', (chunk) => { stdout += String(chunk); });
-    child.stderr.on('data', (chunk) => { stderr += String(chunk); });
+    child.stdout.on('data', (chunk) => {
+      touch();
+      stdout += String(chunk);
+    });
+    child.stderr.on('data', (chunk) => {
+      touch();
+      const text = String(chunk);
+      stderr += text;
+      if (settings?.stdioTrace) {
+        process.stderr.write(text);
+      }
+    });
     child.on('error', rejectOnce);
     child.on('close', (code) => {
       if (abortListener && signal) {
@@ -66,13 +87,25 @@ export async function invokeStdioJsonStructured({
         rejectOnce(new Error(`stdio_json provider exited with code ${String(code)}: ${stderr.trim() || 'no stderr'}`));
         return;
       }
+      touch();
       try {
         resolveOnce(JSON.parse(stdout));
       } catch (error) {
         rejectOnce(new Error(`stdio_json provider returned invalid JSON: ${String(error?.message || error)}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`));
       }
     });
-    child.stdin.write(JSON.stringify({ taskName, systemPrompt, userPrompt, schema, settings: { model: settings.model, reasoningEffort: settings.reasoningEffort, verbosity: settings.verbosity } }));
+    child.stdin.write(JSON.stringify({
+      taskName,
+      systemPrompt,
+      userPrompt,
+      schema,
+      settings: {
+        model: settings.model,
+        reasoningEffort: settings.reasoningEffort,
+        verbosity: settings.verbosity,
+        stdioTrace: Boolean(settings?.stdioTrace),
+      },
+    }));
     child.stdin.end();
   });
 }

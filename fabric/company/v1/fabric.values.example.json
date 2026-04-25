@@ -56,5 +56,6 @@
   "brief_draft_llm_provider": "openai",
   "brief_draft_llm_model": "gpt-5.4",
   "brief_draft_llm_reasoning_effort": "medium",
-  "brief_draft_llm_verbosity": "medium"
+  "brief_draft_llm_verbosity": "medium",
+  "coder_llm_output_mode": "source_files"
 }

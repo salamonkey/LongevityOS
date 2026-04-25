@@ -75,8 +75,29 @@ export function resolveLlmSettings(values = {}, env = process.env, purpose = 'in
       env.LLM_SEMANTIC_SCOPE_GATE,
       'true',
     )).toLowerCase() !== 'false',
+    modelCallTimeoutMs: toNonNegativeInt(firstDefined(
+      values[`${prefix}llm_timeout_ms`],
+      values.llm_timeout_ms,
+      env[`${upperPurpose}_LLM_TIMEOUT_MS`],
+      env.LLM_TIMEOUT_MS,
+      0,
+    ), 0),
+    modelCallMaxElapsedMs: toNonNegativeInt(firstDefined(
+      values[`${prefix}llm_max_elapsed_ms`],
+      values.llm_max_elapsed_ms,
+      env[`${upperPurpose}_LLM_MAX_ELAPSED_MS`],
+      env.LLM_MAX_ELAPSED_MS,
+      0,
+    ), 0),
     stdioCommand: firstDefined(values[`${prefix}llm_stdio_command`], values.llm_stdio_command, env[`${upperPurpose}_LLM_STDIO_COMMAND`], env.LLM_STDIO_COMMAND),
     stdioArgs: firstDefined(values[`${prefix}llm_stdio_args`], values.llm_stdio_args, env[`${upperPurpose}_LLM_STDIO_ARGS`], env.LLM_STDIO_ARGS),
+    stdioTrace: String(firstDefined(
+      values[`${prefix}llm_stdio_trace`],
+      values.llm_stdio_trace,
+      env[`${upperPurpose}_LLM_STDIO_TRACE`],
+      env.LLM_STDIO_TRACE,
+      'false',
+    )).toLowerCase() === 'true',
   };
 }
 

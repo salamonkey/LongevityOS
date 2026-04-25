@@ -41,6 +41,7 @@ import {
   loadValuesIfPresent,
 } from '../lib/core.mjs';
 import { generateCurrentSliceImplementationPlaybook } from '../lib/llm/coder-implementation.mjs';
+import { generateCurrentSliceImplementationSourceFiles } from '../lib/llm/coder-source-files.mjs';
 
 function initFactory({ targetRoot, valuesPath, force, initValues, forceValues }) {
   if (initValues) {
@@ -1210,7 +1211,113 @@ function buildGeneratedAppFiles(currentSlice, playbookOverride = null) {
   return files;
 }
 
-async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
+function resolveCoderLlmOutputMode(values = {}) {
+  const explicitRaw = String(
+    values.coder_llm_output_mode
+      || values.llm_coder_output_mode
+      || values.coder_llm_generation_mode
+      || values.llm_coder_generation_mode
+      || '',
+  ).trim().toLowerCase();
+  if (explicitRaw) {
+    if (['source_files', 'source-files', 'source', 'code', 'codex', 'direct_code'].includes(explicitRaw)) {
+      return 'source_files';
+    }
+    if (['playbook', 'guidance'].includes(explicitRaw)) {
+      return 'playbook';
+    }
+  }
+  return 'source_files';
+}
+
+const CODER_IMPLEMENT_LOCK_REL_PATH = '.fabric-locks/coder-implement-current-slice.lock';
+
+function isLiveProcessPid(pidValue) {
+  const pid = Number(pidValue);
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'EPERM') {
+      return true;
+    }
+    return false;
+  }
+}
+
+function readLockPayload(lockPath) {
+  if (!fs.existsSync(lockPath)) {
+    return null;
+  }
+  try {
+    return JSON.parse(readText(lockPath));
+  } catch (_) {
+    return null;
+  }
+}
+
+function acquireCoderImplementLock(targetRoot) {
+  const lockPath = path.join(targetRoot, CODER_IMPLEMENT_LOCK_REL_PATH);
+  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  const lockPayload = {
+    pid: process.pid,
+    command: 'coder:implement-current-slice',
+    target_root: String(targetRoot),
+    started_at: new Date().toISOString(),
+  };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const fd = fs.openSync(lockPath, 'wx');
+      try {
+        fs.writeFileSync(fd, `${JSON.stringify(lockPayload, null, 2)}\n`, 'utf8');
+      } finally {
+        fs.closeSync(fd);
+      }
+      return { lockPath, lockRelPath: CODER_IMPLEMENT_LOCK_REL_PATH };
+    } catch (error) {
+      if (error?.code !== 'EEXIST') {
+        throw error;
+      }
+      const existing = readLockPayload(lockPath);
+      if (existing && isLiveProcessPid(existing.pid)) {
+        const owner = Number.isInteger(Number(existing.pid))
+          ? `pid ${String(existing.pid)}`
+          : 'another process';
+        const startedAt = existing.started_at ? ` (started ${String(existing.started_at)})` : '';
+        throw new Error(
+          `Cannot run coder:implement-current-slice: another coder run is already active (${owner}${startedAt}). `
+          + `Wait for it to finish or stop it first. lock: ${CODER_IMPLEMENT_LOCK_REL_PATH}`,
+        );
+      }
+      try {
+        fs.rmSync(lockPath, { force: true });
+      } catch (_) {
+        // Best-effort stale lock cleanup only.
+      }
+    }
+  }
+  throw new Error(`Cannot run coder:implement-current-slice: failed to acquire lock: ${CODER_IMPLEMENT_LOCK_REL_PATH}`);
+}
+
+function releaseCoderImplementLock(lockHandle) {
+  if (!lockHandle?.lockPath) {
+    return;
+  }
+  const existing = readLockPayload(lockHandle.lockPath);
+  if (existing && Number.isInteger(Number(existing.pid)) && Number(existing.pid) !== process.pid) {
+    return;
+  }
+  try {
+    fs.rmSync(lockHandle.lockPath, { force: true });
+  } catch (_) {
+    // Best-effort cleanup only.
+  }
+}
+
+async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, force = false }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const framingPath = path.join(targetRoot, 'docs/product/product-system-framing.md');
@@ -1235,30 +1342,54 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
   const uxFlowText = readText(uxPath);
   const briefText = fs.existsSync(briefPath) ? readText(briefPath) : '';
   const framingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
+  const values = loadValuesIfPresent(valuesPath);
+  const llmOutputMode = resolveCoderLlmOutputMode(values);
 
   let implementationMode = 'heuristic';
   let playbookOverride = null;
+  let sourceFilesOverride = null;
   try {
-    const values = loadValuesIfPresent(valuesPath);
     console.log('fabric coder:implement-current-slice: starting model-driven implementation generation...');
-    const { settings, purpose, playbook } = await generateCurrentSliceImplementationPlaybook({
-      targetRoot,
-      values,
-      slice: currentSlice,
-      baselineMarkdown: baselineText,
-      uxFlowMarkdown: uxFlowText,
-      briefMarkdown: briefText,
-      framingMarkdown: framingText,
-      onProgress: (message) => {
-        console.log(`  - ${String(message)}`);
-      },
-    });
-    playbookOverride = playbook;
-    implementationMode = 'model_driven';
-    if (purpose) {
-      console.log(`fabric coder:implement-current-slice: llm profile ${purpose}`);
+    if (llmOutputMode === 'source_files') {
+      const { settings, purpose, files } = await generateCurrentSliceImplementationSourceFiles({
+        targetRoot,
+        values,
+        slice: currentSlice,
+        fileTargets,
+        baselineMarkdown: baselineText,
+        uxFlowMarkdown: uxFlowText,
+        briefMarkdown: briefText,
+        framingMarkdown: framingText,
+        onProgress: (message) => {
+          console.log(`  - ${String(message)}`);
+        },
+      });
+      sourceFilesOverride = files;
+      implementationMode = 'model_source_files';
+      if (purpose) {
+        console.log(`fabric coder:implement-current-slice: llm profile ${purpose}`);
+      }
+      console.log(`fabric coder:implement-current-slice: model coder ${settings.provider}/${settings.model}`);
+    } else {
+      const { settings, purpose, playbook } = await generateCurrentSliceImplementationPlaybook({
+        targetRoot,
+        values,
+        slice: currentSlice,
+        baselineMarkdown: baselineText,
+        uxFlowMarkdown: uxFlowText,
+        briefMarkdown: briefText,
+        framingMarkdown: framingText,
+        onProgress: (message) => {
+          console.log(`  - ${String(message)}`);
+        },
+      });
+      playbookOverride = playbook;
+      implementationMode = 'model_playbook';
+      if (purpose) {
+        console.log(`fabric coder:implement-current-slice: llm profile ${purpose}`);
+      }
+      console.log(`fabric coder:implement-current-slice: model coder ${settings.provider}/${settings.model}`);
     }
-    console.log(`fabric coder:implement-current-slice: model coder ${settings.provider}/${settings.model}`);
   } catch (error) {
     const reason = error?.message ? String(error.message) : String(error);
     console.warn(`fabric coder:implement-current-slice: model-driven generation unavailable (${reason})`);
@@ -1266,7 +1397,9 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
     implementationMode = 'heuristic_fallback';
   }
 
-  const files = buildGeneratedAppFiles(currentSlice, playbookOverride);
+  const files = sourceFilesOverride && sourceFilesOverride.size > 0
+    ? sourceFilesOverride
+    : buildGeneratedAppFiles(currentSlice, playbookOverride);
   const changedFiles = [];
   for (const [relPath, content] of files.entries()) {
     const outPath = path.join(targetRoot, relPath);
@@ -1300,9 +1433,11 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
       createdPackageJson ? 'Created package.json because the repository did not yet contain one.' : 'Updated the existing package.json in place.',
     ],
     executionNotes: [
-      implementationMode === 'model_driven'
-        ? 'This command wrote model-driven starter code into src/ and tests/ using the current slice architecture and UX contracts.'
-        : 'This command wrote deterministic starter code into src/ and tests/ so the slice becomes customer-testable locally.',
+      implementationMode === 'model_source_files'
+        ? 'This command wrote model-authored source files directly into src/ and tests/ using the current slice architecture and UX contracts.'
+        : (implementationMode === 'model_playbook'
+          ? 'This command wrote deterministic source templates populated from a model-generated implementation playbook.'
+          : 'This command wrote deterministic starter code into src/ and tests/ so the slice becomes customer-testable locally.'),
       'Run npm install after generation to fetch any newly-added React/Vite dependencies.',
       'Use --force only when you want fabric to replace non-generated implementation files.',
     ],
@@ -1320,7 +1455,17 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
   console.log(`- changed files: ${String([...new Set(changedFiles)].length)}`);
   console.log('- app scaffold: React + Vite');
   console.log(`- implementation mode: ${implementationMode}`);
+  console.log(`- llm output mode: ${llmOutputMode}`);
   console.log('- package scripts: dev, build, preview, test');
+}
+
+async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
+  const lockHandle = acquireCoderImplementLock(targetRoot);
+  try {
+    await coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, force });
+  } finally {
+    releaseCoderImplementLock(lockHandle);
+  }
 }
 
 function coderCloseCurrentSlice({ targetRoot, valuesPath }) {

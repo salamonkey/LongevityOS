@@ -1,6 +1,6 @@
 <!-- generated_from: templates/implementation-notes-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T08:33:51.958Z -->
+<!-- generated_at: 2026-04-25T11:57:45.638Z -->
 # Current Slice Implementation Notes
 
 Date: `2026-04-25`
@@ -36,6 +36,7 @@ Enable a new user to enter age and gender for the first profile, generate a dete
 - src/features/first-profile-onboarding-to-generated-dashboard/SliceEntryBridge.jsx
 - src/features/onboarding/OnboardingPage.jsx
 - src/features/profile/ProfileForm.jsx
+- src/features/profile/profilePlan.js
 - src/main.jsx
 - src/routes/first-profile-onboarding-to-generated-dashboard.jsx
 - src/routes/onboarding.jsx
@@ -49,7 +50,7 @@ Enable a new user to enter age and gender for the first profile, generate a dete
 - Updated the existing package.json in place.
 
 ## 7. Execution Notes
-- This command wrote model-driven starter code into src/ and tests/ using the current slice architecture and UX contracts.
+- This command wrote model-authored source files directly into src/ and tests/ using the current slice architecture and UX contracts.
 - Run npm install after generation to fetch any newly-added React/Vite dependencies.
 - Use --force only when you want fabric to replace non-generated implementation files.
 
