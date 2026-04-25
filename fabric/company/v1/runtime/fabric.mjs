@@ -128,8 +128,8 @@ function uxFlowRelPathForSlice(sliceId) {
 
 function resolveGateNextSteps({ cmd, targetRoot }) {
   const fallback = [
-    cmd('pm:status'),
     cmd('db:check', { includeValues: false }),
+    cmd('pm:intake', { includeValues: false }),
   ];
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   if (!fs.existsSync(currentSlicePath)) {
@@ -171,7 +171,7 @@ function resolveGateNextSteps({ cmd, targetRoot }) {
     if (sliceStatus === 'completed') {
       return [
         cmd('orchestrator:advance-slice'),
-        cmd('pm:status'),
+        cmd('gate'),
       ];
     }
     return fallback;
@@ -243,11 +243,11 @@ const NEXT_STEP_BUILDERS = {
     cmd('orchestrator:advance-slice'),
   ],
   'coder:close-current-slice': ({ cmd }) => [
+    cmd('gate'),
     cmd('orchestrator:advance-slice'),
-    cmd('pm:status'),
   ],
   'orchestrator:advance-slice': ({ cmd }) => [
-    cmd('pm:status'),
+    cmd('gate'),
     cmd('architect:generate-current-slice-baseline'),
   ],
   'format-from-brief': ({ cmd }) => [
@@ -268,7 +268,7 @@ const NEXT_STEP_BUILDERS = {
   ],
   doctor: ({ cmd }) => [
     cmd('gate'),
-    cmd('pm:status'),
+    cmd('db:check', { includeValues: false }),
   ],
   gate: ({ cmd, targetRoot }) => resolveGateNextSteps({ cmd, targetRoot }),
   'db:init': ({ cmd }) => [
@@ -285,6 +285,72 @@ const NEXT_STEP_BUILDERS = {
     cmd('gate'),
   ],
 };
+
+const CANONICAL_STEP_BY_COMMAND = Object.freeze({
+  'init-factory': '2',
+  'pm:intake': '3',
+  'pm:brief-readiness': '4',
+  'pm:brief-draft': '5',
+  'pm:brief-approve': '6',
+  'pm:derive-values': '7',
+  'format-from-brief': '8',
+  scaffold: '9',
+  'pm:plan-slices': '10',
+  'pm:finalize-bootstrap-reviews': '11',
+  'pm:bootstrap-signoff': '12',
+  'db:init': '13',
+  'db:check': '13b',
+  'architect:generate-current-slice-baseline': '14',
+  'uiux:generate-current-slice-flow': '15',
+  'coder:prepare-current-slice': '17',
+  'coder:implement-current-slice': '18',
+  'coder:close-current-slice': '20',
+  'orchestrator:advance-slice': '22',
+});
+
+const CANONICAL_STEP_OVERRIDE_BY_FROM_COMMAND = Object.freeze({
+  'db:check': Object.freeze({
+    gate: '16',
+  }),
+  'db:reset': Object.freeze({
+    gate: '16',
+  }),
+  'coder:close-current-slice': Object.freeze({
+    gate: '21',
+    'orchestrator:advance-slice': '22',
+  }),
+  'orchestrator:advance-slice': Object.freeze({
+    gate: '23',
+    'architect:generate-current-slice-baseline': '14',
+  }),
+  gate: Object.freeze({
+    gate: '23',
+    'orchestrator:advance-slice': '22',
+    'architect:generate-current-slice-baseline': '14',
+    'uiux:generate-current-slice-flow': '15',
+    'coder:prepare-current-slice': '17',
+    'coder:implement-current-slice': '18',
+    'coder:close-current-slice': '20',
+  }),
+});
+
+function extractFabricCommandName(stepText) {
+  const match = String(stepText || '').match(/^\s*\.\/fabric\/company\/v1\/fabric\s+([^\s]+)/);
+  return match ? String(match[1] || '').trim() : '';
+}
+
+function resolveCanonicalStepLabel({ fromCommand, stepText }) {
+  const toCommand = extractFabricCommandName(stepText);
+  if (!toCommand) return '';
+  const fromOverrides = CANONICAL_STEP_OVERRIDE_BY_FROM_COMMAND[String(fromCommand || '')];
+  if (fromOverrides && fromOverrides[toCommand]) {
+    return String(fromOverrides[toCommand]);
+  }
+  if (Object.prototype.hasOwnProperty.call(CANONICAL_STEP_BY_COMMAND, toCommand)) {
+    return String(CANONICAL_STEP_BY_COMMAND[toCommand]);
+  }
+  return '';
+}
 
 function printNextSteps({ command, targetRoot, valuesPath }) {
   const builder = NEXT_STEP_BUILDERS[command];
@@ -303,7 +369,9 @@ function printNextSteps({ command, targetRoot, valuesPath }) {
   console.log('');
   console.log('Next steps:');
   for (let i = 0; i < steps.length; i += 1) {
-    console.log(`  ${String(i + 1)}) ${steps[i]}`);
+    const canonicalStep = resolveCanonicalStepLabel({ fromCommand: command, stepText: steps[i] });
+    const label = canonicalStep || String(i + 1);
+    console.log(`  ${label}) ${steps[i]}`);
   }
 }
 

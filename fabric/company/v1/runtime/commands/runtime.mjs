@@ -1074,18 +1074,19 @@ function checklistPathForSlice(sliceId) {
 }
 
 function parseChecklistResultState(checklistText) {
-  const resultMatch = String(checklistText || '').match(/## Result\s*([\s\S]*?)$/m);
-  if (!resultMatch) {
+  const lines = String(checklistText || '').replace(/\r\n?/g, '\n').split('\n');
+  const resultHeaderIndex = lines.findIndex((line) => /^\s*##\s+Result\s*$/i.test(line));
+  if (resultHeaderIndex < 0) {
     return 'missing_result_section';
   }
-  const resultBody = resultMatch[1];
-  if (/\b-\s*Pass\s*\/\s*Fail\b/i.test(resultBody)) {
+  const resultBody = lines.slice(resultHeaderIndex + 1).join('\n');
+  if (/^\s*-\s*Pass\s*\/\s*Fail\b/im.test(resultBody)) {
     return 'unresolved';
   }
-  if (/\b-\s*Fail\b/i.test(resultBody)) {
+  if (/^\s*-\s*Fail\b/im.test(resultBody)) {
     return 'fail';
   }
-  if (/\b-\s*Pass\b/i.test(resultBody)) {
+  if (/^\s*-\s*Pass\b/im.test(resultBody)) {
     return 'pass';
   }
   return 'unresolved';
@@ -1579,6 +1580,7 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
       'Run fabric gate after closeout to verify overall coherence.',
     ],
     nextSteps: [
+      'Run gate before advancing the slice pointer.',
       'Run orchestrator:advance-slice to activate the next slice.',
       'Keep implementation notes as the record for this completed slice.',
       'Issue a customer checkpoint when a customer-facing milestone exists.',

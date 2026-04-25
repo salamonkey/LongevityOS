@@ -4,7 +4,7 @@
 schema_version: 1
 manifest_version: 1
 generated_at_utc: '2026-04-25T05:35:21.246Z'
-last_updated_utc: "2026-04-25T08:01:04.877Z"
+last_updated_utc: "2026-04-25T12:18:21.039Z"
 project:
   id: 'longevity-health-os-health-app-mvp'
   name: 'Longevity Health OS (Health App MVP)'
@@ -46,9 +46,9 @@ status:
   initialized: true
   requires_customer_escalation: false
   blocking_decision: null
-  active_slice: "SL-001"
-  active_slice_state: "in_progress"
-  active_milestone: "SL-001_implementation"
+  active_slice: "SL-002"
+  active_slice_state: "planned"
+  active_milestone: "SL-002_delivery"
   approved_reviews:
     - "docs/reviews/product-manager/bootstrap-foundation-review.md"
     - "docs/reviews/product-manager/bootstrap-backlog-slice-review.md"

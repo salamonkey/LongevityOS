@@ -45,5 +45,5 @@ Enable a new user to enter age and gender for the first profile, generate a dete
 - Vaccination tracking or settings
 
 ## Result
-- Pass / Fail
-- Notes:
+- Pass
+- Notes: 
