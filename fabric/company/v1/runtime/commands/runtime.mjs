@@ -351,7 +351,11 @@ function validate({ targetRoot, valuesPath }) {
   if (errors.length > 0) {
     console.error('fabric validate: FAILED');
     errors.forEach((e) => console.error(`- ${e}`));
-    process.exit(1);
+    const error = new Error(`fabric validate failed (${String(errors.length)} issue(s))`);
+    error.alreadyLogged = true;
+    error.code = 'FABRIC_VALIDATE_FAILED';
+    error.issues = errors;
+    throw error;
   }
 
   console.log('fabric validate: OK');
@@ -440,15 +444,68 @@ function doctor({ targetRoot, valuesPath }) {
   if (issues.length > 0) {
     console.error('fabric doctor: FAILED');
     issues.forEach((i) => console.error(`- ${i}`));
-    process.exit(1);
+    const error = new Error(`fabric doctor failed (${String(issues.length)} issue(s))`);
+    error.alreadyLogged = true;
+    error.code = 'FABRIC_DOCTOR_FAILED';
+    error.issues = issues;
+    throw error;
   }
 
   console.log('fabric doctor: OK');
 }
 
+function safeGateMessage(error) {
+  const text = String(error?.message || '').replace(/\s+/g, ' ').trim();
+  if (!text) return 'Unknown gate failure';
+  return text.slice(0, 240);
+}
+
+function updateGateStatus({ targetRoot, result, stage, message = '' }) {
+  const manifestPath = path.join(targetRoot, '.system/project-manifest.yaml');
+  if (!fs.existsSync(manifestPath)) {
+    return;
+  }
+  const now = new Date().toISOString();
+  let manifestText = readText(manifestPath);
+  manifestText = setSectionScalar(manifestText, 'status', 'last_gate_result', quoteYamlString(result));
+  manifestText = setSectionScalar(manifestText, 'status', 'last_gate_stage', quoteYamlString(stage));
+  manifestText = setSectionScalar(manifestText, 'status', 'last_gate_checked_at_utc', quoteYamlString(now));
+  manifestText = setSectionScalar(manifestText, 'status', 'last_gate_message', quoteYamlString(message));
+  manifestText = setTopLevelScalar(manifestText, 'last_updated_utc', quoteYamlString(now));
+  writeTextAtomic(manifestPath, manifestText);
+}
+
 function gate({ targetRoot, valuesPath }) {
-  validate({ targetRoot, valuesPath });
-  doctor({ targetRoot, valuesPath });
+  try {
+    validate({ targetRoot, valuesPath });
+  } catch (error) {
+    updateGateStatus({
+      targetRoot,
+      result: 'failed',
+      stage: 'validate',
+      message: safeGateMessage(error),
+    });
+    throw error;
+  }
+
+  try {
+    doctor({ targetRoot, valuesPath });
+  } catch (error) {
+    updateGateStatus({
+      targetRoot,
+      result: 'failed',
+      stage: 'doctor',
+      message: safeGateMessage(error),
+    });
+    throw error;
+  }
+
+  updateGateStatus({
+    targetRoot,
+    result: 'passed',
+    stage: 'gate',
+    message: 'validate and doctor passed',
+  });
   console.log('fabric gate: OK');
 }
 

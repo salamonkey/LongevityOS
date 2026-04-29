@@ -454,7 +454,10 @@ function pmBootstrapSignoff({ targetRoot, valuesPath }) {
     reviewEval.issues.forEach((issue) => console.error(`- ${issue}`));
     console.error('- bootstrap review artifacts are still drafts or not approved');
     console.error(`- recovery: run ./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target ${targetRoot === process.cwd() ? '.' : '<project-root>'} --values ${valuesPath ? path.relative(targetRoot, valuesPath) || 'fabric.values.json' : 'fabric.values.json'}`);
-    process.exit(1);
+    const error = new Error('fabric pm:bootstrap-signoff failed: bootstrap reviews are not approved');
+    error.alreadyLogged = true;
+    error.code = 'FABRIC_PM_BOOTSTRAP_SIGNOFF_FAILED';
+    throw error;
   }
 
   const currentSlice = extractFirstSliceFromCurrentSlice(readText(currentSlicePath));

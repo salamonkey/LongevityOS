@@ -236,9 +236,9 @@ STAGE 2
 12. Bootstrap signoff into delivery mode:
    - `./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json`
 13. Initialize DB baseline:
-    - `./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json`
+   - `./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json`
 13b. Verify DB readiness:
-    - `./fabric/company/v1/fabric db:check --target .`
+   - `./fabric/company/v1/fabric db:check --target .`
 STAGE 3
 14. Generate architecture baseline for active slice:
     - `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json`

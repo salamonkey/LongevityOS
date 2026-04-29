@@ -46,6 +46,15 @@ status:
   active_slice: '{{active_slice_id}}'
   active_slice_state: '{{active_slice_state}}'
   active_milestone: '{{active_milestone}}'
+  last_gate_result: null
+  last_gate_stage: null
+  last_gate_checked_at_utc: null
+  last_gate_message: null
+  last_flow_check_command: null
+  last_flow_check_step: null
+  last_flow_check_result: null
+  last_flow_check_checked_at_utc: null
+  last_flow_check_message: null
   approved_reviews: []
   customer_checkpoint_summaries: []
 artifacts:

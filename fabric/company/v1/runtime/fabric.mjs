@@ -3,7 +3,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { parseArgs, parseSliceBlockWithLists, readText } from './lib/core.mjs';
+import {
+  parseArgs,
+  parseSliceBlockWithLists,
+  readText,
+  writeTextAtomic,
+  quoteYamlString,
+  setSectionScalar,
+  setTopLevelScalar,
+} from './lib/core.mjs';
 import {
   llmCheck,
   pmIntake,
@@ -39,6 +47,13 @@ import {
 
 const FABRIC_FACTORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FABRIC_FACTORY_ENV_PATH = path.join(FABRIC_FACTORY_ROOT, '.factory.env');
+const FLOW_CHECK_STEP_BY_COMMAND = Object.freeze({
+  'pm:brief-readiness': '4',
+  'format-from-brief': '8',
+  'pm:bootstrap-signoff': '12',
+  gate: '16|21|23',
+});
+const TRACKED_FLOW_CHECK_COMMANDS = new Set(Object.keys(FLOW_CHECK_STEP_BY_COMMAND));
 
 function parseFactoryEnvLine(line) {
   const trimmed = String(line || '').trim();
@@ -412,6 +427,42 @@ function usage() {
   console.log('  --no-next-steps (global): suppress post-command next-step guidance');
 }
 
+function safeFlowCheckMessage(error) {
+  const text = String(error?.message || '').replace(/\s+/g, ' ').trim();
+  if (!text) return 'Unknown flow check result';
+  return text.slice(0, 240);
+}
+
+function recordFlowCheckStatus({ targetRoot, command, result, message = '' }) {
+  if (!TRACKED_FLOW_CHECK_COMMANDS.has(String(command || ''))) {
+    return;
+  }
+  const manifestPath = path.join(targetRoot, '.system/project-manifest.yaml');
+  if (!fs.existsSync(manifestPath)) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  let manifestText = readText(manifestPath);
+  manifestText = setSectionScalar(
+    manifestText,
+    'status',
+    'last_flow_check_command',
+    quoteYamlString(String(command || '')),
+  );
+  manifestText = setSectionScalar(
+    manifestText,
+    'status',
+    'last_flow_check_step',
+    quoteYamlString(String(FLOW_CHECK_STEP_BY_COMMAND[String(command || '')] || '')),
+  );
+  manifestText = setSectionScalar(manifestText, 'status', 'last_flow_check_result', quoteYamlString(String(result || '')));
+  manifestText = setSectionScalar(manifestText, 'status', 'last_flow_check_checked_at_utc', quoteYamlString(now));
+  manifestText = setSectionScalar(manifestText, 'status', 'last_flow_check_message', quoteYamlString(String(message || '')));
+  manifestText = setTopLevelScalar(manifestText, 'last_updated_utc', quoteYamlString(now));
+  writeTextAtomic(manifestPath, manifestText);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0];
@@ -430,9 +481,25 @@ async function main() {
   const valuesPath = path.resolve(String(args.values || defaultValuesPath));
   const shouldPrintNextSteps = !Boolean(args['no-next-steps']);
   const runWithGuidance = async (handler) => {
-    await handler();
-    if (shouldPrintNextSteps) {
-      printNextSteps({ command, targetRoot, valuesPath });
+    try {
+      await handler();
+      recordFlowCheckStatus({
+        targetRoot,
+        command,
+        result: 'passed',
+        message: 'command completed successfully',
+      });
+      if (shouldPrintNextSteps) {
+        printNextSteps({ command, targetRoot, valuesPath });
+      }
+    } catch (error) {
+      recordFlowCheckStatus({
+        targetRoot,
+        command,
+        result: 'failed',
+        message: safeFlowCheckMessage(error),
+      });
+      throw error;
     }
   };
 
@@ -568,6 +635,9 @@ async function main() {
 try {
   await main();
 } catch (error) {
+  if (error?.alreadyLogged) {
+    process.exit(1);
+  }
   const message = error?.message ? String(error.message) : String(error);
   console.error(`fabric: ${message}`);
   process.exit(1);

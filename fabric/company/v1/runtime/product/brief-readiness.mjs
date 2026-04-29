@@ -443,7 +443,10 @@ async function pmBriefReadiness({ targetRoot }) {
     console.error(`- review: ${path.relative(targetRoot, reviewPath)}`);
     console.error(`- information request: ${path.relative(targetRoot, requestPath)}`);
     console.error('- fix customer input before drafting');
-    process.exit(1);
+    const error = new Error('fabric pm:brief-readiness failed: readiness is insufficient');
+    error.alreadyLogged = true;
+    error.code = 'FABRIC_PM_BRIEF_READINESS_FAILED';
+    throw error;
   }
 
   logReadinessWarnings(snapshot.analysis);
