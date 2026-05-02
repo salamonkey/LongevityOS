@@ -44,6 +44,8 @@ import {
   coderCloseCurrentSlice,
   orchestratorAdvanceSlice,
 } from './commands/runtime.mjs';
+import { createRunContext } from './lib/ledger/run-context.mjs';
+import { writeLedgerEvent } from './lib/ledger/event.mjs';
 
 const FABRIC_FACTORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FABRIC_FACTORY_ENV_PATH = path.join(FABRIC_FACTORY_ROOT, '.factory.env');
@@ -480,24 +482,60 @@ async function main() {
     : (fs.existsSync(yamlValuesPath) ? yamlValuesPath : jsonValuesPath);
   const valuesPath = path.resolve(String(args.values || defaultValuesPath));
   const shouldPrintNextSteps = !Boolean(args['no-next-steps']);
+  const runContext = createRunContext({
+    command,
+    targetRoot,
+    valuesPath,
+    argv: process.argv.slice(2),
+  });
   const runWithGuidance = async (handler) => {
+    const startedAt = Date.now();
+    writeLedgerEvent({
+      targetRoot,
+      runContext,
+      event: {
+        event_type: 'command_started',
+        status: 'running',
+      },
+    });
     try {
       await handler();
+      const durationMs = Date.now() - startedAt;
       recordFlowCheckStatus({
         targetRoot,
         command,
         result: 'passed',
         message: 'command completed successfully',
       });
+      writeLedgerEvent({
+        targetRoot,
+        runContext,
+        event: {
+          event_type: 'command_succeeded',
+          status: 'success',
+          duration_ms: durationMs,
+        },
+      });
       if (shouldPrintNextSteps) {
         printNextSteps({ command, targetRoot, valuesPath });
       }
     } catch (error) {
+      const durationMs = Date.now() - startedAt;
       recordFlowCheckStatus({
         targetRoot,
         command,
         result: 'failed',
         message: safeFlowCheckMessage(error),
+      });
+      writeLedgerEvent({
+        targetRoot,
+        runContext,
+        event: {
+          event_type: 'command_failed',
+          status: 'failed',
+          duration_ms: durationMs,
+          error,
+        },
       });
       throw error;
     }

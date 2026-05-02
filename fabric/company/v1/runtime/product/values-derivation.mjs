@@ -22,6 +22,10 @@ const BRIEF_FIRST_STATIC_DEFAULTS = Object.freeze({
   slice_id: 'SL-XXX',
   customer_review_tenant_id: '00000000-0000-4000-8000-000000000000',
   database_url_example: 'postgresql://postgres:postgres@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require',
+  coder_execution_mode: 'codex',
+  coder_codex_command: 'codex',
+  coder_codex_exec_args: [],
+  coder_llm_output_mode: 'source_files',
 });
 
 const ARCHITECT_TECH_TOKENS = new Set([

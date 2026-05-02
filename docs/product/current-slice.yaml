@@ -1,14 +1,14 @@
 # generated_from: templates/current-slice.template.yaml
 # fabric_version: v1
-# generated_at: 2026-04-25T12:18:21.039Z
+# generated_at: 2026-04-29T19:12:21.984Z
 schema_version: 1
-generated_at_utc: "2026-04-25T12:18:21.039Z"
+generated_at_utc: "2026-04-29T19:12:21.984Z"
 slice:
   id: "SL-002"
   title: "Health Item Detail and Completion"
-  milestone: "SL-002_delivery"
+  milestone: "SL-002_implementation"
   owner_role: "Product Manager"
-  status: "planned"
+  status: "in_progress"
   objective: "Let users open any prioritized item, understand what to do and why, and mark the item Done with immediate reflected progress."
   in_scope:
     - "Open any dashboard item into a detail view"

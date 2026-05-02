@@ -1288,6 +1288,336 @@ function resolveCoderLlmOutputMode(values = {}) {
   return 'source_files';
 }
 
+function resolveCoderExecutionMode(values = {}) {
+  const explicitRaw = String(
+    values.coder_execution_mode
+      || values.coder_implementation_backend
+      || values.coder_backend
+      || '',
+  ).trim().toLowerCase();
+  if (['codex', 'codex_exec', 'codex-exec', 'cli'].includes(explicitRaw)) {
+    return 'codex_exec';
+  }
+  if (['model', 'llm', 'fabric', 'legacy', 'direct'].includes(explicitRaw)) {
+    return 'model_direct';
+  }
+  return 'codex_exec';
+}
+
+function normalizeSliceIdForWorkOrder(sliceId) {
+  return String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
+}
+
+function workOrderRelPathForSlice(sliceId) {
+  return `.system/factory/work-orders/${normalizeSliceIdForWorkOrder(sliceId)}-coder-codex.md`;
+}
+
+function executionLedgerRelPath() {
+  return '.system/factory/execution-ledger.jsonl';
+}
+
+function appendExecutionLedgerEntry(targetRoot, entry) {
+  const ledgerPath = path.join(targetRoot, executionLedgerRelPath());
+  ensureDir(ledgerPath);
+  fs.appendFileSync(ledgerPath, `${JSON.stringify(entry)}\n`, 'utf8');
+}
+
+function parseGitPorcelain(output) {
+  const files = new Map();
+  for (const rawLine of String(output || '').split(/\r?\n/)) {
+    if (!rawLine.trim()) continue;
+    const status = rawLine.slice(0, 2);
+    let relPath = rawLine.slice(3).trim();
+    const renameArrow = ' -> ';
+    if (relPath.includes(renameArrow)) {
+      relPath = relPath.slice(relPath.indexOf(renameArrow) + renameArrow.length).trim();
+    }
+    if (relPath) files.set(relPath, status.trim() || 'modified');
+  }
+  return files;
+}
+
+function gitStatusMap(targetRoot) {
+  const result = spawnSync('git', ['status', '--porcelain'], { cwd: targetRoot, encoding: 'utf8' });
+  if (result.error || result.status !== 0) return null;
+  return parseGitPorcelain(result.stdout || '');
+}
+
+function gitDiffNameOnly(targetRoot) {
+  const result = spawnSync('git', ['diff', '--name-only'], { cwd: targetRoot, encoding: 'utf8' });
+  if (result.error || result.status !== 0) return [];
+  return String(result.stdout || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot }) {
+  if (!afterStatus) return gitDiffNameOnly(targetRoot);
+  if (!beforeStatus) return [...afterStatus.keys()].sort();
+  const changed = [];
+  for (const [relPath, status] of afterStatus.entries()) {
+    if (!beforeStatus.has(relPath) || beforeStatus.get(relPath) !== status) changed.push(relPath);
+  }
+  return changed.sort();
+}
+
+function pathMatchesAllowed(relPath, patterns = []) {
+  const normalized = String(relPath || '').replace(/\\/g, '/');
+  return patterns.some((pattern) => {
+    const raw = String(pattern || '').replace(/\\/g, '/').trim();
+    if (!raw) return false;
+    if (raw.endsWith('/**')) return normalized.startsWith(raw.slice(0, -3));
+    if (raw.endsWith('/')) return normalized.startsWith(raw);
+    return normalized === raw;
+  });
+}
+
+function codexGeneratedArtifactPatterns() {
+  return [
+    'dist/**',
+    'build/**',
+    'coverage/**',
+    '.vite/**',
+    '.turbo/**',
+    '.next/**',
+    'node_modules/**',
+  ];
+}
+
+function isCodexGeneratedArtifact(relPath) {
+  return pathMatchesAllowed(relPath, codexGeneratedArtifactPatterns());
+}
+
+function deriveCodexAllowedPaths(slice) {
+  const slug = slugifySliceTitle(slice.title);
+  return {
+    create: [
+      `src/features/${slug}/**`,
+      `src/routes/${slug}.jsx`,
+      `src/routes/${slug}.js`,
+      `tests/${slug}/**`,
+    ],
+    modify: ['src/App.jsx', 'src/styles.css', 'package.json', 'package-lock.json'],
+    protected: ['index.html', 'src/main.jsx'],
+  };
+}
+
+function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, implementationNotesRelPath, valuesPath }) {
+  const allowed = deriveCodexAllowedPaths(slice);
+  const sliceContext = {
+    id: String(slice?.id || '').trim(),
+    title: String(slice?.title || '').trim(),
+    objective: String(slice?.objective || '').trim(),
+    in_scope: Array.isArray(slice?.in_scope) ? slice.in_scope : [],
+    out_of_scope: Array.isArray(slice?.out_of_scope) ? slice.out_of_scope : [],
+    acceptance_criteria: Array.isArray(slice?.acceptance_criteria) ? slice.acceptance_criteria : [],
+    dependencies: Array.isArray(slice?.dependencies) ? slice.dependencies : [],
+  };
+  return [
+    `# Codex work order: implement ${sliceContext.id} ${sliceContext.title}`,
+    '',
+    'You are acting as the Coder role for this Fabric app factory run.',
+    'Implement the active slice incrementally in the current repository.',
+    '',
+    '## Required source documents to read first',
+    '- `docs/product/current-slice.yaml`',
+    `- \`${baselineRelPath}\``,
+    `- \`${uxRelPath}\``,
+    `- \`${implementationNotesRelPath}\``,
+    '- `docs/product/project-brief.md` if present',
+    '- `docs/product/product-system-framing.md` if present',
+    '- Existing `src/` and `tests/` files needed to understand the current app. Follow imports from `src/App.jsx` before editing.',
+    '',
+    '## Active slice',
+    '```json',
+    JSON.stringify(sliceContext, null, 2),
+    '```',
+    '',
+    '## Implementation contract',
+    '- Behave like an incremental developer, not a full-app generator.',
+    '- Do not rewrite the application from scratch.',
+    '- Preserve existing behavior unless the current slice explicitly requires a change.',
+    '- Prefer small, focused edits and new slice-local files.',
+    '- Read relevant existing files before editing them.',
+    '- Do not modify unrelated onboarding/profile code unless strictly necessary for integration.',
+    '- Do not use `--force` or destructive git commands.',
+    '',
+    '## Preferred implementation targets from Fabric',
+    ...fileTargets.map((target) => `- ${target}`),
+    '',
+    '## Allowed path policy',
+    'You should create files only under:',
+    ...allowed.create.map((target) => `- ${target}`),
+    '',
+    'You may minimally modify only:',
+    ...allowed.modify.map((target) => `- ${target}`),
+    '',
+    'Do not modify unless explicitly unavoidable:',
+    ...allowed.protected.map((target) => `- ${target}`),
+    '',
+    'If the requested slice cannot be implemented within these paths, stop and explain the smallest required exception instead of broadening the edit scope yourself.',
+    '',
+    '## Validation expectations',
+    '- Add or update tests for the slice behavior.',
+    '- Run the available test command, usually `npm test`, if dependencies are installed.',
+    '- Run `npm run build` if available and reasonably possible.',
+    '- End with a concise summary of changed files and validation results.',
+    '',
+    '## Important product/UX reminder',
+    'The visible implementation should reflect the product, UX, and architecture documents. Do not leak internal slice/process language into user-facing UI.',
+    '',
+    `Values file for reference: \`${path.relative(process.cwd(), valuesPath)}\``,
+    '',
+  ].join('\n');
+}
+
+function resolveCodexCommand(values = {}) {
+  return String(values.codex_command || values.coder_codex_command || process.env.FABRIC_CODEX_COMMAND || 'codex').trim() || 'codex';
+}
+
+function runCodexExec({ targetRoot, values, workOrderText, onProgress }) {
+  const command = resolveCodexCommand(values);
+  const extraArgs = Array.isArray(values.coder_codex_exec_args) ? values.coder_codex_exec_args.map(String) : [];
+  const args = ['exec', ...extraArgs, workOrderText];
+  if (onProgress) onProgress(`running Codex CLI: ${command} exec ...`);
+  const result = spawnSync(command, args, {
+    cwd: targetRoot,
+    env: process.env,
+    encoding: 'utf8',
+    maxBuffer: 50 * 1024 * 1024,
+  });
+  return {
+    command,
+    argsPreview: ['exec', ...extraArgs, '<work-order>'],
+    status: result.status,
+    signal: result.signal,
+    error: result.error ? String(result.error.message || result.error) : '',
+    stdout: String(result.stdout || ''),
+    stderr: String(result.stderr || ''),
+  };
+}
+
+function validateCodexChangedFiles({ changedFiles, slice }) {
+  const allowed = deriveCodexAllowedPaths(slice);
+  const allowedPatterns = [...allowed.create, ...allowed.modify];
+  const ignoredGeneratedArtifacts = [];
+  const violations = [];
+
+  for (const relPath of changedFiles) {
+    if (String(relPath).startsWith('.system/factory/work-orders/')) continue;
+    if (String(relPath) === executionLedgerRelPath()) continue;
+
+    if (isCodexGeneratedArtifact(relPath)) {
+      ignoredGeneratedArtifacts.push(relPath);
+      continue;
+    }
+
+    if (!pathMatchesAllowed(relPath, allowedPatterns)) {
+      violations.push(relPath);
+    }
+  }
+
+  return { allowed, violations, ignoredGeneratedArtifacts };
+}
+
+async function runCodexImplementationForCurrentSlice({ targetRoot, valuesPath, values, currentSlice, fileTargets, baselineRelPath, uxRelPath, implementationNotesRelPath, implementationNotesPath }) {
+  console.log('fabric coder:implement-current-slice: starting Codex-backed implementation...');
+  const workOrderRelPath = workOrderRelPathForSlice(currentSlice.id);
+  const workOrderPath = path.join(targetRoot, workOrderRelPath);
+  const workOrderText = buildCodexWorkOrder({ slice: currentSlice, fileTargets, baselineRelPath, uxRelPath, implementationNotesRelPath, valuesPath });
+  writeTextAtomic(workOrderPath, workOrderText);
+
+  const allowed = deriveCodexAllowedPaths(currentSlice);
+  console.log(`  - work order: ${workOrderRelPath}`);
+  console.log('  - implementation backend: codex_exec');
+  console.log(`  - allowed create paths: ${allowed.create.join(', ')}`);
+  console.log(`  - allowed modify paths: ${allowed.modify.join(', ')}`);
+  console.log(`  - protected paths: ${allowed.protected.join(', ')}`);
+
+  const beforeStatus = gitStatusMap(targetRoot);
+  if (beforeStatus && beforeStatus.size > 0) {
+    console.warn(`  - warning: git worktree already has ${beforeStatus.size} changed file(s); diff attribution may be conservative.`);
+  }
+
+  const startedAt = new Date().toISOString();
+  const codexResult = runCodexExec({ targetRoot, values, workOrderText, onProgress: (message) => console.log(`  - ${String(message)}`) });
+  if (codexResult.stdout.trim()) console.log(codexResult.stdout.trim());
+  if (codexResult.stderr.trim()) console.warn(codexResult.stderr.trim());
+
+  const afterStatus = gitStatusMap(targetRoot);
+  const changedFiles = changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot });
+  const validation = validateCodexChangedFiles({ changedFiles, slice: currentSlice });
+
+  if (validation.ignoredGeneratedArtifacts.length > 0) {
+    console.log(
+      `  - ignored generated artifacts: ${String(validation.ignoredGeneratedArtifacts.length)} file(s)`,
+    );
+  }
+
+  const generatedAt = new Date().toISOString();
+
+  appendExecutionLedgerEntry(targetRoot, {
+    type: 'coder_implementation',
+    command: 'coder:implement-current-slice',
+    backend: 'codex_exec',
+    slice_id: currentSlice.id,
+    started_at: startedAt,
+    completed_at: generatedAt,
+    work_order: workOrderRelPath,
+    codex_command: codexResult.command,
+    codex_args: codexResult.argsPreview,
+    exit_status: codexResult.status,
+    exit_signal: codexResult.signal,
+    changed_files: changedFiles,
+    ignored_generated_artifacts: validation.ignoredGeneratedArtifacts,
+    path_policy_violations: validation.violations,
+  });
+
+  if (codexResult.error) throw new Error(`Codex execution failed: ${codexResult.error}`);
+  if (codexResult.status !== 0) throw new Error(`Codex execution failed with exit status ${codexResult.status}. See output above and ${workOrderRelPath}.`);
+  if (validation.violations.length > 0) {
+    throw new Error('Codex changed files outside the allowed slice policy:\n' + validation.violations.map((relPath) => `- ${relPath}`).join('\n') + `\nReview the diff manually. Work order: ${workOrderRelPath}`);
+  }
+
+  const fabricManifest = loadManifest();
+  const implHeader = metadataHeader(implementationNotesRelPath, 'templates/implementation-notes-template.md', fabricManifest.fabric_version, generatedAt);
+  const notesBody = renderImplementationNotes({
+    slice: currentSlice,
+    statusLabel: 'Implemented',
+    fileTargets,
+    changedFiles: [
+      ...new Set([
+        ...changedFiles.filter((relPath) => !isCodexGeneratedArtifact(relPath)),
+        workOrderRelPath,
+        executionLedgerRelPath(),
+      ]),
+    ].sort(),
+    verificationSummary: [
+      'Delegated implementation to Codex CLI using a Fabric-generated work order.',
+      'Captured Codex result and changed files in the execution ledger.',
+      validation.violations.length === 0 ? 'Changed files passed the Fabric allowed-path policy.' : 'Changed files require manual review because they exceeded the allowed-path policy.',
+    ],
+    executionNotes: [
+      'This command used Codex as the implementation worker and Fabric as the orchestrator/validator.',
+      `Work order: ${workOrderRelPath}`,
+      `Codex exit status: ${String(codexResult.status)}`,
+    ],
+    nextSteps: [
+      'Inspect the git diff created by Codex.',
+      'Run npm test and npm run build if Codex did not already run them successfully.',
+      'Run coder:close-current-slice after verifying the slice locally.',
+    ],
+    generatedAt,
+  });
+  writeTextAtomic(implementationNotesPath, `${implHeader}${notesBody}`);
+
+  console.log('fabric coder:implement-current-slice: OK');
+  console.log(`- implemented: ${currentSlice.id} ${currentSlice.title}`);
+  console.log('- backend: codex_exec');
+  console.log(`- work order: ${workOrderRelPath}`);
+  console.log(`- changed files: ${String([...new Set(changedFiles)].length)}`);
+  console.log(`- execution ledger: ${executionLedgerRelPath()}`);
+}
+
+
 const CODER_IMPLEMENT_LOCK_REL_PATH = '.fabric-locks/coder-implement-current-slice.lock';
 
 function isLiveProcessPid(pidValue) {
@@ -1401,7 +1731,23 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
   const briefText = fs.existsSync(briefPath) ? readText(briefPath) : '';
   const framingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const values = loadValuesIfPresent(valuesPath);
+  const coderExecutionMode = resolveCoderExecutionMode(values);
   const llmOutputMode = resolveCoderLlmOutputMode(values);
+
+  if (coderExecutionMode === 'codex_exec') {
+    await runCodexImplementationForCurrentSlice({
+      targetRoot,
+      valuesPath,
+      values,
+      currentSlice,
+      fileTargets,
+      baselineRelPath,
+      uxRelPath,
+      implementationNotesRelPath,
+      implementationNotesPath,
+    });
+    return;
+  }
 
   let implementationMode = 'heuristic';
   let playbookOverride = null;

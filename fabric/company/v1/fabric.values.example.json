@@ -57,5 +57,8 @@
   "brief_draft_llm_model": "gpt-5.4",
   "brief_draft_llm_reasoning_effort": "medium",
   "brief_draft_llm_verbosity": "medium",
-  "coder_llm_output_mode": "source_files"
+  "coder_llm_output_mode": "source_files",
+  "coder_execution_mode": "codex",
+  "coder_codex_command": "codex",
+  "coder_codex_exec_args": []
 }

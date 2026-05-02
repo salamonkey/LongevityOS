@@ -4,7 +4,7 @@
 schema_version: 1
 manifest_version: 1
 generated_at_utc: '2026-04-25T05:35:21.246Z'
-last_updated_utc: "2026-04-28T03:47:00.693Z"
+last_updated_utc: "2026-04-29T19:12:21.984Z"
 project:
   id: 'longevity-health-os-health-app-mvp'
   name: 'Longevity Health OS (Health App MVP)'
@@ -47,20 +47,20 @@ status:
   requires_customer_escalation: false
   blocking_decision: null
   active_slice: "SL-002"
-  active_slice_state: "planned"
-  active_milestone: "SL-002_delivery"
+  active_slice_state: "in_progress"
+  active_milestone: "SL-002_implementation"
   approved_reviews:
     - "docs/reviews/product-manager/bootstrap-foundation-review.md"
     - "docs/reviews/product-manager/bootstrap-backlog-slice-review.md"
   customer_checkpoint_summaries: []
   last_gate_result: "passed"
   last_gate_stage: "gate"
-  last_gate_checked_at_utc: "2026-04-28T03:47:00.691Z"
+  last_gate_checked_at_utc: "2026-04-29T19:12:06.039Z"
   last_gate_message: "validate and doctor passed"
   last_flow_check_command: "gate"
   last_flow_check_step: "16|21|23"
   last_flow_check_result: "passed"
-  last_flow_check_checked_at_utc: "2026-04-28T03:47:00.693Z"
+  last_flow_check_checked_at_utc: "2026-04-29T19:12:06.040Z"
   last_flow_check_message: "command completed successfully"
 artifacts:
   registry: .system/artifact-registry.yaml
