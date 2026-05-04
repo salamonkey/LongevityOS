@@ -37,7 +37,7 @@ test('custom reminder date rejects past values', () => {
       customDate: '2026-04-01',
       now: new Date('2026-05-02T10:00:00.000Z'),
     });
-  }, /Choose today or a future date,/);
+  }, /Choose today or a future date\./);
 });
 
 test('upserting a reminder replaces timing and date for the same item instead of duplicating', () => {

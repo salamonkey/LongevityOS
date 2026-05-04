@@ -1,6 +1,6 @@
 <!-- generated_from: templates/slice-closeout-review-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T05:38:57.547Z -->
+<!-- generated_at: 2026-05-04T06:43:27.439Z -->
 # Product Manager Slice Closeout Review Template
 
 Date: `YYYY-MM-DD`

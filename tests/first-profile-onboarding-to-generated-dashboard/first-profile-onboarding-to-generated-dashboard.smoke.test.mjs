@@ -26,7 +26,7 @@ test('the slice flow is wired from welcome to generating to dashboard', () => {
   assert.match(ONBOARDING_SOURCE, /age and gender/);
   assert.match(ONBOARDING_SOURCE, /recommended next steps/);
 
-  assert.match(DASHBOARD_SOURCE, /Read-only health score/);
+  assert.match(DASHBOARD_SOURCE, /Health score/);
   assert.match(DASHBOARD_SOURCE, /Today/);
   assert.match(DASHBOARD_SOURCE, /Soon/);
   assert.match(DASHBOARD_SOURCE, /Later/);

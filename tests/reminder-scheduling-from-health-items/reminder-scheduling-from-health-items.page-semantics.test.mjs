@@ -23,10 +23,10 @@ test('item detail reminder flow includes required actions, options, and recovery
   assert.match(DASHBOARD_DETAIL_SOURCE, /Change reminder/);
   assert.match(DASHBOARD_DETAIL_SOURCE, /In 1 month/);
   assert.match(DASHBOARD_DETAIL_SOURCE, /In 3 months/);
-  assert.match(DASHBOARD_DETAIL_SOURCE, /Choose a date/);
+  assert.match(DASHBOARD_DETAIL_SOURCE, /Custom date/);
   assert.match(DASHBOARD_DETAIL_SOURCE, /Save reminder/);
   assert.match(DASHBOARD_DETAIL_SOURCE, /Update reminder/);
-  assert.match(DASHBOARD_DETAIL_SOURCE, /Choose today or a future date,/);
+  assert.match(DASHBOARD_DETAIL_SOURCE, /Choose today or a future date\./);
   assert.match(DASHBOARD_DETAIL_SOURCE, /Couldn't save reminder\. Try again\./);
 });
 

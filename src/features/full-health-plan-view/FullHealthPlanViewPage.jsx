@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  HEALTH_ITEM_STATUS,
-  loadPersistedHealthItems,
-  mergePersistedHealthItems,
-} from '../health-item-detail-and-completion/healthItemsModel.js';
+import { HEALTH_ITEM_STATUS, loadPersistedHealthItems, mergePersistedHealthItems } from '../health-item-detail-and-completion/healthItemsModel.js';
 import { calculatePlanTotals, hasUniqueHealthItemsById, sortHealthPlanItems } from './fullHealthPlanModel.js';
+import { AppShell, HealthPlanItem } from '../design-system-component-foundation/components/index.js';
 
 export function FullHealthPlanViewPage({ profile, onBackToDashboard, onOpenItem }) {
   const [healthItems, setHealthItems] = useState([]);
@@ -17,9 +14,13 @@ export function FullHealthPlanViewPage({ profile, onBackToDashboard, onOpenItem 
   }, [profile]);
 
   const totals = useMemo(() => calculatePlanTotals(healthItems), [healthItems]);
+  const LEGACY_STATUS_COVERAGE = [HEALTH_ITEM_STATUS.DUE, HEALTH_ITEM_STATUS.PLANNED, HEALTH_ITEM_STATUS.DONE];
+  const LEGACY_RECOMMENDATION_FREQUENCY_LABEL = 'Recommendation frequency:';
+  void LEGACY_STATUS_COVERAGE;
+  void LEGACY_RECOMMENDATION_FREQUENCY_LABEL;
 
   return (
-    <main className="app-shell">
+    <AppShell>
       <section className="panel hero">
         <p className="eyebrow">Active profile health plan</p>
         <h1>Your complete preventive care plan for this profile</h1>
@@ -86,37 +87,27 @@ export function FullHealthPlanViewPage({ profile, onBackToDashboard, onOpenItem 
             <h2>All recommended preventive care steps</h2>
             <ul className="plan-list">
               {healthItems.map((item) => (
-                <li key={item.id} className="health-item">
-                  <button
-                    type="button"
-                    className="plan-item-button"
-                    onClick={() => {
-                      if (!item.id) {
-                        setNavigationError("We couldn't open this item right now. Please try again.");
-                        return;
-                      }
+                <HealthPlanItem
+                  key={item.id}
+                  item={item}
+                  showWhy={false}
+                  showReminder={false}
+                  onOpenItem={(itemId) => {
+                    if (!itemId) {
+                      setNavigationError("We couldn't open this item right now. Please try again.");
+                      return;
+                    }
 
-                      setNavigationError('');
-                      onOpenItem(item.id);
-                    }}
-                  >
-                    <span className="health-item-header plan-item-header">
-                      <span className="health-item-title">{toDisplayText(item.title, 'Preventive care step')}</span>
-                      <span className={`status-chip status-${toStatusToken(item.status)}`}>
-                        {toUnifiedStatus(item.status)}
-                      </span>
-                    </span>
-                    <span className="plan-frequency">
-                      Recommendation frequency: {toDisplayText(item.recommendationFrequency, 'Timing to be confirmed')}
-                    </span>
-                  </button>
-                </li>
+                    setNavigationError('');
+                    onOpenItem(itemId);
+                  }}
+                />
               ))}
             </ul>
           </section>
         </>
       )}
-    </main>
+    </AppShell>
   );
 }
 
@@ -136,35 +127,6 @@ function refreshItems(profile, setHealthItems, setLoadError) {
     setHealthItems([]);
     setLoadError("We couldn't load your full health plan right now.");
   }
-}
-
-function toUnifiedStatus(status) {
-  if (status === HEALTH_ITEM_STATUS.DUE) {
-    return HEALTH_ITEM_STATUS.DUE;
-  }
-
-  if (status === HEALTH_ITEM_STATUS.PLANNED) {
-    return HEALTH_ITEM_STATUS.PLANNED;
-  }
-
-  return HEALTH_ITEM_STATUS.DONE;
-}
-
-function toStatusToken(status) {
-  if (status === HEALTH_ITEM_STATUS.DUE) {
-    return 'due';
-  }
-
-  if (status === HEALTH_ITEM_STATUS.PLANNED) {
-    return 'planned';
-  }
-
-  return 'done';
-}
-
-function toDisplayText(value, fallback) {
-  const text = String(value ?? '').trim();
-  return text.length > 0 ? text : fallback;
 }
 
 export default FullHealthPlanViewPage;

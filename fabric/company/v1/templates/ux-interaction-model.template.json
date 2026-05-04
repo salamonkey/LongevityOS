@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "{{generated_at_utc}}",
+  "slice_id": "{{slice_id}}",
+  "user_goal": "{{user_goal}}",
+  "screens": [],
+  "states": ["default", "loading", "empty", "validation_error", "success"],
+  "transitions": [],
+  "validation_rules": [],
+  "recovery_paths": []
+}

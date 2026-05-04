@@ -97,10 +97,15 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: after `pm:plan-slices` and before implementation of the active slice.
   - Benefit: turns the architecture baseline from a generic template into implementation-ready structural guidance.
 
+- `uiux:generate-design-system --target <project-root> [--values fabric.values.json] [--force]`
+  - What it does: generates the global UI/UX design-system contract artifacts: `docs/design-system/tokens.json`, `docs/design-system/components.json`, `docs/design-system/component-usage-rules.md`, and `docs/design-system/visual-states.md`.
+  - When to use: once after bootstrap signoff / DB readiness and before the first user-facing slice; rerun with `--force` only when product positioning, tone, core visual grammar, or component vocabulary intentionally changes.
+  - Benefit: establishes reusable tokens, components, state rules, and usage constraints before slice-level UX and implementation begin.
+
 - `uiux:generate-current-slice-flow --target <project-root> [--values fabric.values.json]`
-  - What it does: generates a slice-specific `docs/ux/<SLICE_ID>-current-slice-flow.md` and `docs/ux/<SLICE_ID>-semantic-ux-contract.json` for the active slice from current slice state, the current architecture baseline, project brief, and product-system framing.
-  - When to use: after `pm:plan-slices` and before implementation of user-facing slices.
-  - Benefit: turns the UX flow artifact from a generic template into implementation-ready interaction guidance and a reusable semantic acceptance contract.
+  - What it does: generates a slice-specific `docs/ux/<SLICE_ID>-current-slice-flow.md`, `docs/ux/<SLICE_ID>-semantic-ux-contract.json`, `docs/ux/<SLICE_ID>-interaction-model.json`, `docs/ux/<SLICE_ID>-screen-contract.json`, `docs/ux/<SLICE_ID>-component-contract.json`, and `docs/ux/<SLICE_ID>-copy-contract.json` for the active slice from current slice state, the current architecture baseline, project brief, product-system framing, and the global design-system contract.
+  - When to use: after `architect:generate-current-slice-baseline` and before implementation of user-facing slices. If the global design-system artifacts do not exist, this command creates non-forced defaults automatically.
+  - Benefit: turns the UX flow artifact from a generic template into implementation-ready interaction guidance, screen/component/copy contracts, and a reusable semantic acceptance contract.
 
 - `uiux:review-current-slice-semantics --target <project-root> [--values fabric.values.json]`
   - What it does: runs the blocking semantic UX gate for the active slice after implementation. It combines deterministic scans with an LLM-based semantic reviewer.
@@ -261,49 +266,53 @@ STAGE 2
    - `./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ./fabric.values.json`
 12. Bootstrap signoff into delivery mode:
    - `./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ./fabric.values.json`
-13. Initialize DB baseline:
+13. Generate global UI/UX design-system contract:
+   - `./fabric/company/v1/fabric uiux:generate-design-system --target . --values ./fabric.values.json`
+14. Initialize DB baseline:
    - `./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json`
-13b. Verify DB readiness:
+15. Verify DB readiness:
    - `./fabric/company/v1/fabric db:check --target .`
 STAGE 3
-14. Generate architecture baseline for active slice:
+16. Generate architecture baseline for active slice:
     - `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json`
-15. Generate UX flow and semantic UX contract for active slice:
+17. Generate UX flow and slice UI/UX contracts for active slice:
     - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
-16. Run readiness gate (recommended):
+    - This also creates missing global design-system artifacts as a safety net, but Step 13 is the intended explicit workflow step.
+18. Run readiness gate (recommended):
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
 STAGE 4
-17. Start implementation state:
+19. Start implementation state:
     - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
-18. Generate implementation artifacts:
+20. Generate implementation artifacts:
     - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
-18b. Validate in app manually:
+20b. Validate in app manually:
     - `npm install`
     - `npm run dev`
-19. Run semantic UX review:
+21. Run semantic UX review:
     - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
-19b. If semantic UX review fails, generate and run the Codex repair work order:
+21b. If semantic UX review fails, generate and run the Codex repair work order:
     - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
     - Add `--include-warnings` when you want warning findings included in the repair work order.
-    - Then rerun Step 19 until the review passes.
-19c. Complete the manual user checklist:
+    - Then rerun Step 21 until the review passes.
+21c. Complete the manual user checklist:
     - Edit `docs/testing/<SLICE_ID>-user-checklist.md`.
     - Use `Status: Pass` only when the slice is accepted.
     - Use `Status: Fail` and fill `## Manual QA Findings` when implementation changes are needed.
-19d. If manual review fails, generate and run the implementation repair work order:
+21d. If manual review fails, generate and run the implementation repair work order:
     - `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ./fabric.values.json`
     - Then rerun tests/build/doctor, semantic UX review, and manual checklist review.
-20. Close current slice:
+22. Close current slice:
     - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
-21. Run readiness gate:
+23. Run readiness gate:
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
-22. Advance to next slice:
+24. Advance to next slice:
     - `./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ./fabric.values.json`
-23. Run gate again:
+25. Run gate again:
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
-24. For each remaining slice, execute Steps 14-23 in order.
-    - Re-run Step 13 (`db:init`) only when DB baseline/scripts require refresh.
-    - Re-run Step 13b (`db:check`) after DB/env/script changes and before proceeding.
+26. For each remaining slice, execute Steps 16-25 in order.
+    - Re-run Step 13 (`uiux:generate-design-system`) only when the product-level visual grammar, component vocabulary, UX tone, or status model intentionally changes.
+    - Re-run Step 14 (`db:init`) only when DB baseline/scripts require refresh.
+    - Re-run Step 15 (`db:check`) after DB/env/script changes and before proceeding.
 
 ## Detailed Step logic
 
@@ -453,7 +462,22 @@ STAGE 4
     - `status.approved_reviews` (merged unique review paths)
     - top-level `last_updated_utc`
 
-#### Step 13: `db:init`
+#### Step 13: `uiux:generate-design-system`
+
+- Command:
+  - `./fabric/company/v1/fabric uiux:generate-design-system --target . --values ./fabric.values.json`
+- What it does:
+  - Generates the global UI/UX design-system contract after bootstrap signoff and before slice delivery.
+  - Writes product-level design-system artifacts:
+    - `docs/design-system/tokens.json`
+    - `docs/design-system/components.json`
+    - `docs/design-system/component-usage-rules.md`
+    - `docs/design-system/visual-states.md`
+  - Preserves existing artifacts by default. Use `--force` only when intentionally regenerating the product-level visual grammar, component vocabulary, UX tone, or status model.
+- Why it is in the canonical flow:
+  - Establishes the product interaction/visual baseline before DB readiness and before active-slice UX/coding work.
+
+#### Step 14: `db:init`
 
 - Command:
   - `./fabric/company/v1/fabric db:init --target . --values ./fabric.values.json`
@@ -469,7 +493,7 @@ STAGE 4
 - Operator follow-up:
   - Run `./fabric/company/v1/fabric db:check --target .` immediately after this step before Stage 3 commands.
 
-#### Step 13b: `db:check`
+#### Step 15: `db:check`
 
 - Command:
   - `./fabric/company/v1/fabric db:check --target .`
@@ -480,7 +504,7 @@ STAGE 4
 
 ### Stage 3: Delivery preparation
 
-#### Step 14: `architect:generate-current-slice-baseline`
+#### Step 16: `architect:generate-current-slice-baseline`
 
 - Command:
   - `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json`
@@ -492,7 +516,7 @@ STAGE 4
   - Prints baseline mode (`model_driven|heuristic_fallback`) and written paths.
   - Does not mutate backlog/current-slice/manifest.
 
-#### Step 15: `uiux:generate-current-slice-flow`
+#### Step 17: `uiux:generate-current-slice-flow`
 
 - Command:
   - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
@@ -506,7 +530,7 @@ STAGE 4
   - Prints UX mode (`model_driven|heuristic_fallback`) and written paths.
   - Does not mutate backlog/current-slice/manifest.
 
-#### Step 16: `gate` (recommended before implementation)
+#### Step 18: `gate` (recommended before implementation)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
@@ -517,13 +541,13 @@ STAGE 4
   - Fails on drift, placeholder/governance inconsistencies, or DB readiness issues.
 - Next-step guidance behavior:
   - CLI suggestions after `gate` are now context-aware (active slice status + artifact presence).
-  - In the Step 16 state (slice `planned` and baseline/UX present), the first suggested next step is `coder:prepare-current-slice`.
+  - In the Step 18 state (slice `planned` and baseline/UX present), the first suggested next step is `coder:prepare-current-slice`.
 
 ### Stage 4: Per-slice implementation loop
 
-Before each slice implementation loop, ensure the active slice baseline + UX are refreshed (step 14 and step 15).
+Before each slice implementation loop, ensure the active slice baseline + UX are refreshed (step 16 and step 17).
 
-#### Step 17: `coder:prepare-current-slice`
+#### Step 19: `coder:prepare-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
@@ -535,7 +559,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Regenerates `docs/testing/<SLICE_ID>-user-checklist.md`.
   - Transitions active slice to implementation (`status: in_progress`, milestone `<SLICE_ID>_implementation`) in backlog/current-slice/manifest.
 
-#### Step 18: `coder:implement-current-slice`
+#### Step 20: `coder:implement-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
@@ -556,7 +580,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Does not transition slice status to completed.
   - Does not run `npm install`, `npm run dev`, or tests automatically.
 
-#### Step 18b: Test in UI manually
+#### Step 20b: Test in UI manually
 
 - Commands:
   - `npm install`
@@ -564,7 +588,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Goal:
   - Validate active slice behavior from a customer perspective before semantic review and closeout.
 
-#### Step 19: `uiux:review-current-slice-semantics`
+#### Step 21: `uiux:review-current-slice-semantics`
 
 - Command:
   - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
@@ -587,7 +611,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - `coder:close-current-slice` refuses to close if this review is missing or failed.
   - On failure, print `coder:repair-semantic-ux-findings` as the next repair command.
 
-#### Step 19b: `coder:repair-semantic-ux-findings`
+#### Step 21b: `coder:repair-semantic-ux-findings`
 
 - Command:
   - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
@@ -609,7 +633,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Rerun `uiux:review-current-slice-semantics`.
   - Repeat repair/review until semantic UX review passes.
 
-#### Step 19c: Manual user checklist review
+#### Step 21c: Manual user checklist review
 
 - Artifact:
   - `docs/testing/<SLICE_ID>-user-checklist.md`
@@ -625,7 +649,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Gate behavior:
   - `coder:close-current-slice` refuses to close unless the checklist result is Pass.
 
-#### Step 19d: `coder:repair-implementation-findings`
+#### Step 21d: `coder:repair-implementation-findings`
 
 - Command:
   - `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ./fabric.values.json`
@@ -648,7 +672,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Repeat manual checklist review.
   - Mark `Status: Pass` only after acceptance.
 
-#### Step 20: `coder:close-current-slice`
+#### Step 22: `coder:close-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
@@ -665,14 +689,14 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Marks slice `completed` in backlog/current-slice.
   - Updates manifest active slice state/milestone and timestamp.
 
-#### Step 21: `gate` (pre-advance)
+#### Step 23: `gate` (pre-advance)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
 - Purpose:
   - Catch drift/coherence regressions before advancing the pointer.
 
-#### Step 22: `orchestrator:advance-slice`
+#### Step 24: `orchestrator:advance-slice`
 
 - Command:
   - `./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ./fabric.values.json`
@@ -682,7 +706,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Rewrites backlog/current-slice and updates manifest active pointers.
   - If no actionable next slice exists, exits OK with no file changes.
 
-#### Step 23: `gate` (post-transition)
+#### Step 25: `gate` (post-transition)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
@@ -770,3 +794,41 @@ With brief drafting model invocation enabled, `pm:brief-draft` writes:
 - `docs/reviews/product-manager/brief-attempt-<n>.md`
 
 The brief drafting flow runs in constrained model passes: source synthesis, product framing, then brief authoring.
+
+## UI/UX design-system maturity upgrade
+
+This fabric version includes a model-based UI/UX upgrade. The UI/UX agent now owns both current-slice interaction contracts and a reusable design-system contract.
+
+New command:
+
+```bash
+./fabric/company/v1/fabric uiux:generate-design-system --target . --values ./fabric.values.json
+```
+
+This creates or preserves:
+
+- `docs/design-system/tokens.json`
+- `docs/design-system/components.json`
+- `docs/design-system/component-usage-rules.md`
+- `docs/design-system/visual-states.md`
+
+`uiux:generate-current-slice-flow` now also writes:
+
+- `docs/ux/<SLICE_ID>-interaction-model.json`
+- `docs/ux/<SLICE_ID>-screen-contract.json`
+- `docs/ux/<SLICE_ID>-component-contract.json`
+- `docs/ux/<SLICE_ID>-copy-contract.json`
+
+The coder preparation and implementation steps now require these artifacts for user-facing slices. The semantic UX review also checks for design-system contract presence and warns about likely drift such as ad-hoc visual values, missing required component usage, and raw colors/styles.
+
+Recommended user-facing slice sequence:
+
+```bash
+./fabric/company/v1/fabric uiux:generate-design-system --target . --values ./fabric.values.json
+./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json
+./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json
+./fabric/company/v1/fabric gate --target . --values ./fabric.values.json
+./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json
+./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json
+./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json
+```

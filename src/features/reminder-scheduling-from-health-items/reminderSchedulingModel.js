@@ -144,7 +144,7 @@ export function resolveReminderDate({ timingType, customDate, now = new Date() }
   }
 
   if (isDateBeforeToday(customDateOnly, now)) {
-    throw new Error('Choose today or a future date,');
+    throw new Error('Choose today or a future date.');
   }
 
   return customDateOnly;
@@ -202,7 +202,7 @@ export function getReminderTimingLabel(timingType) {
     return 'In 3 months';
   }
 
-  return 'Choose a date';
+  return 'Custom date';
 }
 
 export function isReminderSupportedStatus(status) {

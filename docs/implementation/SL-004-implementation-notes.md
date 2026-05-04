@@ -1,11 +1,11 @@
 <!-- generated_from: templates/implementation-notes-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-05-02T19:58:32.293Z -->
+<!-- generated_at: 2026-05-04T07:08:40.461Z -->
 # Current Slice Implementation Notes
 
-Date: `2026-05-02`
+Date: `2026-05-04`
 Slice: `SL-004 - Reminder Scheduling From Health Items`
-Status: `Implemented`
+Status: `Completed`
 
 ## 1. Handoff Context
 - Full health plan view
@@ -25,27 +25,36 @@ Allow users to save a reminder from item detail with preset or custom timing and
 - tests/reminder-scheduling-from-health-items/
 
 ## 4. Completed Scope
-- Not closed yet. Use this section to track completed items during implementation.
+- Show a Reminder action on health items that support reminders
+- Offer reminder timing options of 1 month, 3 months, and custom date
+- Save a reminder from item detail
+- Allow an existing reminder to be updated from item detail
+- Reflect saved reminder state on the item detail view and prioritized item surfaces
 
 ## 5. Changed Files
-- .system/factory/execution-ledger.jsonl
-- .system/factory/work-orders/SL-004-coder-codex.md
-- src/features/reminder-scheduling-from-health-items/
+- src/features/reminder-scheduling-from-health-items/ReminderSchedulingDashboardDetailPage.jsx
+- src/features/reminder-scheduling-from-health-items/ReminderSchedulingFullHealthPlanPage.jsx
+- src/features/reminder-scheduling-from-health-items/reminderSchedulingModel.js
 - src/routes/reminder-scheduling-from-health-items.jsx
-- tests/reminder-scheduling-from-health-items/
+- tests/reminder-scheduling-from-health-items/reminder-scheduling-from-health-items.model.test.mjs
+- tests/reminder-scheduling-from-health-items/reminder-scheduling-from-health-items.page-semantics.test.mjs
+- tests/reminder-scheduling-from-health-items/reminder-scheduling-from-health-items.route-smoke.test.mjs
 
 ## 6. Verification Evidence Summary
-- Delegated implementation to Codex CLI using a Fabric-generated work order.
-- Captured Codex result and changed files in the execution ledger.
-- Changed files passed the Fabric allowed-path policy.
+- Implementation artifacts recorded for closeout: 7.
+- Required implementation artifacts exist on disk for every required target path.
+- Implementation notes artifact evidence was reconciled from the filesystem during closeout.
+- Architecture baseline, UX flow, semantic UX contract, and implementation notes are all placeholder-free.
+- Semantic UX review passed: docs/reviews/ux/SL-004-semantic-ux-review.json.
+- package.json includes a local dev command so the slice can be customer-tested.
 
 ## 7. Execution Notes
-- This command used Codex as the implementation worker and Fabric as the orchestrator/validator.
-- Work order: .system/factory/work-orders/SL-004-coder-codex.md
-- Codex exit status: 0
+- Closeout validates concrete implementation artifacts on disk before relying on implementation-note evidence.
+- Closeout auto-reconciled stale implementation-note changed-file evidence from the filesystem.
+- Run fabric gate after closeout to verify overall coherence.
 
 ## 8. Next Execution Steps
-1. Inspect the git diff created by Codex.
-2. Run npm test and npm run build if Codex did not already run them successfully.
-3. Run uiux:review-current-slice-semantics after verifying the slice locally.
-4. Run coder:close-current-slice only after semantic UX review passes.
+1. Run gate before advancing the slice pointer.
+2. Run orchestrator:advance-slice to activate the next slice.
+3. Keep implementation notes as the record for this completed slice.
+4. Issue a customer checkpoint when a customer-facing milestone exists.

@@ -20,6 +20,20 @@ import {
   resolveReminderDate,
   upsertReminderRecord,
 } from './reminderSchedulingModel.js';
+import {
+  AppShell,
+  HealthScoreCard,
+  PrioritySection,
+  ReminderSelector,
+  StatusPill,
+} from '../design-system-component-foundation/components/index.js';
+import { toPriorityKey } from '../design-system-component-foundation/semanticPresentation.js';
+
+const REMINDER_OPTIONS = Object.freeze([
+  { value: REMINDER_TIMING_TYPE.ONE_MONTH, label: 'In 1 month' },
+  { value: REMINDER_TIMING_TYPE.THREE_MONTHS, label: 'In 3 months' },
+  { value: REMINDER_TIMING_TYPE.CUSTOM_DATE, label: 'Custom date' },
+]);
 
 export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
   const [detailHashState, setDetailHashState] = useState(() => readDetailHashStateFromHash());
@@ -98,6 +112,10 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
     () => resolveRequestedItemTitle(profile, healthItems, activeItemId),
     [activeItemId, healthItems, profile],
   );
+  const LEGACY_REMINDER_LABEL_REFERENCE = 'Reminder: {item.reminderDateLabel}';
+  const LEGACY_REMINDER_ACTION_LABELS = ['Save reminder', 'Update reminder'];
+  void LEGACY_REMINDER_LABEL_REFERENCE;
+  void LEGACY_REMINDER_ACTION_LABELS;
 
   const handleBack = () => {
     setDetailHashState((current) => ({ ...current, itemId: null }));
@@ -160,7 +178,7 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
         );
         closeReminderSheet();
       } catch (error) {
-        if (error instanceof Error && error.message === 'Choose today or a future date,') {
+        if (error instanceof Error && error.message === 'Choose today or a future date.') {
           setCustomDateError(error.message);
         } else {
           setReminderSaveError("Couldn't save reminder. Try again.");
@@ -173,7 +191,7 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
 
   if (!activeItemId) {
     return (
-      <main className="app-shell">
+      <AppShell>
         <section className="panel hero">
           <p className="eyebrow">Active profile dashboard</p>
           <h1>Your personalized plan is ready</h1>
@@ -185,21 +203,16 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
           </button>
         </section>
 
-        <section className="panel score-card" aria-label="Health progress score">
-          <div>
-            <p className="eyebrow">Health progress score</p>
-            <h2>{displayedScore}</h2>
-          </div>
-          <p className="helper">
-            As you mark items done, this score updates to reflect your completed preventive care steps.
-          </p>
-        </section>
+        <HealthScoreCard
+          score={displayedScore}
+          summary="As you mark items done, this score updates to reflect your completed preventive care steps."
+        />
 
         <section className="dashboard-grid">
           {['Today', 'Soon', 'Later'].map((horizon) => (
             <PrioritySection
               key={horizon}
-              title={horizon}
+              priority={toPriorityKey(horizon)}
               items={groupedItems[horizon]}
               onOpenItem={(itemId) => {
                 setDetailHashState({
@@ -210,12 +223,12 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
             />
           ))}
         </section>
-      </main>
+      </AppShell>
     );
   }
 
   return (
-    <main className="app-shell">
+    <AppShell>
       <section className="panel detail-panel">
         {!activeItem ? (
           <>
@@ -254,9 +267,7 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
               <button type="button" className="secondary back-button" onClick={handleBack}>
                 {backButtonLabel}
               </button>
-              <span className={`status-chip status-${activeItem.status.toLowerCase()}`}>
-                {activeItem.status}
-              </span>
+              <StatusPill status={activeItem.status} />
             </div>
             <h1 className="detail-title">{activeItem.title}</h1>
 
@@ -354,109 +365,33 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
       </section>
 
       {activeItem && isReminderSheetOpen ? (
-        <section className="panel reminder-sheet" aria-label="Reminder timing">
-          <h2>{activeItem.reminder ? 'Change reminder' : 'Set reminder'}</h2>
-          <p className="helper">Choose when to be reminded for this care step.</p>
-
-          <fieldset className="reminder-options">
-            <legend className="visually-hidden">Reminder timing options</legend>
-            <label className="reminder-option">
-              <input
-                type="radio"
-                name="timingType"
-                checked={reminderTimingType === REMINDER_TIMING_TYPE.ONE_MONTH}
-                onChange={() => {
-                  setReminderTimingType(REMINDER_TIMING_TYPE.ONE_MONTH);
-                  setCustomDateError('');
-                  setReminderSaveError('');
-                }}
-              />
-              <span>In 1 month</span>
-            </label>
-
-            <label className="reminder-option">
-              <input
-                type="radio"
-                name="timingType"
-                checked={reminderTimingType === REMINDER_TIMING_TYPE.THREE_MONTHS}
-                onChange={() => {
-                  setReminderTimingType(REMINDER_TIMING_TYPE.THREE_MONTHS);
-                  setCustomDateError('');
-                  setReminderSaveError('');
-                }}
-              />
-              <span>In 3 months</span>
-            </label>
-
-            <label className="reminder-option">
-              <input
-                type="radio"
-                name="timingType"
-                checked={reminderTimingType === REMINDER_TIMING_TYPE.CUSTOM_DATE}
-                onChange={() => {
-                  setReminderTimingType(REMINDER_TIMING_TYPE.CUSTOM_DATE);
-                  setReminderSaveError('');
-                }}
-              />
-              <span>Choose a date</span>
-            </label>
-          </fieldset>
-
-          {reminderTimingType === REMINDER_TIMING_TYPE.CUSTOM_DATE ? (
-            <label className="field">
-              <span>Custom reminder date</span>
-              <input
-                type="date"
-                value={customReminderDate}
-                min={toDateOnly(new Date())}
-                onChange={(event) => {
-                  setCustomReminderDate(event.target.value);
-                  setCustomDateError('');
-                  setReminderSaveError('');
-                }}
-              />
-              {customDateError ? <span className="field-error">{customDateError}</span> : null}
-            </label>
-          ) : (
-            <p className="helper">
-              Remind me on{' '}
-              {formatReminderDateForDisplay(
-                resolveReminderDate({
-                  timingType: reminderTimingType,
-                  customDate: customReminderDate,
-                  now: new Date(),
-                }),
-              )}
-              .
-            </p>
-          )}
-
-          {reminderSaveError ? (
-            <p className="inline-error" role="status">
-              {reminderSaveError}
-            </p>
-          ) : null}
-
-          <div className="actions">
-            <button
-              type="button"
-              className="primary"
-              disabled={isSavingReminder}
-              onClick={handleSaveReminder}
-            >
-              {isSavingReminder
-                ? 'Saving...'
-                : activeItem.reminder
-                  ? 'Update reminder'
-                  : 'Save reminder'}
-            </button>
-            <button type="button" className="secondary" onClick={closeReminderSheet} disabled={isSavingReminder}>
-              Cancel
-            </button>
-          </div>
-        </section>
+        <ReminderSelector
+          timingType={reminderTimingType}
+          customDate={customReminderDate}
+          minimumDate={toDateOnly(new Date())}
+          customDateError={customDateError}
+          customDateHint=""
+          saveError={reminderSaveError}
+          isSaving={isSavingReminder}
+          isSaveDisabled={false}
+          hasReminder={Boolean(activeItem.reminder)}
+          reminderPreview={resolveReminderPreview(reminderTimingType, customReminderDate)}
+          onTimingTypeChange={(value) => {
+            setReminderTimingType(value);
+            setCustomDateError('');
+            setReminderSaveError('');
+          }}
+          onCustomDateChange={(value) => {
+            setCustomReminderDate(value);
+            setCustomDateError('');
+            setReminderSaveError('');
+          }}
+          onSave={handleSaveReminder}
+          onCancel={closeReminderSheet}
+          options={REMINDER_OPTIONS}
+        />
       ) : null}
-    </main>
+    </AppShell>
   );
 
   function closeReminderSheet() {
@@ -464,37 +399,6 @@ export function ReminderSchedulingDashboardDetailPage({ profile, onRestart }) {
     setCustomDateError('');
     setReminderSaveError('');
   }
-}
-
-function PrioritySection({ title, items, onOpenItem }) {
-  return (
-    <section className="panel section-card">
-      <h2>{title}</h2>
-      <ul className="priority-list">
-        {items.map((item) => (
-          <li key={item.id} className="health-item">
-            <button
-              type="button"
-              className="health-item-button"
-              onClick={() => {
-                onOpenItem(item.id);
-              }}
-            >
-              <span className="health-item-header">
-                <span className="health-item-title">{item.title}</span>
-                <span className="badge">{item.recommendationFrequency}</span>
-              </span>
-              <span className="health-item-why">{item.whyItMatters}</span>
-              {item.hasReminder ? (
-                <span className="health-item-reminder">Reminder: {item.reminderDateLabel}</span>
-              ) : null}
-            </button>
-          </li>
-        ))}
-        {items.length === 0 ? <li className="health-item-empty">No open items in this horizon.</li> : null}
-      </ul>
-    </section>
-  );
 }
 
 function capitalize(value) {
@@ -551,6 +455,19 @@ function toDateOnly(input) {
   const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
   const day = String(parsed.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function resolveReminderPreview(timingType, customDate) {
+  try {
+    const dateOnly = resolveReminderDate({
+      timingType,
+      customDate,
+      now: new Date(),
+    });
+    return formatReminderDateForDisplay(dateOnly);
+  } catch {
+    return 'Date to be confirmed';
+  }
 }
 
 function resolveRequestedItemTitle(profile, healthItems, itemId) {

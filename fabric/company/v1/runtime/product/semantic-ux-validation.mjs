@@ -9,6 +9,13 @@ import {
 } from '../lib/core.mjs';
 import { resolveFirstValidLlmSettings } from '../lib/llm/config.mjs';
 import { invokeStructured } from '../lib/llm/brief-context.mjs';
+import {
+  componentContractRelPathForSlice,
+  copyContractRelPathForSlice,
+  requiredDesignSystemRelPaths,
+  requiredSliceUxContractRelPaths,
+  screenContractRelPathForSlice,
+} from './design-system.mjs';
 
 function normalizeSliceIdForPath(sliceId) {
   return String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
@@ -459,6 +466,103 @@ function deterministicSemanticScan({ targetRoot, contract }) {
   return findings;
 }
 
+
+const RAW_VISUAL_VALUE_REGEX = /(?:#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(|\b(?:red|green|blue|orange|purple|pink|yellow|gray|grey)\b)/;
+const AD_HOC_INLINE_STYLE_REGEX = /style\s*=\s*\{\{[^}]+(?:color|background|borderRadius|padding|margin|gap)[^}]+\}\}/s;
+
+function deterministicDesignSystemScan({ targetRoot, sliceId }) {
+  const findings = [];
+  const missingArtifacts = [...requiredDesignSystemRelPaths(), ...requiredSliceUxContractRelPaths(sliceId)]
+    .filter((relPath) => !fs.existsSync(path.join(targetRoot, relPath)));
+  for (const relPath of missingArtifacts) {
+    findings.push({
+      severity: 'blocker',
+      source: 'deterministic',
+      confidence: 'high',
+      visibility: 'contract',
+      file: relPath,
+      slot: 'design_system_contract',
+      issue_type: 'missing_design_system_contract',
+      observed: `Missing required UI/UX design-system artifact: ${relPath}`,
+      required: 'Run uiux:generate-design-system and uiux:generate-current-slice-flow before implementation review.',
+    });
+  }
+
+  const componentRelPath = componentContractRelPathForSlice(sliceId);
+  const componentContractPath = path.join(targetRoot, componentRelPath);
+  let requiredComponents = [];
+  if (fs.existsSync(componentContractPath)) {
+    try {
+      const componentContract = JSON.parse(readText(componentContractPath));
+      requiredComponents = Array.isArray(componentContract.required_components) ? componentContract.required_components : [];
+    } catch (_) {
+      findings.push({
+        severity: 'blocker',
+        source: 'deterministic',
+        confidence: 'high',
+        visibility: 'contract',
+        file: componentRelPath,
+        slot: 'component_contract',
+        issue_type: 'invalid_component_contract_json',
+        observed: 'Component contract is not valid JSON.',
+        required: 'Regenerate current-slice UX contracts.',
+      });
+    }
+  }
+
+  const visibleFiles = collectUserVisibleSourceFiles(targetRoot);
+  const combinedSource = visibleFiles.map((file) => readText(file.absPath)).join('\n');
+  for (const componentName of requiredComponents) {
+    if (!componentName || componentName === 'AppShell') continue;
+    const regex = new RegExp(`\\b${String(componentName).replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`);
+    if (!regex.test(combinedSource)) {
+      findings.push({
+        severity: 'warning',
+        source: 'deterministic',
+        confidence: 'medium',
+        visibility: 'source',
+        file: componentRelPath,
+        slot: 'required_components',
+        issue_type: 'component_contract_not_obviously_used',
+        observed: `Required component ${componentName} was not found by name in user-facing source files.`,
+        required: `Use the approved ${componentName} component or document the equivalent approved implementation before closeout.`,
+      });
+    }
+  }
+
+  for (const file of visibleFiles) {
+    const text = readText(file.absPath);
+    if (AD_HOC_INLINE_STYLE_REGEX.test(text)) {
+      findings.push({
+        severity: 'warning',
+        source: 'deterministic',
+        confidence: 'medium',
+        visibility: 'source',
+        file: file.relPath,
+        slot: 'inline_style',
+        issue_type: 'ad_hoc_visual_style',
+        observed: 'Inline style appears to define color, spacing, radius, or layout values directly.',
+        required: 'Use design tokens, theme classes, or approved component props instead of ad-hoc visual values.',
+      });
+    }
+    const rawVisualMatch = text.match(RAW_VISUAL_VALUE_REGEX);
+    if (rawVisualMatch && !/tokens\.json|design-system/i.test(file.relPath)) {
+      findings.push({
+        severity: 'warning',
+        source: 'deterministic',
+        confidence: 'medium',
+        visibility: 'source',
+        file: file.relPath,
+        slot: 'visual_tokens',
+        issue_type: 'raw_visual_value',
+        observed: `Raw visual value detected: ${rawVisualMatch[0]}`,
+        required: 'Replace raw visual values with semantic design tokens or approved theme classes.',
+      });
+    }
+  }
+  return findings;
+}
+
 function truncateText(text, maxChars) {
   const raw = String(text || '');
   if (raw.length <= maxChars) return raw;
@@ -671,7 +775,10 @@ async function reviewCurrentSliceSemantics({ targetRoot, valuesPath, onProgress 
   const framingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const values = loadValuesIfPresent(valuesPath);
   const generatedAt = new Date().toISOString();
-  const deterministicFindings = deterministicSemanticScan({ targetRoot, contract });
+  const deterministicFindings = [
+    ...deterministicSemanticScan({ targetRoot, contract }),
+    ...deterministicDesignSystemScan({ targetRoot, sliceId: slice.id }),
+  ];
   let llmStatus = 'not_run';
   let llmReviewer = '';
   let llmSummary = '';

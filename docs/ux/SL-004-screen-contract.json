@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-04T06:35:24.956Z",
+  "slice_id": "SL-004",
+  "screens": [
+    {
+      "screen_id": "detail",
+      "purpose": "Allow users to save a reminder from item detail with preset or custom timing and see that reminder state reflected back in the app.",
+      "required_sections": [
+        "main_content",
+        "primary_action"
+      ],
+      "required_components": [
+        "AppShell",
+        "HealthPlanItem",
+        "StatusPill",
+        "ReminderSelector"
+      ],
+      "visible_data": [
+        "user_relevant_state",
+        "available_actions"
+      ],
+      "states": [
+        "default",
+        "loading",
+        "empty",
+        "error",
+        "success"
+      ],
+      "action_hierarchy": [
+        "primary_action",
+        "secondary_action"
+      ],
+      "rules": [
+        "Primary action must be visually and semantically clear."
+      ]
+    }
+  ]
+}

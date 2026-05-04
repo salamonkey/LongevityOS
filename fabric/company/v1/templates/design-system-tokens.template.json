@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "{{generated_at_utc}}",
+  "principle": "Tokens encode semantic product meaning, not decorative preferences.",
+  "color": {
+    "status": {
+      "done": "color.status.done",
+      "due": "color.status.due",
+      "soon": "color.status.soon",
+      "planned": "color.status.planned",
+      "overdue": "color.status.overdue"
+    },
+    "priority": {
+      "today": "color.priority.today",
+      "soon": "color.priority.soon",
+      "later": "color.priority.later"
+    }
+  },
+  "spacing": {
+    "sm": "space.3",
+    "md": "space.4",
+    "lg": "space.6"
+  },
+  "radius": {
+    "card": "radius.card",
+    "pill": "radius.pill"
+  }
+}

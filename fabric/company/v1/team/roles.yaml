@@ -59,21 +59,31 @@ roles:
   - docs/architecture/baseline.md
 - id: uiux
   spec_path: team/uiux.md
-  purpose: Owns user-facing workflow clarity and implementation-ready interaction
-    contracts.
+  purpose: Owns user-facing workflow clarity, model-based interaction contracts,
+    design-system contracts, and UI/UX constraint enforcement.
   invoke_when:
   - meaningful user-facing flow exists in a slice
   - relationship visibility or UX coherence needs definition/review
   - product-system workflows and visible states need interface translation
+  - design tokens, component contracts, state models, or usage rules are needed
   required_inputs:
   - docs/product/current-slice.yaml
   - docs/product/product-system-framing.md
   - docs/architecture/baseline.md
   produces_artifacts:
+  - docs/design-system/tokens.json
+  - docs/design-system/components.json
+  - docs/design-system/component-usage-rules.md
+  - docs/design-system/visual-states.md
   - docs/ux/{slice_id}-current-slice-flow.md
+  - docs/ux/{slice_id}-interaction-model.json
+  - docs/ux/{slice_id}-screen-contract.json
+  - docs/ux/{slice_id}-component-contract.json
+  - docs/ux/{slice_id}-copy-contract.json
+  - docs/ux/{slice_id}-semantic-ux-contract.json
 - id: coder
   spec_path: team/coder.md
-  purpose: Implements approved slices respecting architecture and UX constraints.
+  purpose: Implements approved slices respecting architecture, UX, semantic, and design-system constraints.
   invoke_when:
   - slice is approved and implementation-ready
   required_inputs:
@@ -81,6 +91,15 @@ roles:
   - docs/product/product-system-framing.md
   - docs/architecture/baseline.md
   - docs/ux/{slice_id}-current-slice-flow.md
+  - docs/ux/{slice_id}-interaction-model.json
+  - docs/ux/{slice_id}-screen-contract.json
+  - docs/ux/{slice_id}-component-contract.json
+  - docs/ux/{slice_id}-copy-contract.json
+  - docs/ux/{slice_id}-semantic-ux-contract.json
+  - docs/design-system/tokens.json
+  - docs/design-system/components.json
+  - docs/design-system/component-usage-rules.md
+  - docs/design-system/visual-states.md
   produces_artifacts:
   - docs/implementation/{slice_id}-implementation-notes.md
   - src/**

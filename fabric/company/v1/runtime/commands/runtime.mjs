@@ -48,6 +48,12 @@ import {
   semanticUxReviewMdRelPathForSlice,
   readSemanticUxReviewStatus,
 } from '../product/semantic-ux-validation.mjs';
+import {
+  assertDesignSystemReadyForSlice,
+  loadDesignSystemContext,
+  requiredDesignSystemRelPaths,
+  requiredSliceUxContractRelPaths,
+} from '../product/design-system.mjs';
 
 function initFactory({ targetRoot, valuesPath, force, initValues, forceValues }) {
   if (initValues) {
@@ -980,6 +986,7 @@ function coderPrepareCurrentSlice({ targetRoot, valuesPath }) {
   if (!fs.existsSync(path.join(targetRoot, semanticContractRelPath))) {
     throw new Error(`Cannot run coder:prepare-current-slice: missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
   }
+  assertDesignSystemReadyForSlice(targetRoot, currentSlice.id, 'coder:prepare-current-slice');
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
   assertNoPlaceholdersInArtifact(baselineRelPath, readText(baselinePath));
   const uxFlowText = readText(uxPath);
@@ -999,7 +1006,7 @@ function coderPrepareCurrentSlice({ targetRoot, valuesPath }) {
     fileTargets,
     verificationSummary: [
       'Implementation preparation completed; coding can begin against the active slice contract.',
-      'Architecture baseline and UX flow are both finalized and placeholder-free.',
+      'Architecture baseline, UX flow, semantic UX contract, and design-system contracts are finalized and placeholder-free.',
     ],
     nextSteps: [
       'Implement the slice against the file/module targets above.',
@@ -1834,6 +1841,8 @@ function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, s
     `- \`${baselineRelPath}\``,
     `- \`${uxRelPath}\``,
     `- \`${semanticContractRelPath}\``,
+    ...requiredDesignSystemRelPaths().map((relPath) => `- \`${relPath}\``),
+    ...requiredSliceUxContractRelPaths(sliceContext.id).map((relPath) => `- \`${relPath}\``),
     `- \`${implementationNotesRelPath}\``,
     '- `docs/product/project-brief.md` if present',
     '- `docs/product/product-system-framing.md` if present',
@@ -1874,11 +1883,13 @@ function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, s
     '- Run `npm run build` if available and reasonably possible.',
     '- End with a concise summary of changed files and validation results.',
     '',
-    '## User-facing semantic UX contract',
-    '- You must satisfy the semantic UX contract before the slice can close.',
+    '## User-facing semantic UX and design-system contract',
+    '- You must satisfy the semantic UX contract and design-system contracts before the slice can close.',
     '- Do not invent generic filler copy for required user-facing content.',
     '- Do not expose internal implementation, workflow, schema, routing, slice, testing, ranking, bucket, acceptance, or process language in visible UI.',
     '- Every visible status, explanation, label, empty state, and fallback must be meaningful to the end user.',
+    '- Use approved UI components and semantic tokens before introducing one-off visual structure.',
+    '- Do not introduce raw visual values, duplicate component implementations, or new status labels without updating the design-system contract.',
     '- Dates and statuses must be human-readable and safe.',
     '- Never render undefined, null, NaN, Invalid Date, [object Object], malformed years, raw enum values, or raw object/stringified data.',
     '',
@@ -2147,6 +2158,7 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
   if (!fs.existsSync(path.join(targetRoot, semanticContractRelPath))) {
     throw new Error(`Cannot run coder:implement-current-slice: missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
   }
+  assertDesignSystemReadyForSlice(targetRoot, currentSlice.id, 'coder:implement-current-slice');
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
   if (!fs.existsSync(implementationNotesPath)) {
     throw new Error(`Cannot run coder:implement-current-slice: missing ${implementationNotesRelPath}; run coder:prepare-current-slice first`);
@@ -2155,6 +2167,14 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
   const baselineText = readText(baselinePath);
   const uxFlowText = readText(uxPath);
   const semanticUxContractJson = readText(path.join(targetRoot, semanticContractRelPath));
+  const designSystemContext = loadDesignSystemContext(targetRoot, currentSlice.id);
+  const uxFlowTextWithDesignSystem = `${uxFlowText.trim()}
+
+# Design System and UI/UX Contracts
+${designSystemContext}`;
+  const semanticUxContractJsonWithDesignSystem = `${semanticUxContractJson.trim()}
+
+/* Design system context is provided separately in the UX flow markdown input. */`;
   const briefText = fs.existsSync(briefPath) ? readText(briefPath) : '';
   const framingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const values = loadValuesIfPresent(valuesPath);
@@ -2189,8 +2209,8 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
         slice: currentSlice,
         fileTargets,
         baselineMarkdown: baselineText,
-        uxFlowMarkdown: uxFlowText,
-        semanticUxContractJson,
+        uxFlowMarkdown: uxFlowTextWithDesignSystem,
+        semanticUxContractJson: semanticUxContractJsonWithDesignSystem,
         briefMarkdown: briefText,
         framingMarkdown: framingText,
         onProgress: (message) => {
@@ -2209,8 +2229,8 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
         values,
         slice: currentSlice,
         baselineMarkdown: baselineText,
-        uxFlowMarkdown: uxFlowText,
-        semanticUxContractJson,
+        uxFlowMarkdown: uxFlowTextWithDesignSystem,
+        semanticUxContractJson: semanticUxContractJsonWithDesignSystem,
         briefMarkdown: briefText,
         framingMarkdown: framingText,
         onProgress: (message) => {

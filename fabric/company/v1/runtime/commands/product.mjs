@@ -13,6 +13,7 @@ import { pmStatus } from '../product/status.mjs';
 import { pmPlanSlices } from '../product/slice-planning.mjs';
 import { architectGenerateCurrentSliceBaseline } from '../product/architecture-review.mjs';
 import { uiuxGenerateCurrentSliceFlow } from '../product/ux-review.mjs';
+import { uiuxGenerateDesignSystem } from '../product/design-system.mjs';
 import { reviewCurrentSliceSemantics as uiuxReviewCurrentSliceSemantics } from '../product/semantic-ux-validation.mjs';
 
 export {
@@ -30,5 +31,6 @@ export {
   pmPlanSlices,
   architectGenerateCurrentSliceBaseline,
   uiuxGenerateCurrentSliceFlow,
+  uiuxGenerateDesignSystem,
   uiuxReviewCurrentSliceSemantics,
 };

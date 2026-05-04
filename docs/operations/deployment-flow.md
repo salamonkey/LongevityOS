@@ -1,6 +1,6 @@
 <!-- generated_from: templates/deployment-flow-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T05:38:57.547Z -->
+<!-- generated_at: 2026-05-04T06:43:27.439Z -->
 # Deployment Flow Template
 
 Date: `YYYY-MM-DD`

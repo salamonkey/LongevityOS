@@ -178,3 +178,61 @@ artifacts:
     update_trigger: governance_templates_change
     review_rules:
       - product_manager_review_when_fabric_contract_changes
+
+# UI/UX design-system maturity artifacts
+- artifact_type: design_system_tokens
+  owner_role: uiux
+  canonical_path: docs/design-system/tokens.json
+  format: json
+  required: false
+  create_trigger: first_user_facing_slice_or_design_system_refresh
+  update_trigger: semantic_status_priority_spacing_radius_or_tone_rules_change
+- artifact_type: design_system_components
+  owner_role: uiux
+  canonical_path: docs/design-system/components.json
+  format: json
+  required: false
+  create_trigger: first_user_facing_slice_or_design_system_refresh
+  update_trigger: approved_component_props_states_or_usage_rules_change
+- artifact_type: design_system_usage_rules
+  owner_role: uiux
+  canonical_path: docs/design-system/component-usage-rules.md
+  format: markdown
+  required: false
+  create_trigger: first_user_facing_slice_or_design_system_refresh
+  update_trigger: component_governance_rules_change
+- artifact_type: design_system_visual_states
+  owner_role: uiux
+  canonical_path: docs/design-system/visual-states.md
+  format: markdown
+  required: false
+  create_trigger: first_user_facing_slice_or_design_system_refresh
+  update_trigger: approved_empty_loading_error_success_or_status_states_change
+- artifact_type: ux_interaction_model
+  owner_role: uiux
+  canonical_path: docs/ux/{slice_id}-interaction-model.json
+  format: json
+  required: false
+  create_trigger: slice_has_meaningful_user_facing_flow
+  update_trigger: user_goal_entry_state_transition_or_recovery_changes
+- artifact_type: ux_screen_contract
+  owner_role: uiux
+  canonical_path: docs/ux/{slice_id}-screen-contract.json
+  format: json
+  required: false
+  create_trigger: slice_has_meaningful_user_facing_screen
+  update_trigger: page_sections_visible_data_action_hierarchy_or_state_coverage_changes
+- artifact_type: ux_component_contract
+  owner_role: uiux
+  canonical_path: docs/ux/{slice_id}-component-contract.json
+  format: json
+  required: false
+  create_trigger: slice_uses_or_adds_user_facing_components
+  update_trigger: required_components_props_statuses_priorities_or_composition_rules_change
+- artifact_type: ux_copy_contract
+  owner_role: uiux
+  canonical_path: docs/ux/{slice_id}-copy-contract.json
+  format: json
+  required: false
+  create_trigger: slice_has_meaningful_visible_copy
+  update_trigger: tone_copy_slots_forbidden_language_or_recovery_copy_changes

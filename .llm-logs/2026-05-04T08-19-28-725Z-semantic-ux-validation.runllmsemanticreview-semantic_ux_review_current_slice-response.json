@@ -1,0 +1,32 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-04T08:19:28.725Z",
+  "completed_utc": "2026-05-04T08:20:25.478Z",
+  "elapsed_ms": 56754,
+  "ok": true,
+  "response": {
+    "status": "pass",
+    "summary": "The migrated user-facing paths are mostly semantically fit: headings, actions, statuses, reminder options, and fallback date/status copy are understandable and human-readable, and the shared component layer appears to preserve user meaning consistently. A few visible strings still lean on internal/product jargon or mechanics and should be refined for stronger UX clarity.",
+    "findings": [
+      {
+        "severity": "warning",
+        "file": "src/features/design-system-component-foundation/components/PrioritySection.jsx",
+        "slot": "empty_or_error_state",
+        "issue_type": "jargon_without_recovery_guidance",
+        "observed": "The empty-state copy 'No open items in this horizon.' is understandable but uses product jargon ('horizon') instead of plain user language like Today/Soon/Later, and it does not suggest a next step.",
+        "required": "FALSE"
+      },
+      {
+        "severity": "warning",
+        "file": "src/features/profile/ProfileForm.jsx",
+        "slot": "explanation_or_rationale",
+        "issue_type": "mechanics_over_user_value",
+        "observed": "The helper text 'These answers generate rule-based preventive guidance for this profile only.' explains system mechanics more than user value. A clearer user-facing phrasing would focus on tailoring the plan rather than how the app generates it.",
+        "required": "FALSE"
+      }
+    ]
+  }
+}

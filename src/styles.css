@@ -275,6 +275,22 @@ input::placeholder {
   min-height: 100%;
 }
 
+.priority-section {
+  border-top-width: 3px;
+}
+
+.priority-today {
+  border-top-color: var(--danger);
+}
+
+.priority-soon {
+  border-top-color: var(--accent);
+}
+
+.priority-later {
+  border-top-color: var(--panel-border);
+}
+
 .priority-list {
   margin: 0;
   padding: 0;
@@ -474,6 +490,16 @@ input::placeholder {
 .status-done {
   color: #166534;
   background: #dcfce7;
+}
+
+.status-soon {
+  color: var(--text-muted);
+  background: var(--panel);
+}
+
+.status-overdue {
+  color: var(--danger);
+  background: var(--panel);
 }
 
 .detail-block {

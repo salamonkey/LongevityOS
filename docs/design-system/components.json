@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-04T06:34:08.337Z",
+  "principle": "Components are the product grammar. Screens compose approved components instead of inventing one-off UI.",
+  "components": {
+    "AppShell": {
+      "purpose": "Provide stable mobile-first page frame and navigation context.",
+      "props": {
+        "title": "string",
+        "children": "node"
+      },
+      "states": [
+        "default"
+      ],
+      "rules": [
+        "Use for user-facing app screens.",
+        "Do not duplicate page frame styling in feature components."
+      ]
+    },
+    "PrioritySection": {
+      "purpose": "Group health actions by attention level.",
+      "props": {
+        "priority": [
+          "today",
+          "soon",
+          "later"
+        ],
+        "items": "HealthPlanItem[]"
+      },
+      "states": [
+        "default",
+        "empty"
+      ],
+      "rules": [
+        "Dashboard order must be today -> soon -> later.",
+        "Must contain HealthPlanItem or approved empty state only."
+      ]
+    },
+    "HealthPlanItem": {
+      "purpose": "Represent one preventive health action with status and next action.",
+      "props": {
+        "title": "string",
+        "status": [
+          "done",
+          "due",
+          "soon",
+          "planned",
+          "overdue"
+        ],
+        "priority": [
+          "today",
+          "soon",
+          "later"
+        ],
+        "frequency": "string",
+        "actions": [
+          "mark_done",
+          "set_reminder",
+          "open_detail"
+        ]
+      },
+      "states": [
+        "default",
+        "done",
+        "due",
+        "soon",
+        "planned",
+        "overdue",
+        "loading"
+      ],
+      "rules": [
+        "Must use StatusPill for status display.",
+        "Must expose a user action when status is due or overdue.",
+        "Must not imply diagnosis."
+      ]
+    },
+    "StatusPill": {
+      "purpose": "Display a semantic status label consistently.",
+      "props": {
+        "status": [
+          "done",
+          "due",
+          "soon",
+          "planned",
+          "overdue"
+        ]
+      },
+      "states": [
+        "default"
+      ],
+      "rules": [
+        "Use semantic token color.status.* only.",
+        "Visible label must be localized/user-facing, never a raw enum."
+      ]
+    },
+    "HealthScoreCard": {
+      "purpose": "Summarize progress without creating anxiety.",
+      "props": {
+        "score": "number",
+        "summary": "string"
+      },
+      "states": [
+        "default",
+        "empty",
+        "improving"
+      ],
+      "rules": [
+        "Explain the score in plain language.",
+        "Do not make clinical risk claims."
+      ]
+    },
+    "ReminderSelector": {
+      "purpose": "Let the user set a simple reminder.",
+      "props": {
+        "options": [
+          "1_month",
+          "3_months",
+          "custom_date"
+        ]
+      },
+      "states": [
+        "default",
+        "selected",
+        "confirmed",
+        "invalid_date"
+      ],
+      "rules": [
+        "Confirmation copy must be calm and specific.",
+        "Custom dates must validate before save."
+      ]
+    },
+    "FamilyProfileCard": {
+      "purpose": "Show one profile in family mode with attention summary.",
+      "props": {
+        "name": "string",
+        "score": "number",
+        "dueCount": "number"
+      },
+      "states": [
+        "default",
+        "needs_attention",
+        "up_to_date"
+      ],
+      "rules": [
+        "Must make profile ownership clear.",
+        "Must not mix health actions between profiles."
+      ]
+    },
+    "VaccinationStatusRow": {
+      "purpose": "Show one vaccination status and optional add/update action.",
+      "props": {
+        "vaccine": "string",
+        "status": [
+          "done",
+          "due",
+          "soon",
+          "planned",
+          "overdue"
+        ],
+        "lastDate": "string"
+      },
+      "states": [
+        "default",
+        "missing",
+        "due",
+        "up_to_date"
+      ],
+      "rules": [
+        "Use StatusPill.",
+        "Missing date must use safe fallback copy, not raw null/undefined."
+      ]
+    }
+  }
+}

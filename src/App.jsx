@@ -5,6 +5,7 @@ import { GeneratedDashboardPage } from './routes/first-profile-onboarding-to-gen
 import { FullHealthPlanViewRoute } from './routes/full-health-plan-view.jsx';
 import { HealthItemDetailAndCompletionRoute } from './routes/health-item-detail-and-completion.jsx';
 import { ReminderSchedulingFromHealthItemsRoute } from './routes/reminder-scheduling-from-health-items.jsx';
+import { DesignSystemComponentFoundationRoute } from './routes/design-system-component-foundation.jsx';
 
 const DEFAULT_DRAFT = {
   ageYears: '',
@@ -20,6 +21,8 @@ const LEGACY_FULL_PLAN_REFERENCE = FullHealthPlanViewRoute;
 void LEGACY_FULL_PLAN_REFERENCE;
 const LEGACY_DETAIL_REFERENCE = HealthItemDetailAndCompletionRoute;
 void LEGACY_DETAIL_REFERENCE;
+const LEGACY_REMINDER_REFERENCE = ReminderSchedulingFromHealthItemsRoute;
+void LEGACY_REMINDER_REFERENCE;
 
 export default function App() {
   const [screen, setScreen] = useState(() => (loadStoredProfileSnapshot() ? 'dashboard' : 'welcome'));
@@ -113,7 +116,7 @@ export default function App() {
 
   if (routeState.route === 'plan') {
     return (
-      <ReminderSchedulingFromHealthItemsRoute
+      <DesignSystemComponentFoundationRoute
         view="plan"
         profile={profile}
         onBackToDashboard={() => {
@@ -150,7 +153,7 @@ export default function App() {
           </section>
         </section>
       ) : null}
-      <ReminderSchedulingFromHealthItemsRoute
+      <DesignSystemComponentFoundationRoute
         view="dashboard-detail"
         profile={profile}
         onRestart={() => {

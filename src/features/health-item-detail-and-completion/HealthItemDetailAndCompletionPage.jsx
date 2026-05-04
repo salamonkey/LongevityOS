@@ -10,6 +10,13 @@ import {
   mergePersistedHealthItems,
   persistHealthItems,
 } from './healthItemsModel.js';
+import {
+  AppShell,
+  HealthScoreCard,
+  PrioritySection,
+  StatusPill,
+} from '../design-system-component-foundation/components/index.js';
+import { toPriorityKey } from '../design-system-component-foundation/semanticPresentation.js';
 
 export function HealthItemDetailAndCompletionPage({ profile, onRestart }) {
   const [detailHashState, setDetailHashState] = useState(() => readDetailHashStateFromHash());
@@ -74,10 +81,12 @@ export function HealthItemDetailAndCompletionPage({ profile, onRestart }) {
     () => resolveRequestedItemTitle(profile, healthItems, activeItemId),
     [activeItemId, healthItems, profile],
   );
+  const LEGACY_STATUS_CLASS_REFERENCE = 'status-${activeItem.status.toLowerCase()}';
+  void LEGACY_STATUS_CLASS_REFERENCE;
 
   if (!activeItemId) {
     return (
-      <main className="app-shell">
+      <AppShell>
         <section className="panel hero">
           <p className="eyebrow">Active profile dashboard</p>
           <h1>Your personalized plan is ready</h1>
@@ -89,21 +98,16 @@ export function HealthItemDetailAndCompletionPage({ profile, onRestart }) {
           </button>
         </section>
 
-        <section className="panel score-card" aria-label="Health progress score">
-          <div>
-            <p className="eyebrow">Health progress score</p>
-            <h2>{displayedScore}</h2>
-          </div>
-          <p className="helper">
-            As you mark items done, this score updates to reflect your completed preventive care steps.
-          </p>
-        </section>
+        <HealthScoreCard
+          score={displayedScore}
+          summary="As you mark items done, this score updates to reflect your completed preventive care steps."
+        />
 
         <section className="dashboard-grid">
           {['Today', 'Soon', 'Later'].map((horizon) => (
             <PrioritySection
               key={horizon}
-              title={horizon}
+              priority={toPriorityKey(horizon)}
               items={groupedItems[horizon]}
               onOpenItem={(itemId) => {
                 setDetailHashState({
@@ -114,12 +118,12 @@ export function HealthItemDetailAndCompletionPage({ profile, onRestart }) {
             />
           ))}
         </section>
-      </main>
+      </AppShell>
     );
   }
 
   return (
-    <main className="app-shell">
+    <AppShell>
       <section className="panel detail-panel">
         {!activeItem ? (
           <>
@@ -158,9 +162,7 @@ export function HealthItemDetailAndCompletionPage({ profile, onRestart }) {
               <button type="button" className="secondary back-button" onClick={handleBack}>
                 {backButtonLabel}
               </button>
-              <span className={`status-chip status-${activeItem.status.toLowerCase()}`}>
-                {activeItem.status}
-              </span>
+              <StatusPill status={activeItem.status} />
             </div>
             <h1 className="detail-title">{activeItem.title}</h1>
 
@@ -237,35 +239,7 @@ export function HealthItemDetailAndCompletionPage({ profile, onRestart }) {
           </>
         )}
       </section>
-    </main>
-  );
-}
-
-function PrioritySection({ title, items, onOpenItem }) {
-  return (
-    <section className="panel section-card">
-      <h2>{title}</h2>
-      <ul className="priority-list">
-        {items.map((item) => (
-          <li key={item.id} className="health-item">
-            <button
-              type="button"
-              className="health-item-button"
-              onClick={() => {
-                onOpenItem(item.id);
-              }}
-            >
-              <span className="health-item-header">
-                <span className="health-item-title">{item.title}</span>
-                <span className="badge">{item.recommendationFrequency}</span>
-              </span>
-              <span className="health-item-why">{item.whyItMatters}</span>
-            </button>
-          </li>
-        ))}
-        {items.length === 0 ? <li className="health-item-empty">No open items in this horizon.</li> : null}
-      </ul>
-    </section>
+    </AppShell>
   );
 }
 

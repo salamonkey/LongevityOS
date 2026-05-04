@@ -27,6 +27,7 @@ import {
   pmFinalizeBootstrapReviews,
   architectGenerateCurrentSliceBaseline,
   uiuxGenerateCurrentSliceFlow,
+  uiuxGenerateDesignSystem,
   uiuxReviewCurrentSliceSemantics,
 } from './commands/product.mjs';
 import {
@@ -56,7 +57,7 @@ const FLOW_CHECK_STEP_BY_COMMAND = Object.freeze({
   'pm:brief-readiness': '4',
   'format-from-brief': '8',
   'pm:bootstrap-signoff': '12',
-  gate: '16|21|23',
+  gate: '18|23|25',
 });
 const TRACKED_FLOW_CHECK_COMMANDS = new Set(Object.keys(FLOW_CHECK_STEP_BY_COMMAND));
 
@@ -298,11 +299,15 @@ const NEXT_STEP_BUILDERS = {
   ],
   'pm:finalize-bootstrap-reviews': ({ cmd }) => [
     cmd('pm:bootstrap-signoff'),
-    cmd('db:init'),
+    cmd('uiux:generate-design-system'),
   ],
   'pm:bootstrap-signoff': ({ cmd }) => [
+    cmd('uiux:generate-design-system'),
     cmd('db:init'),
-    cmd('gate'),
+  ],
+  'uiux:generate-design-system': ({ cmd }) => [
+    cmd('db:init'),
+    cmd('db:check', { includeValues: false }),
   ],
   'pm:plan-slices': ({ cmd }) => [
     cmd('architect:generate-current-slice-baseline'),
@@ -390,43 +395,44 @@ const CANONICAL_STEP_BY_COMMAND = Object.freeze({
   'pm:plan-slices': '10',
   'pm:finalize-bootstrap-reviews': '11',
   'pm:bootstrap-signoff': '12',
-  'db:init': '13',
-  'db:check': '13b',
-  'architect:generate-current-slice-baseline': '14',
-  'uiux:generate-current-slice-flow': '15',
-  'coder:prepare-current-slice': '17',
-  'coder:implement-current-slice': '18',
-  'uiux:review-current-slice-semantics': '19',
-  'coder:repair-semantic-ux-findings': '19b',
-  'coder:close-current-slice': '20',
-  'orchestrator:advance-slice': '22',
+  'uiux:generate-design-system': '13',
+  'db:init': '14',
+  'db:check': '15',
+  'architect:generate-current-slice-baseline': '16',
+  'uiux:generate-current-slice-flow': '17',
+  'coder:prepare-current-slice': '19',
+  'coder:implement-current-slice': '20',
+  'uiux:review-current-slice-semantics': '21',
+  'coder:repair-semantic-ux-findings': '21b',
+  'coder:close-current-slice': '22',
+  'orchestrator:advance-slice': '24',
 });
 
 const CANONICAL_STEP_OVERRIDE_BY_FROM_COMMAND = Object.freeze({
   'db:check': Object.freeze({
-    gate: '16',
+    gate: '18',
   }),
   'db:reset': Object.freeze({
-    gate: '16',
+    gate: '18',
   }),
   'coder:close-current-slice': Object.freeze({
-    gate: '21',
-    'orchestrator:advance-slice': '22',
+    gate: '23',
+    'orchestrator:advance-slice': '24',
   }),
   'orchestrator:advance-slice': Object.freeze({
-    gate: '23',
-    'architect:generate-current-slice-baseline': '14',
+    gate: '25',
+    'architect:generate-current-slice-baseline': '16',
   }),
   gate: Object.freeze({
-    gate: '23',
-    'orchestrator:advance-slice': '22',
-    'architect:generate-current-slice-baseline': '14',
-    'uiux:generate-current-slice-flow': '15',
-    'coder:prepare-current-slice': '17',
-    'coder:implement-current-slice': '18',
-    'uiux:review-current-slice-semantics': '19',
-    'coder:repair-semantic-ux-findings': '19b',
-    'coder:close-current-slice': '20',
+    gate: '25',
+    'orchestrator:advance-slice': '24',
+    'architect:generate-current-slice-baseline': '16',
+    'uiux:generate-current-slice-flow': '17',
+    'coder:prepare-current-slice': '19',
+    'coder:implement-current-slice': '20',
+    'uiux:review-current-slice-semantics': '21',
+    'coder:repair-semantic-ux-findings': '21b',
+    'coder:close-current-slice': '22',
   }),
 });
 
@@ -473,7 +479,7 @@ function printNextSteps({ command, targetRoot, valuesPath }) {
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-current-slice-flow|uiux:review-current-slice-semantics|coder:repair-semantic-ux-findings|coder:repair-implementation-findings|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-design-system|uiux:generate-current-slice-flow|uiux:review-current-slice-semantics|coder:repair-semantic-ux-findings|coder:repair-implementation-findings|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
@@ -489,6 +495,7 @@ function usage() {
   console.log('  pm:status --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--format <terminal|markdown>]');
   console.log('  pm:finalize-bootstrap-reviews --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  architect:generate-current-slice-baseline --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  uiux:generate-design-system --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
   console.log('  uiux:generate-current-slice-flow --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  uiux:review-current-slice-semantics --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:repair-semantic-ux-findings --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--include-warnings]');
@@ -692,6 +699,10 @@ async function main() {
   }
   if (command === 'architect:generate-current-slice-baseline') {
     await runWithGuidance(() => architectGenerateCurrentSliceBaseline({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'uiux:generate-design-system') {
+    await runWithGuidance(() => uiuxGenerateDesignSystem({ targetRoot, force: Boolean(args.force) }));
     return;
   }
   if (command === 'uiux:generate-current-slice-flow') {

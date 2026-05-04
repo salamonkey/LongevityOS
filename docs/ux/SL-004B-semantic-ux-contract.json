@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-04T07:42:11.944Z",
+  "slice_id": "SL-004B",
+  "slice_title": "Design System Component Foundation",
+  "surface_type": "user_facing",
+  "global_rules": {
+    "must": [
+      "Use user-facing language that makes sense without internal project context.",
+      "Explain user value rather than system mechanics where explanatory copy is required.",
+      "Keep wording concise, concrete, and aligned to the active slice.",
+      "Use safe fallback copy when data is missing or unknown.",
+      "Render dates, times, counts, and statuses in valid human-readable form."
+    ],
+    "must_not": [
+      "Expose internal workflow, slice, acceptance, schema, payload, routing, component, ranking, bucket, test, or implementation language in visible UI.",
+      "Use placeholder, TODO, TBD, lorem ipsum, generic filler, or template copy as final visible UI.",
+      "Render undefined, null, NaN, Invalid Date, [object Object], raw enum values, raw calculation output, or malformed years.",
+      "Satisfy acceptance criteria only structurally while failing the user-facing purpose."
+    ]
+  },
+  "visible_content_slots": [
+    {
+      "slot": "primary_heading",
+      "purpose": "Tell the user what this screen, flow, or section is for.",
+      "required": true,
+      "quality_bar": [
+        "Specific to the user task.",
+        "Readable without internal project context.",
+        "Not a generic system or component label."
+      ]
+    },
+    {
+      "slot": "primary_action",
+      "purpose": "Make the next user action clear.",
+      "required": true,
+      "quality_bar": [
+        "Uses direct, user-facing wording.",
+        "Does not expose implementation, routing, schema, or test language."
+      ]
+    },
+    {
+      "slot": "empty_or_error_state",
+      "purpose": "Help the user recover from missing, invalid, or unavailable state.",
+      "required": false,
+      "quality_bar": [
+        "Explains what happened in plain language.",
+        "Gives a safe next step where possible.",
+        "Does not render raw undefined/null/error payloads."
+      ]
+    },
+    {
+      "slot": "status_context",
+      "purpose": "Explain current state, progress, timing, or result in human-readable language when shown.",
+      "required": true,
+      "quality_bar": [
+        "Dates, times, counts, and states are valid and human-readable.",
+        "Unknown data uses safe fallback copy.",
+        "Raw enum values, malformed dates, and raw calculations are never visible."
+      ]
+    },
+    {
+      "slot": "explanation_or_rationale",
+      "purpose": "Explain why the user should care or what value the action creates when a rationale is shown.",
+      "required": true,
+      "quality_bar": [
+        "Explains user value rather than app mechanics.",
+        "Uses concise, concrete, trust-building wording.",
+        "Does not overclaim, alarm, or invent unsupported facts."
+      ]
+    }
+  ],
+  "acceptance_criteria": [
+    "Reusable source components exist for the core design-system components required by completed slices: StatusPill, HealthPlanItem, PrioritySection, HealthScoreCard, and ReminderSelector, or documented equivalents when the implementation architecture uses different names.",
+    "Dashboard, full health plan, item detail, and reminder scheduling screens use the approved component layer instead of duplicating ad-hoc status, card, priority-section, or reminder-selector UI patterns.",
+    "Status and priority display values are driven by semantic helpers or tokens rather than raw colors, raw enum labels, or screen-specific string mappings.",
+    "Existing SL-001 through SL-004 regression paths still pass after the migration.",
+    "A design-system usage audit shows no newly introduced raw hex/rgb/hsl colors or inline visual styles in migrated user-facing UI paths unless explicitly justified in implementation notes."
+  ],
+  "deterministic_scan": {
+    "forbidden_visible_fragments": [
+      "TODO",
+      "TBD",
+      "lorem ipsum",
+      "placeholder",
+      "undefined",
+      "null",
+      "NaN",
+      "Invalid Date",
+      "[object Object]",
+      "acceptance criteria",
+      "schema",
+      "payload",
+      "bucket rules",
+      "generated action",
+      "slice id",
+      "implementation detail"
+    ],
+    "suspicious_patterns": [
+      "five_or_more_digit_year_or_numeric_state",
+      "raw_error_or_debug_copy",
+      "internal_factory_language_in_visible_copy"
+    ]
+  },
+  "llm_review": {
+    "required": true,
+    "instruction": "Review semantic fitness of the implemented user-facing UI against this contract. A section existing with bad or generic copy is a failure."
+  }
+}

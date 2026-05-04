@@ -9,6 +9,7 @@ import {
 } from '../lib/core.mjs';
 import { generateCurrentSliceUxPlaybook } from '../lib/llm/uiux-flow.mjs';
 import { writeSemanticUxContract } from './semantic-ux-validation.mjs';
+import { ensureDesignSystemArtifacts, writeCurrentSliceDesignContracts } from './design-system.mjs';
 
 function normalizeSliceScopeLabel(slice) {
   return `${String(slice.id || 'SL-XXX')} ${String(slice.title || 'Current Slice')}`.trim();
@@ -402,6 +403,11 @@ async function uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }) {
     console.warn('fabric uiux:generate-current-slice-flow: falling back to heuristic UX flow generation.');
     uxMode = 'heuristic_fallback';
   }
+  const designSystemResult = ensureDesignSystemArtifacts({
+    targetRoot,
+    briefText,
+    framingText: productFramingText,
+  });
   const content = renderUxCurrentSliceFlow({
     slice,
     productFramingText,
@@ -424,11 +430,22 @@ async function uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }) {
     uxFlowText: content,
     generatedAt,
   });
+  const designContractRelPaths = writeCurrentSliceDesignContracts({
+    targetRoot,
+    slice,
+    generatedAt,
+  });
   console.log('fabric uiux:generate-current-slice-flow: OK');
   console.log(`- scope: ${normalizeSliceScopeLabel(slice)}`);
   console.log(`- architecture baseline: ${architectureBaselineRelPath}`);
   console.log(`- wrote: ${outRelPath}`);
   console.log(`- wrote: ${path.relative(targetRoot, checklistPath)}`);
+  for (const relPath of designSystemResult.expected || []) {
+    console.log(`- ${designSystemResult.written.includes(relPath) ? 'wrote' : 'exists'}: ${relPath}`);
+  }
+  for (const relPath of designContractRelPaths) {
+    console.log(`- wrote: ${relPath}`);
+  }
   console.log(`- wrote: ${semanticContract.relPath}`);
   console.log(`- ux mode: ${uxMode}`);
   console.log('- status: Ready for implementation');

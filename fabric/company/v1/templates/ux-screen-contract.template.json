@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "{{generated_at_utc}}",
+  "slice_id": "{{slice_id}}",
+  "screens": []
+}
