@@ -253,6 +253,19 @@ input::placeholder {
   max-width: 42ch;
 }
 
+.app-route-actions-shell {
+  padding-bottom: 0;
+  gap: 0;
+}
+
+.app-route-actions {
+  margin-bottom: -8px;
+}
+
+.app-route-actions h2 {
+  margin-bottom: 8px;
+}
+
 .dashboard-grid {
   display: grid;
   gap: 18px;
@@ -376,5 +389,240 @@ input::placeholder {
   .secondary {
     width: 100%;
     justify-content: center;
+  }
+}
+
+.health-item-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  color: inherit;
+}
+
+.health-item-button:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.32);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.health-item-why {
+  color: var(--text-muted);
+}
+
+.health-item-reminder,
+.plan-reminder {
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.health-item-empty {
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.detail-panel {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 88px;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.back-button {
+  min-height: 42px;
+}
+
+.detail-title {
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+.status-due {
+  color: #7c2d12;
+  background: #ffedd5;
+}
+
+.status-planned {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.status-done {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.detail-block {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.74);
+  padding: 16px;
+}
+
+.detail-block h2 {
+  font-size: 0.98rem;
+  margin-bottom: 8px;
+  color: var(--accent-strong);
+}
+
+.detail-block p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.detail-action-bar {
+  position: sticky;
+  bottom: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.inline-error,
+.inline-success {
+  margin: 0;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.inline-error {
+  color: #7f1d1d;
+  background: #fee2e2;
+}
+
+.inline-success {
+  color: #14532d;
+  background: #dcfce7;
+}
+
+.plan-totals {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.plan-total-block {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.plan-total-block h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 6vw, 2.2rem);
+}
+
+.plan-totals-helper {
+  grid-column: 1 / -1;
+}
+
+.plan-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.plan-item-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+}
+
+.plan-item-button:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.32);
+  outline-offset: 3px;
+  border-radius: 12px;
+}
+
+.plan-item-header .status-chip {
+  flex-shrink: 0;
+}
+
+.plan-frequency {
+  color: var(--text-muted);
+}
+
+.reminder-sheet {
+  display: grid;
+  gap: 14px;
+}
+
+.reminder-options {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 16px;
+  padding: 12px;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  background: rgba(248, 250, 252, 0.6);
+}
+
+.reminder-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.reminder-option input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (max-width: 640px) {
+  .plan-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-action-bar {
+    bottom: 6px;
   }
 }

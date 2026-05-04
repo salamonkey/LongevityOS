@@ -98,9 +98,35 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Benefit: turns the architecture baseline from a generic template into implementation-ready structural guidance.
 
 - `uiux:generate-current-slice-flow --target <project-root> [--values fabric.values.json]`
-  - What it does: generates a slice-specific `docs/ux/<SLICE_ID>-current-slice-flow.md` for the active slice from current slice state, project brief, and product-system framing.
+  - What it does: generates a slice-specific `docs/ux/<SLICE_ID>-current-slice-flow.md` and `docs/ux/<SLICE_ID>-semantic-ux-contract.json` for the active slice from current slice state, the current architecture baseline, project brief, and product-system framing.
   - When to use: after `pm:plan-slices` and before implementation of user-facing slices.
-  - Benefit: turns the UX flow artifact from a generic template into implementation-ready interaction guidance.
+  - Benefit: turns the UX flow artifact from a generic template into implementation-ready interaction guidance and a reusable semantic acceptance contract.
+
+- `uiux:review-current-slice-semantics --target <project-root> [--values fabric.values.json]`
+  - What it does: runs the blocking semantic UX gate for the active slice after implementation. It combines deterministic scans with an LLM-based semantic reviewer.
+  - When to use: after `coder:implement-current-slice` and before `coder:close-current-slice`.
+  - Benefit: catches user-facing issues that structural tests miss, including generic filler copy, internal implementation language leaks, malformed dates/statuses, raw values, and copy that exists but does not satisfy the user-facing purpose.
+  - Output artifacts: `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.json` and `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.md`.
+  - Gate rule: `coder:close-current-slice` refuses to close when this review is missing or failed.
+  - On failure, the command prints the next repair command.
+
+- `coder:repair-semantic-ux-findings --target <project-root> [--values fabric.values.json] [--include-warnings]`
+  - What it does: reads the active slice's semantic UX review, generates a structured Codex repair work order, and asks Codex to repair selected findings without restarting the slice.
+  - Default behavior: selects blocker findings only. Pass `--include-warnings` to include warning findings in the repair work order.
+  - Inputs: `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.json`, `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.md`, `docs/ux/<SLICE_ID>-semantic-ux-contract.json`, `docs/product/current-slice.yaml`, and `docs/implementation/<SLICE_ID>-implementation-notes.md`.
+  - Output artifact: `docs/implementation/<SLICE_ID>-semantic-ux-repair-work-order.md`.
+  - Ledger: records `semantic_ux_repair` start/completion events in `.system/factory/execution-ledger.jsonl`.
+  - Path policy: allows slice-local files, normal shared integration files, implementation notes, and files explicitly referenced by the semantic findings; review artifacts and Fabric runtime are not repair targets.
+  - After use: rerun `uiux:review-current-slice-semantics` and close only after the review passes.
+
+- `coder:repair-implementation-findings --target <project-root> [--values fabric.values.json]`
+  - What it does: reads the active slice's user checklist, extracts manual QA findings from `## Manual QA Findings`, generates a structured Codex repair work order, and asks Codex to repair the implementation without restarting the slice.
+  - When to use: after manual review marks `docs/testing/<SLICE_ID>-user-checklist.md` as `Status: Fail` and documents one or more manual QA findings.
+  - Inputs: `docs/testing/<SLICE_ID>-user-checklist.md`, `docs/product/current-slice.yaml`, `docs/implementation/<SLICE_ID>-implementation-notes.md`, `docs/ux/<SLICE_ID>-current-slice-flow.md`, and `docs/ux/<SLICE_ID>-semantic-ux-contract.json`.
+  - Output artifact: `docs/implementation/<SLICE_ID>-implementation-repair-work-order.md`.
+  - Ledger: records `implementation_repair` start/completion events in `.system/factory/execution-ledger.jsonl`.
+  - Guardrail: refuses to run when the checklist is `Pass` or still `Pending`; the human reviewer owns checklist acceptance.
+  - After use: rerun tests/build/doctor, rerun semantic UX review, repeat manual review, and mark checklist `Pass` only after acceptance.
 
 LLM transparency and logging:
 - All model-driven commands now print prompt source file paths right after `llm request started`, one source per line under a `prompt content:` header.
@@ -242,7 +268,7 @@ STAGE 2
 STAGE 3
 14. Generate architecture baseline for active slice:
     - `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ./fabric.values.json`
-15. Generate UX flow for active slice:
+15. Generate UX flow and semantic UX contract for active slice:
     - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
 16. Run readiness gate (recommended):
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
@@ -251,9 +277,22 @@ STAGE 4
     - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
 18. Generate implementation artifacts:
     - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
-19. Validate in app:
+18b. Validate in app manually:
     - `npm install`
     - `npm run dev`
+19. Run semantic UX review:
+    - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
+19b. If semantic UX review fails, generate and run the Codex repair work order:
+    - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
+    - Add `--include-warnings` when you want warning findings included in the repair work order.
+    - Then rerun Step 19 until the review passes.
+19c. Complete the manual user checklist:
+    - Edit `docs/testing/<SLICE_ID>-user-checklist.md`.
+    - Use `Status: Pass` only when the slice is accepted.
+    - Use `Status: Fail` and fill `## Manual QA Findings` when implementation changes are needed.
+19d. If manual review fails, generate and run the implementation repair work order:
+    - `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ./fabric.values.json`
+    - Then rerun tests/build/doctor, semantic UX review, and manual checklist review.
 20. Close current slice:
     - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
 21. Run readiness gate:
@@ -459,8 +498,10 @@ STAGE 4
   - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
 - What it does:
   - Requires `docs/product/current-slice.yaml`.
-  - Reads active slice + optional brief/framing context.
+  - Requires `docs/architecture/<SLICE_ID>-baseline.md`; run `architect:generate-current-slice-baseline` first.
+  - Reads active slice + architecture baseline + optional brief/framing context.
   - Writes `docs/ux/<SLICE_ID>-current-slice-flow.md` (model-driven with fallback).
+  - Writes `docs/ux/<SLICE_ID>-semantic-ux-contract.json`.
   - Regenerates `docs/testing/<SLICE_ID>-user-checklist.md`.
   - Prints UX mode (`model_driven|heuristic_fallback`) and written paths.
   - Does not mutate backlog/current-slice/manifest.
@@ -487,7 +528,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Command:
   - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
 - What it does:
-  - Requires active `current-slice`, baseline, and slice UX flow (with legacy migration fallback for `docs/ux/current-slice-flow.md`).
+  - Requires active `current-slice`, baseline, slice UX flow (with legacy migration fallback for `docs/ux/current-slice-flow.md`), and semantic UX contract.
   - Verifies placeholder-free baseline + UX.
   - Derives implementation target patterns from slice scope/title.
   - Writes `docs/implementation/<SLICE_ID>-implementation-notes.md`.
@@ -499,7 +540,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Command:
   - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
 - What it does:
-  - Requires current slice, baseline, UX flow, and implementation notes (legacy fallback for `docs/implementation/current-slice-notes.md`).
+  - Requires current slice, baseline, UX flow, semantic UX contract, and implementation notes (legacy fallback for `docs/implementation/current-slice-notes.md`).
   - Supports two model output modes:
     - `source_files`: model returns concrete file outputs (`path + content`) and fabric writes them directly.
     - `playbook`: model returns implementation guidance and fabric fills deterministic source templates.
@@ -515,27 +556,112 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Does not transition slice status to completed.
   - Does not run `npm install`, `npm run dev`, or tests automatically.
 
-#### Step 19: Test in UI
+#### Step 18b: Test in UI manually
 
 - Commands:
   - `npm install`
   - `npm run dev`
 - Goal:
-  - Validate active slice behavior from a customer perspective before closeout.
+  - Validate active slice behavior from a customer perspective before semantic review and closeout.
+
+#### Step 19: `uiux:review-current-slice-semantics`
+
+- Command:
+  - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
+- What it does:
+  - Requires active `current-slice` and `docs/ux/<SLICE_ID>-semantic-ux-contract.json`.
+  - Runs a deterministic scan over likely user-visible strings only (for example JSX text nodes and visible props like `aria-label`, `title`, `alt`, and `placeholder`), not arbitrary raw source code.
+  - Runs an LLM-based semantic UX reviewer against the contract, UX flow, brief/framing context, and implementation source context.
+  - Writes machine-readable and human-readable review artifacts under `docs/reviews/ux/`.
+- What it catches:
+  - User-visible placeholder/filler copy.
+  - Internal workflow, schema, routing, testing, slice, ranking, bucket, or implementation language in visible UI.
+  - Malformed dates/statuses, raw enum values, `undefined`, `null`, `NaN`, `Invalid Date`, and `[object Object]`.
+  - Sections that exist structurally but fail their user-facing semantic purpose.
+- Configuration:
+  - LLM review is required by default. Set `SEMANTIC_UX_LLM_REQUIRED=false` or `semantic_ux_llm_required: false` only as an explicit local fallback.
+  - To disable the LLM reviewer entirely, set `SEMANTIC_UX_LLM_ENABLED=false` or `semantic_ux_llm_enabled: false`; if required remains true, the gate fails.
+- Gate behavior:
+  - Exits non-zero on blocker findings.
+  - For deterministic findings, only high-confidence likely-visible issues block closeout; uncertain source-only heuristics are warnings.
+  - `coder:close-current-slice` refuses to close if this review is missing or failed.
+  - On failure, print `coder:repair-semantic-ux-findings` as the next repair command.
+
+#### Step 19b: `coder:repair-semantic-ux-findings`
+
+- Command:
+  - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
+  - Optional: `--include-warnings` to include warning findings in the repair work order.
+- What it does:
+  - Requires active `current-slice`, semantic UX review JSON/Markdown, semantic UX contract, and implementation notes.
+  - Refuses to run when the semantic UX review already passes.
+  - Selects blocker findings by default; warning findings are selected only with `--include-warnings`.
+  - Writes `docs/implementation/<SLICE_ID>-semantic-ux-repair-work-order.md`.
+  - Runs Codex with a targeted repair brief generated from the review findings.
+  - Updates `.system/factory/execution-ledger.jsonl` with `semantic_ux_repair` events.
+  - Updates `docs/implementation/<SLICE_ID>-implementation-notes.md` with repair evidence and changed files.
+- Guardrails:
+  - Does not edit or waive semantic review files.
+  - Does not change Fabric runtime files.
+  - Uses a repair path policy: slice-local files, standard shared integration files, implementation notes, and files explicitly referenced by findings.
+- After running:
+  - Inspect the diff.
+  - Rerun `uiux:review-current-slice-semantics`.
+  - Repeat repair/review until semantic UX review passes.
+
+#### Step 19c: Manual user checklist review
+
+- Artifact:
+  - `docs/testing/<SLICE_ID>-user-checklist.md`
+- Result states:
+  - `Status: Pending` means review has not been completed.
+  - `Status: Pass` means the human reviewer accepts the slice.
+  - `Status: Fail` means the slice needs implementation repair before closeout.
+- Manual QA finding template:
+  - Classification A: Bug / implementation defect — existing requirement is clear, implementation is wrong.
+  - Classification B: UX/content quality issue — behavior works, but copy/interaction is not good enough.
+  - Classification C: Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.
+  - Finding / Expected / Observed / Required repair.
+- Gate behavior:
+  - `coder:close-current-slice` refuses to close unless the checklist result is Pass.
+
+#### Step 19d: `coder:repair-implementation-findings`
+
+- Command:
+  - `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ./fabric.values.json`
+- What it does:
+  - Requires active `current-slice`, user checklist, UX flow, semantic UX contract, and implementation notes.
+  - Refuses to run when the checklist is Pass.
+  - Refuses to run when the checklist is Pending/unresolved.
+  - Requires `Status: Fail` plus at least one populated manual QA finding.
+  - Writes `docs/implementation/<SLICE_ID>-implementation-repair-work-order.md`.
+  - Runs Codex with a targeted repair brief generated from the manual QA finding(s).
+  - Updates `.system/factory/execution-ledger.jsonl` with `implementation_repair` events.
+  - Updates `docs/implementation/<SLICE_ID>-implementation-notes.md` with repair evidence and changed files.
+- Guardrails:
+  - Does not mark the checklist Pass; the human reviewer owns acceptance.
+  - Does not change Fabric runtime files.
+  - Uses a repair path policy for active-slice files, tests, shared integration points, implementation notes, and relevant product/UX/checklist artifacts.
+- After running:
+  - Inspect the diff.
+  - Run `npm test`, `npm run build`, `doctor`, and `uiux:review-current-slice-semantics`.
+  - Repeat manual checklist review.
+  - Mark `Status: Pass` only after acceptance.
 
 #### Step 20: `coder:close-current-slice`
 
 - Command:
   - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
 - What it checks:
-  - Required artifacts exist (slice/backlog/baseline/UX/notes/checklist/package scripts).
+  - Required artifacts exist (slice/backlog/baseline/UX/semantic UX contract/semantic UX review/notes/checklist/package scripts).
   - Current slice contains acceptance criteria.
   - Checklist exists for current slice and reports pass.
+  - Semantic UX review exists and reports pass.
   - Placeholder-free closeout docs.
-  - Changed files align to required target patterns.
-  - Implementation artifacts exist under expected source/test locations.
+  - Implementation artifacts exist under expected source/test locations for every required target path.
+  - If implementation notes have stale or incomplete changed-file evidence but required artifacts exist on disk, closeout reconciles the notes automatically instead of failing on documentation drift.
 - On success:
-  - Marks implementation notes `Completed`.
+  - Marks implementation notes `Completed` and refreshes changed-file evidence from the verified filesystem artifacts.
   - Marks slice `completed` in backlog/current-slice.
   - Updates manifest active slice state/milestone and timestamp.
 
@@ -582,7 +708,8 @@ This bundle supports provider-agnostic model invocation for intake, planning, ar
    - `export OPENAI_API_KEY=...`
 2. Enable the desired model profile(s) in `fabric.values.json`:
    - global toggle: `llm_enabled: true`
-   - per-purpose toggles (optional override): `brief_draft_llm_enabled`, `pm_llm_enabled`, `planning_llm_enabled`, `architect_llm_enabled`, `coder_llm_enabled`
+   - per-purpose toggles (optional override): `brief_draft_llm_enabled`, `pm_llm_enabled`, `planning_llm_enabled`, `architect_llm_enabled`, `uiux_llm_enabled`, `coder_llm_enabled`
+   - semantic UX gate controls (optional): `semantic_ux_llm_enabled`, `semantic_ux_llm_required`
    - coder output mode (optional override): `coder_llm_output_mode: source_files|playbook`
 3. (Optional) configure quality gates/retries:
    - `brief_draft_llm_brief_quality_gate: true`
@@ -609,6 +736,26 @@ Coder source-file authoring via local Codex-compatible stdio bridge:
     - `CODER_LLM_STDIO_TRACE=true`
   - If `codex` is not on PATH, set `CODEX_BIN=/absolute/path/to/codex`.
   - Ensure Codex CLI is authenticated once (`codex login`).
+
+
+### Semantic UX review model behavior
+
+The semantic UX gate uses two layers:
+
+1. A deterministic scanner for obvious user-visible failures such as placeholders, raw values, malformed dates/statuses, and internal/factory language leaks.
+2. An LLM reviewer that evaluates whether implemented user-facing behavior and copy satisfy the slice's semantic UX contract.
+
+The reviewer first tries the `uiux` model profile, then `review`, `coder`, `planning`, and `intake` profiles. If no valid model profile is available and semantic review is required, the gate fails rather than silently allowing a slice to close.
+
+Relevant configuration options:
+
+- `semantic_ux_llm_enabled: true|false` or `SEMANTIC_UX_LLM_ENABLED=true|false`
+- `semantic_ux_llm_required: true|false` or `SEMANTIC_UX_LLM_REQUIRED=true|false`
+- `uiux_llm_enabled`, `uiux_llm_provider`, `uiux_llm_model`, `uiux_llm_api_key_env` for the preferred reviewer profile
+
+Default behavior: LLM semantic review is enabled and required. Use `semantic_ux_llm_required: false` only for intentional local fallback, not as the normal delivery standard.
+
+When semantic review fails, use `coder:repair-semantic-ux-findings` rather than hand-writing ad hoc Codex prompts. The repair command turns review findings into a consistent work order, keeps blockers/warnings explicit, and records the repair cycle in the execution ledger.
 
 ### Brief drafting model outputs (`pm:brief-draft`)
 

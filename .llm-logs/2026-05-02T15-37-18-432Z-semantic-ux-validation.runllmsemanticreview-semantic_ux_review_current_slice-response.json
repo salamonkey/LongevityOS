@@ -1,0 +1,11 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-02T15:37:18.432Z",
+  "failed_utc": "2026-05-02T15:37:18.470Z",
+  "elapsed_ms": 38,
+  "ok": false,
+  "error": "fetch failed"
+}

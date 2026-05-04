@@ -1,0 +1,61 @@
+<!-- generated_from: templates/ux-current-slice-flow-template.md -->
+<!-- fabric_version: v1 -->
+<!-- generated_at: 2026-05-02T19:48:43.242Z -->
+# UX Flow - Current Slice
+
+Date: `2026-05-02`
+Status: `Ready for implementation`
+Scope: `SL-004 Reminder Scheduling From Health Items`
+
+## 1. Context
+
+SL-004 defines the minimum reminder UX for health items that support reminders: create or update a single reminder from item detail using 1 month, 3 months, or custom date, then reflect the saved reminder state back on item detail, dashboard, and full health plan without adding channel controls, global preferences, or reminder management outside the item.
+
+## 2. Flow Definition
+
+### Flow A - Primary Path
+
+- Entry: User opens a profile-specific health item detail page from the dashboard or full health plan for an item where supportsReminder=true.
+- Expected behavior:
+  - The item detail action area shows a Reminder action only for items with supportsReminder=true. Items without support show no reminder control.
+  - If the item has no saved reminder, the action label is "Set reminder". If the item already has a saved reminder, the detail page shows a reminder summary row with the saved date and an action label of "Change reminder".
+  - Tapping the reminder action opens a focused reminder sheet/modal on top of item detail with a single-select timing form and a primary save action.
+  - The reminder form presents exactly three timing choices: "In 1 month", "In 3 months", and "Choose a date".
+  - Preset choices immediately show the resolved reminder date in helper text so the user sees the exact saved date before confirming.
+  - Selecting "Choose a date" reveals a date input using a native date picker. The field is required only when the custom option is selected.
+  - For a new reminder, the primary CTA is "Save reminder". For an existing reminder, the form opens preselected to the current timingType and saved date, and the primary CTA is "Update reminder".
+  - Submitting a valid choice saves a single reminder for the current profile and health item, closes the sheet, and returns focus to item detail without a full navigation change from the user's perspective.
+
+### Flow B - Failure and Recovery Paths
+
+- If the user selects a custom date earlier than today, the form does not save. The custom date field shows an inline error reading "Choose today or a future date," the sheet remains open, and the user can correct the date and resubmit.
+- If the save request fails, the sheet remains open with the selected option preserved and a visible form-level error reading "Couldn't save reminder. Try again." No reminder summary or reminder indicator is updated on the underlying page until a save succeeds.
+- If an item does not support reminders, the user is given no reminder entry point on item detail; reminder creation is not exposed anywhere else in this slice.
+
+## 3. Interaction and Validation Rules
+
+- Reminder is initiated only from health item detail in this slice. Dashboard and full health plan reflect reminder state but do not provide create or edit controls.
+- The reminder control must be visually grouped with other item-level actions on detail so users can understand it affects the current item only.
+- The reminder form uses a single-select control pattern; only one timing option can be active at a time.
+- Preset timings must resolve from the save date using calendar-month logic and the UI must display the resulting remind-on date before save.
+- Custom date input accepts date only, never time of day, and must prevent or reject past dates.
+- After a successful save, item detail shows reminder state in a persistent, scannable format: a reminder summary with exact date and a change action.
+- After a successful update, the detail view replaces the previous reminder summary with the new date; the UI must never show multiple reminders for the same item.
+- Dashboard prioritized item cards/rows and full health plan rows must show a reminder indicator for items with hasReminder=true using the same saved date source as item detail, so the state matches across surfaces after refresh or revisit within the test account context.
+
+## 4. Implementation Constraints
+
+- Do not add reminder delete, snooze, recurrence, channel selection, notification preferences, family-wide reminder management, or any reminder entry point outside item detail.
+- Do not present reminder state as medical advice, urgency, or clinical instruction; use calm scheduling language only.
+- Do not couple reminder save UX to status editing. The reminder summary is a separate UI element from the item's Due/Planned/Done status.
+- Do not rely on client-only state for reminder visibility; the saved reminder must rehydrate after page reload from persisted data.
+- Do not compute reminder indicators separately on dashboard and full plan; all reminder-present states must come from the shared reminder projection.
+- Keep the interaction mobile-first and short: one sheet/modal, three timing choices, one save action, and inline validation only where needed.
+
+## 5. Acceptance Mapping
+
+- For every rendered health item with supportsReminder=true, item detail exposes a Reminder action and the reminder form offers exactly the options 1 month, 3 months, and custom date.
+- Saving a reminder from item detail returns the user to the same item detail page showing the saved reminder summary with the exact date, and the same summary remains visible after page reload in the test account.
+- After a reminder is saved, the same item appears with a reminder indicator on both the dashboard prioritized surfaces and the full health plan view.
+- When an existing reminder is updated from item detail, the newly saved timing replaces the prior timing everywhere the reminder is shown; the UI never displays duplicate reminder entries for the item.
+- Creating or updating a reminder does not itself relabel the item status on screen, except where an already-existing system rule independently derives Planned from reminder presence.

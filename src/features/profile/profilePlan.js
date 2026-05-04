@@ -39,7 +39,7 @@ const RULE_CATALOG = {
       makeItem(
         'dental-cleaning-30-39-female',
         'Book a dental cleaning',
-        'Routine care keeps preventive visits predictable.',
+        'Regular cleanings help prevent cavities and gum disease.',
         'Within 3 months',
         'Soon',
         2,
@@ -65,7 +65,7 @@ const RULE_CATALOG = {
       makeItem(
         'dental-cleaning-30-39-male',
         'Book a dental cleaning',
-        'Routine care keeps preventive visits predictable.',
+        'Regular cleanings help prevent cavities and gum disease.',
         'Within 3 months',
         'Soon',
         2,
@@ -93,7 +93,7 @@ const RULE_CATALOG = {
       makeItem(
         'blood-panel-40-54-female',
         'Plan a preventive blood panel',
-        'Lab review gives a simple baseline for this age band.',
+        'These labs can reveal early changes before symptoms appear.',
         'Within 2 months',
         'Soon',
         2,
@@ -101,7 +101,7 @@ const RULE_CATALOG = {
       makeItem(
         'dental-cleaning-40-54-female',
         'Book a dental cleaning',
-        'Routine care keeps preventive visits predictable.',
+        'Regular cleanings help prevent cavities and gum disease.',
         'Within 3 months',
         'Soon',
         3,
@@ -127,7 +127,7 @@ const RULE_CATALOG = {
       makeItem(
         'blood-panel-40-54-male',
         'Plan a preventive blood panel',
-        'Lab review gives a simple baseline for this age band.',
+        'These labs can reveal early changes before symptoms appear.',
         'Within 2 months',
         'Soon',
         2,
@@ -135,7 +135,7 @@ const RULE_CATALOG = {
       makeItem(
         'dental-cleaning-40-54-male',
         'Book a dental cleaning',
-        'Routine care keeps preventive visits predictable.',
+        'Regular cleanings help prevent cavities and gum disease.',
         'Within 3 months',
         'Soon',
         3,
@@ -155,7 +155,7 @@ const RULE_CATALOG = {
       makeItem(
         'bp-check-55-65-female',
         'Check blood pressure',
-        'A quick check helps keep the highest-priority items visible.',
+        'Blood pressure often changes quietly, and early action lowers risk.',
         'This week',
         'Today',
         1,
@@ -163,7 +163,7 @@ const RULE_CATALOG = {
       makeItem(
         'annual-visit-55-65-female',
         'Schedule an annual preventive visit',
-        'This age band benefits from a regular planning touchpoint.',
+        'A yearly visit helps catch concerns early and keep care up to date.',
         'Within 1 month',
         'Today',
         2,
@@ -171,7 +171,7 @@ const RULE_CATALOG = {
       makeItem(
         'bone-health-review-55-65-female',
         'Review bone health screening timing',
-        'Bone health planning is easier when it is reviewed on a schedule.',
+        'Timely screening can catch bone loss early and reduce fracture risk.',
         'Within 2 months',
         'Soon',
         3,
@@ -179,7 +179,7 @@ const RULE_CATALOG = {
       makeItem(
         'dental-cleaning-55-65-female',
         'Book a dental cleaning',
-        'Routine care keeps preventive visits predictable.',
+        'Regular cleanings help prevent cavities and gum disease.',
         'Within 3 months',
         'Soon',
         4,
@@ -197,7 +197,7 @@ const RULE_CATALOG = {
       makeItem(
         'bp-check-55-65-male',
         'Check blood pressure',
-        'A quick check helps keep the highest-priority items visible.',
+        'Blood pressure often changes quietly, and early action lowers risk.',
         'This week',
         'Today',
         1,
@@ -205,7 +205,7 @@ const RULE_CATALOG = {
       makeItem(
         'annual-visit-55-65-male',
         'Schedule an annual preventive visit',
-        'This age band benefits from a regular planning touchpoint.',
+        'A yearly visit helps catch concerns early and keep care up to date.',
         'Within 1 month',
         'Today',
         2,
@@ -213,7 +213,7 @@ const RULE_CATALOG = {
       makeItem(
         'lab-review-55-65-male',
         'Review cholesterol and glucose labs',
-        'A simple lab review keeps next steps easy to prioritize.',
+        'Reviewing these labs helps lower heart and diabetes risk sooner.',
         'Within 2 months',
         'Soon',
         3,
@@ -221,7 +221,7 @@ const RULE_CATALOG = {
       makeItem(
         'dental-cleaning-55-65-male',
         'Book a dental cleaning',
-        'Routine care keeps preventive visits predictable.',
+        'Regular cleanings help prevent cavities and gum disease.',
         'Within 3 months',
         'Soon',
         4,

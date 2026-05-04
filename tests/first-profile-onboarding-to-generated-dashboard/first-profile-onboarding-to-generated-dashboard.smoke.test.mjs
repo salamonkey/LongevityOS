@@ -19,12 +19,12 @@ test('the slice flow is wired from welcome to generating to dashboard', () => {
   assert.match(APP_SOURCE, /createProfileSnapshot/);
   assert.match(APP_SOURCE, /GeneratedDashboardPage/);
   assert.match(APP_SOURCE, /Start/);
-  assert.match(APP_SOURCE, /Rule-based guidance only/);
+  assert.match(APP_SOURCE, /Guidance to help you plan/);
 
   assert.match(ONBOARDING_SOURCE, /Build your first profile/);
   assert.match(ONBOARDING_SOURCE, /ProfileForm/);
   assert.match(ONBOARDING_SOURCE, /age and gender/);
-  assert.match(ONBOARDING_SOURCE, /No family mode/);
+  assert.match(ONBOARDING_SOURCE, /recommended next steps/);
 
   assert.match(DASHBOARD_SOURCE, /Read-only health score/);
   assert.match(DASHBOARD_SOURCE, /Today/);

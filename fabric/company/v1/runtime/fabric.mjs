@@ -27,6 +27,7 @@ import {
   pmFinalizeBootstrapReviews,
   architectGenerateCurrentSliceBaseline,
   uiuxGenerateCurrentSliceFlow,
+  uiuxReviewCurrentSliceSemantics,
 } from './commands/product.mjs';
 import {
   initFactory,
@@ -41,6 +42,8 @@ import {
   dbReset,
   coderPrepareCurrentSlice,
   coderImplementCurrentSlice,
+  coderRepairSemanticUxFindings,
+  coderRepairImplementationFindings,
   coderCloseCurrentSlice,
   orchestratorAdvanceSlice,
 } from './commands/runtime.mjs';
@@ -143,6 +146,57 @@ function uxFlowRelPathForSlice(sliceId) {
   return `docs/ux/${normalizedSliceIdForPath(sliceId)}-current-slice-flow.md`;
 }
 
+function semanticUxReviewRelPathForSlice(sliceId) {
+  return `docs/reviews/ux/${normalizedSliceIdForPath(sliceId)}-semantic-ux-review.json`;
+}
+
+function readCurrentSliceFromTarget(targetRoot) {
+  const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
+  if (!fs.existsSync(currentSlicePath)) {
+    return null;
+  }
+  try {
+    return parseSliceBlockWithLists(readText(currentSlicePath));
+  } catch (_) {
+    return null;
+  }
+}
+
+function readSemanticUxReviewStatusForCurrentSlice(targetRoot) {
+  const slice = readCurrentSliceFromTarget(targetRoot);
+  const sliceId = String(slice?.id || '').trim();
+  if (!sliceId) {
+    return { status: 'missing', slice: null, reviewRelPath: '' };
+  }
+  const reviewRelPath = semanticUxReviewRelPathForSlice(sliceId);
+  const reviewPath = path.join(targetRoot, reviewRelPath);
+  if (!fs.existsSync(reviewPath)) {
+    return { status: 'missing', slice, reviewRelPath };
+  }
+  try {
+    const review = JSON.parse(readText(reviewPath));
+    return {
+      status: String(review?.status || 'unknown').trim().toLowerCase(),
+      slice,
+      reviewRelPath,
+      review,
+    };
+  } catch (_) {
+    return { status: 'invalid', slice, reviewRelPath };
+  }
+}
+
+function semanticUxReviewNextSteps({ cmd, targetRoot }) {
+  const reviewStatus = readSemanticUxReviewStatusForCurrentSlice(targetRoot);
+  if (reviewStatus.status === 'pass') {
+    return [cmd('coder:close-current-slice')];
+  }
+  return [
+    cmd('coder:repair-semantic-ux-findings'),
+    cmd('coder:close-current-slice'),
+  ];
+}
+
 function resolveGateNextSteps({ cmd, targetRoot }) {
   const fallback = [
     cmd('db:check', { includeValues: false }),
@@ -180,8 +234,20 @@ function resolveGateNextSteps({ cmd, targetRoot }) {
       ];
     }
     if (sliceStatus === 'in_progress') {
+      const reviewStatus = readSemanticUxReviewStatusForCurrentSlice(targetRoot);
+      if (reviewStatus.status === 'pass') {
+        return [cmd('coder:close-current-slice')];
+      }
+      if (reviewStatus.status === 'fail') {
+        return [
+          cmd('coder:repair-semantic-ux-findings'),
+          cmd('uiux:review-current-slice-semantics'),
+          cmd('coder:close-current-slice'),
+        ];
+      }
       return [
         cmd('coder:implement-current-slice'),
+        cmd('uiux:review-current-slice-semantics'),
         cmd('coder:close-current-slice'),
       ];
     }
@@ -256,8 +322,17 @@ const NEXT_STEP_BUILDERS = {
     cmd('coder:close-current-slice'),
   ],
   'coder:implement-current-slice': ({ cmd }) => [
+    cmd('uiux:review-current-slice-semantics'),
     cmd('coder:close-current-slice'),
-    cmd('orchestrator:advance-slice'),
+  ],
+  'uiux:review-current-slice-semantics': ({ cmd, targetRoot }) => semanticUxReviewNextSteps({ cmd, targetRoot }),
+  'coder:repair-semantic-ux-findings': ({ cmd }) => [
+    cmd('uiux:review-current-slice-semantics'),
+    cmd('coder:close-current-slice'),
+  ],
+  'coder:repair-implementation-findings': ({ cmd }) => [
+    cmd('uiux:review-current-slice-semantics'),
+    cmd('coder:close-current-slice'),
   ],
   'coder:close-current-slice': ({ cmd }) => [
     cmd('gate'),
@@ -321,6 +396,8 @@ const CANONICAL_STEP_BY_COMMAND = Object.freeze({
   'uiux:generate-current-slice-flow': '15',
   'coder:prepare-current-slice': '17',
   'coder:implement-current-slice': '18',
+  'uiux:review-current-slice-semantics': '19',
+  'coder:repair-semantic-ux-findings': '19b',
   'coder:close-current-slice': '20',
   'orchestrator:advance-slice': '22',
 });
@@ -347,6 +424,8 @@ const CANONICAL_STEP_OVERRIDE_BY_FROM_COMMAND = Object.freeze({
     'uiux:generate-current-slice-flow': '15',
     'coder:prepare-current-slice': '17',
     'coder:implement-current-slice': '18',
+    'uiux:review-current-slice-semantics': '19',
+    'coder:repair-semantic-ux-findings': '19b',
     'coder:close-current-slice': '20',
   }),
 });
@@ -394,7 +473,7 @@ function printNextSteps({ command, targetRoot, valuesPath }) {
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-current-slice-flow|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-current-slice-flow|uiux:review-current-slice-semantics|coder:repair-semantic-ux-findings|coder:repair-implementation-findings|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
@@ -411,6 +490,9 @@ function usage() {
   console.log('  pm:finalize-bootstrap-reviews --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  architect:generate-current-slice-baseline --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  uiux:generate-current-slice-flow --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  uiux:review-current-slice-semantics --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  coder:repair-semantic-ux-findings --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--include-warnings]');
+  console.log('  coder:repair-implementation-findings --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:prepare-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:implement-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
   console.log('  coder:close-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
@@ -614,6 +696,29 @@ async function main() {
   }
   if (command === 'uiux:generate-current-slice-flow') {
     await runWithGuidance(() => uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'uiux:review-current-slice-semantics') {
+    await runWithGuidance(() => uiuxReviewCurrentSliceSemantics({
+      targetRoot,
+      valuesPath,
+      onProgress: (message) => console.log(`  - ${String(message)}`),
+    }));
+    return;
+  }
+  if (command === 'coder:repair-semantic-ux-findings') {
+    await runWithGuidance(() => coderRepairSemanticUxFindings({
+      targetRoot,
+      valuesPath,
+      includeWarnings: Boolean(args['include-warnings']),
+    }));
+    return;
+  }
+  if (command === 'coder:repair-implementation-findings') {
+    await runWithGuidance(() => coderRepairImplementationFindings({
+      targetRoot,
+      valuesPath,
+    }));
     return;
   }
   if (command === 'coder:prepare-current-slice') {

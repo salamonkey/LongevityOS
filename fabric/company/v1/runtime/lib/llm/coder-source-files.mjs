@@ -501,6 +501,7 @@ function buildUserPrompt({
   coderRole,
   baselineMarkdown,
   uxFlowMarkdown,
+  semanticUxContractJson,
   briefMarkdown,
   framingMarkdown,
   existingContext,
@@ -529,6 +530,11 @@ function buildUserPrompt({
     String(uxFlowMarkdown || '').trim(),
     '```',
     '',
+    'Semantic UX contract JSON:',
+    '```json',
+    String(semanticUxContractJson || '').trim(),
+    '```',
+    '',
     'Approved project brief markdown (optional):',
     '```markdown',
     String(briefMarkdown || '').trim(),
@@ -547,6 +553,9 @@ function buildUserPrompt({
     '- Keep code runnable with React + Vite conventions.',
     '- Add or update tests under tests/** that validate the primary slice flow.',
     '- Keep styling and copy concise; prioritize correctness and testability.',
+    '- Satisfy the semantic UX contract; user-visible copy must be meaningful to the end user, not merely structurally present.',
+    '- Never expose internal implementation, workflow, schema, routing, slice, testing, ranking, bucket, or process language in visible UI.',
+    '- Never render undefined, null, NaN, Invalid Date, [object Object], raw enum values, malformed dates, or generic placeholders.',
     '- Never include non-code narrative in file content.',
     '',
     'Suggested file set (adapt if needed but stay in allowed path scope):',
@@ -576,6 +585,7 @@ function collectPromptSourceFiles({
   sourceFiles.push('docs/product/current-slice.yaml');
   sourceFiles.push(`docs/architecture/${normalizedSliceId}-baseline.md`);
   sourceFiles.push(`docs/ux/${normalizedSliceId}-current-slice-flow.md`);
+  sourceFiles.push(`docs/ux/${normalizedSliceId}-semantic-ux-contract.json`);
   if (String(briefMarkdown || '').trim()) {
     sourceFiles.push('docs/product/project-brief.md');
   }
@@ -685,6 +695,7 @@ export async function generateCurrentSliceImplementationSourceFiles({
   fileTargets = [],
   baselineMarkdown = '',
   uxFlowMarkdown = '',
+  semanticUxContractJson = '',
   briefMarkdown = '',
   framingMarkdown = '',
   onProgress,
@@ -739,6 +750,7 @@ export async function generateCurrentSliceImplementationSourceFiles({
     coderRole,
     baselineMarkdown,
     uxFlowMarkdown,
+    semanticUxContractJson,
     briefMarkdown,
     framingMarkdown,
     existingContext,
@@ -786,6 +798,7 @@ export async function generateCurrentSliceImplementationSourceFiles({
         coderRole,
         baselineMarkdown,
         uxFlowMarkdown,
+        semanticUxContractJson,
         briefMarkdown: finalBriefMarkdown,
         framingMarkdown: finalFramingMarkdown,
         existingContext: finalExistingContext,
@@ -820,6 +833,7 @@ export async function generateCurrentSliceImplementationSourceFiles({
         coderRole,
         baselineMarkdown,
         uxFlowMarkdown,
+        semanticUxContractJson,
         briefMarkdown: finalBriefMarkdown,
         framingMarkdown: finalFramingMarkdown,
         existingContext: finalExistingContext,
@@ -843,6 +857,7 @@ export async function generateCurrentSliceImplementationSourceFiles({
         coderRole,
         baselineMarkdown,
         uxFlowMarkdown,
+        semanticUxContractJson,
         briefMarkdown: finalBriefMarkdown,
         framingMarkdown: finalFramingMarkdown,
         existingContext: finalExistingContext,
@@ -857,6 +872,7 @@ export async function generateCurrentSliceImplementationSourceFiles({
     coderRole,
     baselineMarkdown,
     uxFlowMarkdown,
+    semanticUxContractJson,
     briefMarkdown: finalBriefMarkdown,
     framingMarkdown: finalFramingMarkdown,
     existingContext: finalExistingContext,

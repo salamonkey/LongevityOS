@@ -8,6 +8,7 @@ import {
   parseSliceBlockWithLists,
 } from '../lib/core.mjs';
 import { generateCurrentSliceUxPlaybook } from '../lib/llm/uiux-flow.mjs';
+import { writeSemanticUxContract } from './semantic-ux-validation.mjs';
 
 function normalizeSliceScopeLabel(slice) {
   return `${String(slice.id || 'SL-XXX')} ${String(slice.title || 'Current Slice')}`.trim();
@@ -281,6 +282,14 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
     '## Expected results',
     ...expectedResults.map((item) => `- ${item}`),
     '',
+    '## Semantic UX checks',
+    '- All user-visible text speaks to the user, not about the system.',
+    '- No visible copy exposes internal implementation, workflow, schema, routing, slice, test, ranking, bucket, or process language.',
+    '- Labels, explanations, empty states, and status messages are meaningful in the product context.',
+    '- Dates, times, counts, and statuses are valid and human-readable.',
+    '- Unknown or missing data uses a safe fallback.',
+    '- A section existing with bad, generic, or internal copy is marked Fail, not Pass.',
+    '',
     '## Fail conditions',
     ...failConditions.map((item) => `- ${item}`),
     '',
@@ -288,8 +297,38 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
     ...outOfScope.map((item) => `- ${item}`),
     '',
     '## Result',
-    '- Pass / Fail',
-    '- Notes:',
+    'Status: Pending',
+    '',
+    'Use one of:',
+    '- Pending',
+    '- Pass',
+    '- Fail',
+    '',
+    '## Manual QA Findings',
+    '',
+    'Use this section when manual review finds something that should be repaired before closeout.',
+    'If the checklist passes, leave this section as `None.`',
+    '',
+    'None.',
+    '',
+    '### Finding 1',
+    '',
+    'Classification:',
+    '- [ ] A. Bug / implementation defect — existing requirement is clear, implementation is wrong.',
+    '- [ ] B. UX/content quality issue — behavior works, but copy/interaction is not good enough.',
+    '- [ ] C. Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.',
+    '',
+    'Finding:',
+    '-',
+    '',
+    'Expected:',
+    '-',
+    '',
+    'Observed:',
+    '-',
+    '',
+    'Required repair:',
+    '-',
     '',
   ].join('\n');
 }
@@ -309,6 +348,12 @@ function uxFlowRelPathForSlice(sliceId) {
 }
 
 
+function architectureBaselineRelPathForSlice(sliceId) {
+  const normalizedSliceId = String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
+  return `docs/architecture/${normalizedSliceId}-baseline.md`;
+}
+
+
 async function uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
@@ -319,6 +364,12 @@ async function uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }) {
   const slice = parseSliceBlockWithLists(readText(currentSlicePath));
   const outRelPath = uxFlowRelPathForSlice(slice.id);
   const outPath = path.join(targetRoot, outRelPath);
+  const architectureBaselineRelPath = architectureBaselineRelPathForSlice(slice.id);
+  const architectureBaselinePath = path.join(targetRoot, architectureBaselineRelPath);
+  if (!fs.existsSync(architectureBaselinePath)) {
+    throw new Error(`Cannot generate UX flow: missing ${architectureBaselineRelPath}; run architect:generate-current-slice-baseline first`);
+  }
+  const architectureBaselineText = readText(architectureBaselinePath);
   const briefText = fs.existsSync(briefPath) ? readText(briefPath) : '';
   const productFramingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const generatedAt = new Date().toISOString();
@@ -334,6 +385,7 @@ async function uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }) {
       slice,
       briefMarkdown: briefText,
       framingMarkdown: productFramingText,
+      architectureBaselineMarkdown: architectureBaselineText,
       onProgress: (message) => {
         console.log(`  - ${String(message)}`);
       },
@@ -366,10 +418,18 @@ async function uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }) {
     uxFlowText: content,
     implementationNotesText: '',
   });
+  const semanticContract = writeSemanticUxContract({
+    targetRoot,
+    slice,
+    uxFlowText: content,
+    generatedAt,
+  });
   console.log('fabric uiux:generate-current-slice-flow: OK');
   console.log(`- scope: ${normalizeSliceScopeLabel(slice)}`);
+  console.log(`- architecture baseline: ${architectureBaselineRelPath}`);
   console.log(`- wrote: ${outRelPath}`);
   console.log(`- wrote: ${path.relative(targetRoot, checklistPath)}`);
+  console.log(`- wrote: ${semanticContract.relPath}`);
   console.log(`- ux mode: ${uxMode}`);
   console.log('- status: Ready for implementation');
 }

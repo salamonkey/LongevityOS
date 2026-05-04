@@ -1,0 +1,24 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-02T16:04:02.393Z",
+  "completed_utc": "2026-05-02T16:05:07.062Z",
+  "elapsed_ms": 64669,
+  "ok": true,
+  "response": {
+    "status": "fail",
+    "summary": "The implemented detail flow is mostly clear and user-facing, but it fails the semantic UX contract because the required primary heading degrades to a generic system label in the detail-load error state.",
+    "findings": [
+      {
+        "severity": "blocker",
+        "file": "src/features/health-item-detail-and-completion/HealthItemDetailAndCompletionPage.jsx",
+        "slot": "primary_heading",
+        "issue_type": "generic_required_copy",
+        "observed": "When a detail view cannot load and no item-title fallback is available, the screen heading becomes 'Health item details'. This is a generic component-style label, not a task-specific user heading, so the required primary heading slot is not semantically fit.",
+        "required": "0"
+      }
+    ]
+  }
+}

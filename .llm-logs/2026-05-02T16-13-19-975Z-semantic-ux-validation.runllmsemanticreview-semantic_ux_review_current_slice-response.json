@@ -1,0 +1,24 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-02T16:13:19.975Z",
+  "completed_utc": "2026-05-02T16:14:11.262Z",
+  "elapsed_ms": 51287,
+  "ok": true,
+  "response": {
+    "status": "fail",
+    "summary": "The slice is structurally implemented, but it does not fully satisfy the semantic UX contract because some detail-view rationale copy explains app/task mechanics instead of user value. That means not all health item detail views provide a meaningful 'why it matters' explanation.",
+    "findings": [
+      {
+        "severity": "blocker",
+        "file": "src/features/profile/profilePlan.js",
+        "slot": "explanation_or_rationale",
+        "issue_type": "mechanistic_rationale_copy",
+        "observed": "Several generated 'Why it matters' strings are not semantically fit for end users because they explain prioritization/planning mechanics rather than why the health action matters. Examples include 'A quick check helps keep the highest-priority items visible.' and 'A simple lab review keeps next steps easy to prioritize.' These strings appear in item detail views, so the required rationale content fails for some items instead of 100% of items.",
+        "required": "visible"
+      }
+    ]
+  }
+}

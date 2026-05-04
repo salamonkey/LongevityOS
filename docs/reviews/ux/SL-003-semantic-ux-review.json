@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-02T19:32:49.489Z",
+  "slice_id": "SL-003",
+  "slice_title": "Full Health Plan View",
+  "status": "pass",
+  "summary": "LLM semantic review unavailable: fetch failed",
+  "contract": "docs/ux/SL-003-semantic-ux-contract.json",
+  "deterministic_findings_count": 0,
+  "llm_enabled": true,
+  "llm_required": false,
+  "llm_status": "unavailable",
+  "llm_reviewer": "",
+  "findings": []
+}

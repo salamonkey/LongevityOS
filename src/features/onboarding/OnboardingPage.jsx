@@ -5,20 +5,20 @@ export function OnboardingPage({ draft, onDraftChange, onSubmit, onBack }) {
   return (
     <main className="app-shell">
       <section className="panel hero">
-        <p className="eyebrow">Self-only onboarding</p>
+        <p className="eyebrow">Personal onboarding</p>
         <h1>Build your first profile</h1>
         <p className="lede">
-          Enter age and gender. The plan is generated locally from rule-based guidance before the dashboard opens.
+          Enter your age and gender to get a personalized preventive plan you can use right away.
         </p>
         <div className="microcopy">
-          Only age and gender are collected in this slice. No family mode, reminders, or item editing are included.
+          This takes about a minute and helps tailor your recommended next steps.
         </div>
       </section>
 
       <section className="panel">
         <header className="section-header">
           <h2>Profile details</h2>
-          <p>The generated dashboard will appear only after the first profile plan is built.</p>
+          <p>After you continue, you&apos;ll see your first set of recommended health actions.</p>
         </header>
 
         <ProfileForm

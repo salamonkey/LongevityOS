@@ -48,6 +48,7 @@
   "owner_role": "Product Manager",
   "slice_id": "SL-XXX",
   "slice_title": "__DEFAULT_SLICE_TITLE__",
+  "semantic_ux_llm_required": false,
   "defaulted_fields": [
     "slice_title"
   ],

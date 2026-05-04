@@ -69,6 +69,10 @@ function normalizeList(values, fallback = []) {
   return fallback.map((item) => normalizeSentence(item, '')).filter(Boolean);
 }
 
+function normalizeSliceIdForPath(sliceId) {
+  return String(sliceId || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
+}
+
 function normalizePlaybook(raw, slice = {}) {
   const title = String(slice?.title || 'the active slice').trim();
   return {
@@ -108,6 +112,7 @@ export async function generateCurrentSliceUxPlaybook({
   slice = {},
   briefMarkdown = '',
   framingMarkdown = '',
+  architectureBaselineMarkdown = '',
   onProgress,
 }) {
   const uiuxRole = loadRoleContractForModule({
@@ -124,7 +129,7 @@ export async function generateCurrentSliceUxPlaybook({
   const systemPrompt = [
     'You are the UI/UX role in a virtual software company.',
     'Generate a current-slice UX flow playbook for implementation.',
-    'Respect the UI/UX role contract, approved brief, and product-system framing.',
+    'Respect the UI/UX role contract, current architecture baseline, approved brief, and product-system framing.',
     'Return JSON only according to the schema.',
     'Keep scope strictly bounded to the active slice.',
     'Prefer concrete, testable MVP flows over speculative future UX.',
@@ -152,6 +157,11 @@ export async function generateCurrentSliceUxPlaybook({
     String(uiuxRole.roleContract || '').trim(),
     '```',
     '',
+    'Current slice architecture baseline markdown:',
+    '```markdown',
+    String(architectureBaselineMarkdown || '').trim(),
+    '```',
+    '',
     'Product system framing markdown (optional):',
     '```markdown',
     String(framingMarkdown || '').trim(),
@@ -164,6 +174,7 @@ export async function generateCurrentSliceUxPlaybook({
     '',
     'Authoring rules:',
     '- Keep the flow focused on user-visible behavior for the active slice only.',
+    '- Align routes, state ownership, data boundaries, persistence assumptions, and implementation constraints with the current architecture baseline.',
     '- Include one clear primary path and one explicit failure/recovery path.',
     '- Keep interaction/validation rules concrete and testable.',
     '- Acceptance items must map to observable outcomes.',
@@ -180,6 +191,7 @@ export async function generateCurrentSliceUxPlaybook({
     promptSourceFiles: [
       String(uiuxRole.relPath || ''),
       'docs/product/current-slice.yaml',
+      `docs/architecture/${normalizeSliceIdForPath(slice?.id)}-baseline.md`,
       'docs/product/product-system-framing.md',
       'docs/product/project-brief.md',
     ],

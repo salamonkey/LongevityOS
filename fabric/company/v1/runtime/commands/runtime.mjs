@@ -42,6 +42,12 @@ import {
 } from '../lib/core.mjs';
 import { generateCurrentSliceImplementationPlaybook } from '../lib/llm/coder-implementation.mjs';
 import { generateCurrentSliceImplementationSourceFiles } from '../lib/llm/coder-source-files.mjs';
+import {
+  semanticUxContractRelPathForSlice,
+  semanticUxReviewJsonRelPathForSlice,
+  semanticUxReviewMdRelPathForSlice,
+  readSemanticUxReviewStatus,
+} from '../product/semantic-ux-validation.mjs';
 
 function initFactory({ targetRoot, valuesPath, force, initValues, forceValues }) {
   if (initValues) {
@@ -722,8 +728,38 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
     ...outOfScope.map((item) => `- ${item}`),
     '',
     '## Result',
-    '- Pass / Fail',
-    '- Notes:',
+    'Status: Pending',
+    '',
+    'Use one of:',
+    '- Pending',
+    '- Pass',
+    '- Fail',
+    '',
+    '## Manual QA Findings',
+    '',
+    'Use this section when manual review finds something that should be repaired before closeout.',
+    'If the checklist passes, leave this section as `None.`',
+    '',
+    'None.',
+    '',
+    '### Finding 1',
+    '',
+    'Classification:',
+    '- [ ] A. Bug / implementation defect — existing requirement is clear, implementation is wrong.',
+    '- [ ] B. UX/content quality issue — behavior works, but copy/interaction is not good enough.',
+    '- [ ] C. Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.',
+    '',
+    'Finding:',
+    '-',
+    '',
+    'Expected:',
+    '-',
+    '',
+    'Observed:',
+    '-',
+    '',
+    'Required repair:',
+    '-',
     '',
   ].join('\n');
 }
@@ -940,6 +976,10 @@ function coderPrepareCurrentSlice({ targetRoot, valuesPath }) {
   if (!fs.existsSync(uxPath)) {
     throw new Error(`Cannot run coder:prepare-current-slice: missing ${uxRelPath}; run uiux:generate-current-slice-flow first`);
   }
+  const semanticContractRelPath = semanticUxContractRelPathForSlice(currentSlice.id);
+  if (!fs.existsSync(path.join(targetRoot, semanticContractRelPath))) {
+    throw new Error(`Cannot run coder:prepare-current-slice: missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
+  }
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
   assertNoPlaceholdersInArtifact(baselineRelPath, readText(baselinePath));
   const uxFlowText = readText(uxPath);
@@ -1046,6 +1086,43 @@ function requiredImplementationTargets(fileTargets) {
     .filter((target) => target.length > 0 && !target.includes('(if schema change is required)'));
 }
 
+function listFilesRecursively(absDir, relDir, { maxFiles = 200 } = {}) {
+  if (!fs.existsSync(absDir) || !fs.statSync(absDir).isDirectory()) {
+    return [];
+  }
+  const out = [];
+  const stack = [{ abs: absDir, rel: relDir.replace(/\\/g, '/').replace(/\/+$/, '') }];
+  while (stack.length > 0 && out.length < maxFiles) {
+    const current = stack.pop();
+    const entries = fs.readdirSync(current.abs, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries.reverse()) {
+      const childAbs = path.join(current.abs, entry.name);
+      const childRel = path.posix.join(current.rel, entry.name);
+      if (entry.isDirectory()) {
+        if (['node_modules', 'dist', 'build', 'coverage', '.git'].includes(entry.name)) continue;
+        stack.push({ abs: childAbs, rel: childRel });
+      } else if (entry.isFile()) {
+        out.push(childRel);
+        if (out.length >= maxFiles) break;
+      }
+    }
+  }
+  return [...new Set(out)].sort();
+}
+
+function implementationArtifactEvidence(targetRoot, requiredTargets) {
+  return requiredTargets.map((target) => ({
+    target,
+    artifacts: artifactsForTarget(targetRoot, target),
+  }));
+}
+
+function missingImplementationArtifactTargets(targetRoot, requiredTargets) {
+  return implementationArtifactEvidence(targetRoot, requiredTargets)
+    .filter((entry) => entry.artifacts.length === 0)
+    .map((entry) => entry.target);
+}
+
 function artifactsForTarget(targetRoot, targetPattern) {
   const normalized = String(targetPattern).trim();
   if (!normalized) {
@@ -1053,13 +1130,7 @@ function artifactsForTarget(targetRoot, targetPattern) {
   }
   if (normalized.endsWith('/')) {
     const dirPath = path.join(targetRoot, normalized);
-    if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
-      const entries = fs.readdirSync(dirPath);
-      if (entries.length > 0) {
-        return entries.map((name) => path.posix.join(normalized.replace(/\/+$/, ''), name));
-      }
-    }
-    return [];
+    return listFilesRecursively(dirPath, normalized, { maxFiles: 200 });
   }
   if (normalized.includes('*')) {
     const prefix = normalized.split('*')[0];
@@ -1130,23 +1201,92 @@ function checklistPathForSlice(sliceId) {
   return `docs/testing/${normalizedSliceId}-user-checklist.md`;
 }
 
+function sectionBodyByHeading(markdownText, headingPattern) {
+  const lines = String(markdownText || '').replace(/\r\n?/g, '\n').split('\n');
+  const startIndex = lines.findIndex((line) => headingPattern.test(line));
+  if (startIndex < 0) return '';
+  const out = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (/^\s*##\s+/.test(line)) break;
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
 function parseChecklistResultState(checklistText) {
-  const lines = String(checklistText || '').replace(/\r\n?/g, '\n').split('\n');
-  const resultHeaderIndex = lines.findIndex((line) => /^\s*##\s+Result\s*$/i.test(line));
-  if (resultHeaderIndex < 0) {
-    return 'missing_result_section';
+  const hasResultSection = /^\s*##\s+Result\s*$/im.test(String(checklistText || ''));
+  const resultBody = sectionBodyByHeading(checklistText, /^\s*##\s+Result\s*$/i);
+  if (!hasResultSection) return 'missing_result_section';
+  if (!resultBody) return 'unresolved';
+
+  const explicitStatus = resultBody.match(/^\s*Status\s*:\s*(Pass|Fail|Pending)\s*$/im);
+  if (explicitStatus) {
+    const value = explicitStatus[1].toLowerCase();
+    return value === 'pending' ? 'unresolved' : value;
   }
-  const resultBody = lines.slice(resultHeaderIndex + 1).join('\n');
-  if (/^\s*-\s*Pass\s*\/\s*Fail\b/im.test(resultBody)) {
-    return 'unresolved';
-  }
-  if (/^\s*-\s*Fail\b/im.test(resultBody)) {
-    return 'fail';
-  }
-  if (/^\s*-\s*Pass\b/im.test(resultBody)) {
-    return 'pass';
-  }
+  if (/^\s*-\s*Pass\s*\/\s*Fail\b/im.test(resultBody)) return 'unresolved';
+  if (/^\s*-\s*Fail\b/im.test(resultBody)) return 'fail';
+  if (/^\s*-\s*Pass\b/im.test(resultBody)) return 'pass';
   return 'unresolved';
+}
+
+function parseManualQaFindings(checklistText) {
+  const findingsBody = sectionBodyByHeading(checklistText, /^\s*##\s+Manual QA Findings\s*$/i);
+  if (!findingsBody) return [];
+  const normalized = findingsBody.replace(/\r\n?/g, '\n');
+  const headingRegex = /^###\s+Finding\s+\d+.*$/gim;
+  const matches = [...normalized.matchAll(headingRegex)];
+
+  function cleanFieldText(value) {
+    return String(value || '')
+      .split('\n')
+      .map((line) => line.replace(/^\s*-\s?/, '').trimEnd())
+      .join('\n')
+      .replace(/^\s*None\.\s*$/gim, '')
+      .trim();
+  }
+
+  function field(chunk, label) {
+    const lines = String(chunk || '').replace(/\r\n?/g, '\n').split('\n');
+    const startIndex = lines.findIndex((line) => new RegExp(`^\\s*${label}:\\s*$`, 'i').test(line));
+    if (startIndex < 0) return '';
+    const out = [];
+    for (const line of lines.slice(startIndex + 1)) {
+      if (/^\s*(?:Classification|Finding|Expected|Observed|Required repair):\s*$/i.test(line)) break;
+      out.push(line);
+    }
+    return cleanFieldText(out.join('\n'));
+  }
+
+
+  if (matches.length === 0) {
+    const trimmed = cleanFieldText(normalized);
+    return trimmed ? [{ index: 1, classification: 'unspecified', finding: trimmed, expected: '', observed: '', required_repair: '' }] : [];
+  }
+
+  const findings = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const startOffset = matches[i].index + matches[i][0].length;
+    const endOffset = i + 1 < matches.length ? matches[i + 1].index : normalized.length;
+    const chunk = normalized.slice(startOffset, endOffset).trim();
+    const checked = chunk.match(/^- \[x\]\s*([ABC])\./im);
+    const finding = field(chunk, 'Finding');
+    const expected = field(chunk, 'Expected');
+    const observed = field(chunk, 'Observed');
+    const requiredRepair = field(chunk, 'Required repair');
+    const hasContent = [finding, expected, observed, requiredRepair]
+      .some((value) => String(value || '').trim() && String(value || '').trim() !== '-');
+    if (!hasContent) continue;
+    findings.push({
+      index: findings.length + 1,
+      classification: checked ? checked[1] : 'unspecified',
+      finding,
+      expected,
+      observed,
+      required_repair: requiredRepair,
+    });
+  }
+  return findings;
 }
 
 function collectImplementedArtifacts(targetRoot, fileTargets) {
@@ -1312,6 +1452,277 @@ function workOrderRelPathForSlice(sliceId) {
   return `.system/factory/work-orders/${normalizeSliceIdForWorkOrder(sliceId)}-coder-codex.md`;
 }
 
+function semanticUxRepairWorkOrderRelPathForSlice(sliceId) {
+  return `docs/implementation/${normalizeSliceIdForWorkOrder(sliceId)}-semantic-ux-repair-work-order.md`;
+}
+
+function implementationRepairWorkOrderRelPathForSlice(sliceId) {
+  return `docs/implementation/${normalizeSliceIdForWorkOrder(sliceId)}-implementation-repair-work-order.md`;
+}
+
+function parseJsonFile(absPath, label) {
+  try {
+    return JSON.parse(readText(absPath));
+  } catch (error) {
+    throw new Error(`Cannot parse ${label}: ${error?.message ? String(error.message) : String(error)}`);
+  }
+}
+
+function normalizeFindingSeverity(finding = {}) {
+  return String(finding.severity || '').trim().toLowerCase();
+}
+
+function semanticUxFindingsForRepair(review = {}, { includeWarnings = false } = {}) {
+  const findings = Array.isArray(review.findings) ? review.findings : [];
+  return findings.filter((finding) => {
+    const severity = normalizeFindingSeverity(finding);
+    if (severity === 'blocker') return true;
+    return includeWarnings && severity === 'warning';
+  });
+}
+
+function summarizeSemanticUxFindings(findings = []) {
+  return findings.map((finding, index) => ({
+    index: index + 1,
+    issue_type: String(finding.issue_type || finding.type || 'semantic_issue'),
+    severity: String(finding.severity || ''),
+    source: String(finding.source || ''),
+    confidence: String(finding.confidence || ''),
+    visibility: String(finding.visibility || ''),
+    file: String(finding.file || ''),
+    slot: String(finding.slot || ''),
+    observed: String(finding.observed || ''),
+    required: String(finding.required || ''),
+  }));
+}
+
+function semanticRepairAllowedPatterns({ slice, findings = [] }) {
+  const allowed = deriveCodexAllowedPaths(slice);
+  const referencedFiles = summarizeSemanticUxFindings(findings)
+    .map((finding) => finding.file)
+    .filter((relPath) => /^(src|tests)\//.test(String(relPath || '')));
+  return {
+    create: [...allowed.create],
+    modify: [
+      ...allowed.modify,
+      ...referencedFiles,
+      `docs/implementation/${normalizeSliceIdForWorkOrder(slice.id)}-implementation-notes.md`,
+    ],
+    protected: [...allowed.protected],
+  };
+}
+
+function validateSemanticRepairChangedFiles({ changedFiles, slice, findings }) {
+  const allowed = semanticRepairAllowedPatterns({ slice, findings });
+  const allowedPatterns = [...allowed.create, ...allowed.modify];
+  const ignoredGeneratedArtifacts = [];
+  const violations = [];
+
+  for (const relPath of changedFiles) {
+    if (String(relPath).startsWith('.system/factory/work-orders/')) continue;
+    if (String(relPath) === executionLedgerRelPath()) continue;
+    if (String(relPath) === semanticUxRepairWorkOrderRelPathForSlice(slice.id)) continue;
+
+    if (isCodexGeneratedArtifact(relPath)) {
+      ignoredGeneratedArtifacts.push(relPath);
+      continue;
+    }
+
+    if (!pathMatchesAllowed(relPath, allowedPatterns)) {
+      violations.push(relPath);
+    }
+  }
+
+  return { allowed, violations, ignoredGeneratedArtifacts };
+}
+
+function implementationRepairAllowedPatterns({ slice }) {
+  const allowed = deriveCodexAllowedPaths(slice);
+  const normalizedSliceId = normalizeSliceIdForWorkOrder(slice.id);
+  return {
+    create: [...allowed.create],
+    modify: [
+      ...allowed.modify,
+      'tests/**',
+      `docs/testing/${normalizedSliceId}-user-checklist.md`,
+      `docs/implementation/${normalizedSliceId}-implementation-notes.md`,
+      `docs/implementation/${normalizedSliceId}-implementation-repair-work-order.md`,
+      `docs/product/current-slice.yaml`,
+      `docs/ux/${normalizedSliceId}-current-slice-flow.md`,
+      `docs/ux/${normalizedSliceId}-semantic-ux-contract.json`,
+    ],
+    protected: [...allowed.protected],
+  };
+}
+
+function validateImplementationRepairChangedFiles({ changedFiles, slice }) {
+  const allowed = implementationRepairAllowedPatterns({ slice });
+  const allowedPatterns = [...allowed.create, ...allowed.modify];
+  const ignoredGeneratedArtifacts = [];
+  const violations = [];
+
+  for (const relPath of changedFiles) {
+    if (String(relPath).startsWith('.system/factory/work-orders/')) continue;
+    if (String(relPath) === executionLedgerRelPath()) continue;
+    if (String(relPath) === implementationRepairWorkOrderRelPathForSlice(slice.id)) continue;
+
+    if (isCodexGeneratedArtifact(relPath)) {
+      ignoredGeneratedArtifacts.push(relPath);
+      continue;
+    }
+
+    if (!pathMatchesAllowed(relPath, allowedPatterns)) {
+      violations.push(relPath);
+    }
+  }
+
+  return { allowed, violations, ignoredGeneratedArtifacts };
+}
+
+function summarizeManualQaFindings(findings = []) {
+  return findings.map((finding, index) => ({
+    index: Number(finding.index || index + 1),
+    classification: String(finding.classification || 'unspecified'),
+    finding: String(finding.finding || ''),
+    expected: String(finding.expected || ''),
+    observed: String(finding.observed || ''),
+    required_repair: String(finding.required_repair || ''),
+  }));
+}
+
+function classificationGuidance(classification) {
+  const value = String(classification || '').trim().toUpperCase();
+  if (value === 'A') return 'Bug / implementation defect — existing requirement is clear, implementation is wrong. Prefer code/test repair.';
+  if (value === 'B') return 'UX/content quality issue — behavior works, but copy/interaction is not good enough. Prefer UX/content/interaction repair plus test updates where useful.';
+  if (value === 'C') return 'Requirement gap — expectation is valid, but current slice artifacts do not state it clearly. Update the relevant product/UX/checklist artifact first or clearly document the requirement clarification.';
+  return 'Unspecified classification — inspect the finding and choose the smallest safe repair.';
+}
+
+function renderImplementationRepairWorkOrder({ slice, checklistRelPath, uxFlowRelPath, semanticContractRelPath, implementationNotesRelPath, findings }) {
+  const findingSummaries = summarizeManualQaFindings(findings);
+  const lines = [
+    `# Implementation repair work order: ${slice.id} ${slice.title}`,
+    '',
+    'You are acting as the Coder role for a targeted Fabric repair run.',
+    'Repair the current implementation based on manual QA findings from the user checklist.',
+    '',
+    '## Repair scope',
+    '- Do not restart the slice.',
+    '- Do not redesign unrelated areas.',
+    '- Do not change the Fabric runtime.',
+    '- Do not waive findings.',
+    '- Do not mark the checklist Pass yourself.',
+    '- Keep changes limited to the active slice and directly affected integration points.',
+    '',
+    '## Required source documents to read first',
+    '- `docs/product/current-slice.yaml`',
+    `- \`${checklistRelPath}\``,
+    `- \`${implementationNotesRelPath}\``,
+    `- \`${uxFlowRelPath}\``,
+    `- \`${semanticContractRelPath}\``,
+    '- Existing implementation files needed to understand and repair the finding.',
+    '',
+    '## Manual QA findings to repair',
+    '```json',
+    JSON.stringify(findingSummaries, null, 2),
+    '```',
+    '',
+    '## Classification guidance',
+    ...findingSummaries.map((finding) => `- Finding ${finding.index}: ${classificationGuidance(finding.classification)}`),
+    '',
+    '## Repair rules',
+    '- Fix the implementation, not the checklist result.',
+    '- Do not mark the checklist Pass; the human reviewer owns checklist acceptance.',
+    '- Preserve all previously passing acceptance criteria.',
+    '- If tests encode rejected behavior, update them narrowly to match the repaired behavior.',
+    '- If the finding is a requirement gap, update the relevant product/UX/checklist artifact first or clearly document the requirement clarification.',
+    '- Keep user-facing copy meaningful, clear, and free of internal process/factory language.',
+    '',
+    '## Post-repair validation to run',
+    '```bash',
+    'npm test',
+    'npm run build',
+    './fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json',
+    './fabric/company/v1/fabric doctor --target . --values ./fabric.values.json',
+    '```',
+    '',
+    '## Required final response',
+    '- Manual QA findings repaired',
+    '- Files changed',
+    '- Test/build/doctor status',
+    '- Semantic review status after repair',
+    '- Any remaining risks',
+    '',
+  ];
+  return lines.join('\n');
+}
+
+function renderSemanticUxRepairWorkOrder({ slice, reviewJsonRelPath, reviewMdRelPath, semanticContractRelPath, implementationNotesRelPath, findings, includeWarnings }) {
+  const findingSummaries = summarizeSemanticUxFindings(findings);
+  const blockerCount = findingSummaries.filter((finding) => finding.severity === 'blocker').length;
+  const warningCount = findingSummaries.filter((finding) => finding.severity === 'warning').length;
+  const lines = [
+    `# Semantic UX repair work order: ${slice.id} ${slice.title}`,
+    '',
+    'You are acting as the Coder role for a targeted Fabric repair run.',
+    'Repair the current implementation so the active slice passes semantic UX review.',
+    '',
+    '## Repair scope',
+    '- Do not restart the slice.',
+    '- Do not redesign unrelated areas.',
+    '- Do not change the Fabric runtime, semantic reviewer, or review artifacts.',
+    '- Do not waive findings.',
+    '- Do not edit semantic UX review results manually.',
+    '- Do not merely edit tests to pass.',
+    '- Keep changes limited to files named in findings plus slice-local implementation targets, unless a minimal shared integration edit is explicitly necessary.',
+    '',
+    '## Required source documents to read first',
+    '- `docs/product/current-slice.yaml`',
+    `- \`${semanticContractRelPath}\``,
+    `- \`${reviewJsonRelPath}\``,
+    `- \`${reviewMdRelPath}\``,
+    `- \`${implementationNotesRelPath}\``,
+    '- Existing implementation files referenced by the findings.',
+    '',
+    '## Finding selection',
+    `- Included blockers: ${String(blockerCount)}`,
+    `- Included warnings: ${String(warningCount)}`,
+    `- Warning repair mode: ${includeWarnings ? 'included by operator flag' : 'not included unless needed to fix blockers'}`,
+    '',
+    '## Findings to fix',
+    '```json',
+    JSON.stringify(findingSummaries, null, 2),
+    '```',
+    '',
+    '## Repair rules',
+    '- Fix the implementation, not the review file.',
+    '- User-facing copy must be meaningful to the end user.',
+    '- Do not expose internal process, slice, schema, test, route, payload, ranking, bucket, implementation, acceptance-criteria, or factory language in visible UI.',
+    '- Do not mention excluded features as internal limitations.',
+    '- Do not replace real UX issues with generic filler.',
+    '- Do not render malformed dates, raw enum values, undefined, null, NaN, Invalid Date, [object Object], or raw object/stringified data in visible UI.',
+    '- Use safe fallbacks for missing state.',
+    '- Preserve existing intended behavior and tests unless a test clearly encodes the rejected semantic behavior.',
+    '',
+    '## Post-repair validation to run',
+    '```bash',
+    'npm test',
+    'npm run build',
+    './fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json',
+    './fabric/company/v1/fabric doctor --target . --values ./fabric.values.json',
+    '```',
+    '',
+    '## Required final response',
+    '- Findings fixed',
+    '- Files changed',
+    '- Semantic review status after repair',
+    '- Test/build/doctor status',
+    '- Any remaining risks',
+    '',
+  ];
+  return lines.join('\n');
+}
+
 function executionLedgerRelPath() {
   return '.system/factory/execution-ledger.jsonl';
 }
@@ -1378,6 +1789,7 @@ function codexGeneratedArtifactPatterns() {
     '.vite/**',
     '.turbo/**',
     '.next/**',
+    '.llm-logs/**',
     'node_modules/**',
   ];
 }
@@ -1400,7 +1812,7 @@ function deriveCodexAllowedPaths(slice) {
   };
 }
 
-function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, implementationNotesRelPath, valuesPath }) {
+function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, semanticContractRelPath, implementationNotesRelPath, valuesPath }) {
   const allowed = deriveCodexAllowedPaths(slice);
   const sliceContext = {
     id: String(slice?.id || '').trim(),
@@ -1421,6 +1833,7 @@ function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, i
     '- `docs/product/current-slice.yaml`',
     `- \`${baselineRelPath}\``,
     `- \`${uxRelPath}\``,
+    `- \`${semanticContractRelPath}\``,
     `- \`${implementationNotesRelPath}\``,
     '- `docs/product/project-brief.md` if present',
     '- `docs/product/product-system-framing.md` if present',
@@ -1461,8 +1874,16 @@ function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, i
     '- Run `npm run build` if available and reasonably possible.',
     '- End with a concise summary of changed files and validation results.',
     '',
+    '## User-facing semantic UX contract',
+    '- You must satisfy the semantic UX contract before the slice can close.',
+    '- Do not invent generic filler copy for required user-facing content.',
+    '- Do not expose internal implementation, workflow, schema, routing, slice, testing, ranking, bucket, acceptance, or process language in visible UI.',
+    '- Every visible status, explanation, label, empty state, and fallback must be meaningful to the end user.',
+    '- Dates and statuses must be human-readable and safe.',
+    '- Never render undefined, null, NaN, Invalid Date, [object Object], malformed years, raw enum values, or raw object/stringified data.',
+    '',
     '## Important product/UX reminder',
-    'The visible implementation should reflect the product, UX, and architecture documents. Do not leak internal slice/process language into user-facing UI.',
+    'The visible implementation should reflect the product, UX, architecture, and semantic UX contract documents. A section existing with bad copy is not acceptable.',
     '',
     `Values file for reference: \`${path.relative(process.cwd(), valuesPath)}\``,
     '',
@@ -1518,11 +1939,11 @@ function validateCodexChangedFiles({ changedFiles, slice }) {
   return { allowed, violations, ignoredGeneratedArtifacts };
 }
 
-async function runCodexImplementationForCurrentSlice({ targetRoot, valuesPath, values, currentSlice, fileTargets, baselineRelPath, uxRelPath, implementationNotesRelPath, implementationNotesPath }) {
+async function runCodexImplementationForCurrentSlice({ targetRoot, valuesPath, values, currentSlice, fileTargets, baselineRelPath, uxRelPath, semanticContractRelPath, implementationNotesRelPath, implementationNotesPath }) {
   console.log('fabric coder:implement-current-slice: starting Codex-backed implementation...');
   const workOrderRelPath = workOrderRelPathForSlice(currentSlice.id);
   const workOrderPath = path.join(targetRoot, workOrderRelPath);
-  const workOrderText = buildCodexWorkOrder({ slice: currentSlice, fileTargets, baselineRelPath, uxRelPath, implementationNotesRelPath, valuesPath });
+  const workOrderText = buildCodexWorkOrder({ slice: currentSlice, fileTargets, baselineRelPath, uxRelPath, semanticContractRelPath, implementationNotesRelPath, valuesPath });
   writeTextAtomic(workOrderPath, workOrderText);
 
   const allowed = deriveCodexAllowedPaths(currentSlice);
@@ -1603,7 +2024,8 @@ async function runCodexImplementationForCurrentSlice({ targetRoot, valuesPath, v
     nextSteps: [
       'Inspect the git diff created by Codex.',
       'Run npm test and npm run build if Codex did not already run them successfully.',
-      'Run coder:close-current-slice after verifying the slice locally.',
+      'Run uiux:review-current-slice-semantics after verifying the slice locally.',
+      'Run coder:close-current-slice only after semantic UX review passes.',
     ],
     generatedAt,
   });
@@ -1721,6 +2143,10 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
   if (!fs.existsSync(uxPath)) {
     throw new Error(`Cannot run coder:implement-current-slice: missing ${uxRelPath}; run uiux:generate-current-slice-flow first`);
   }
+  const semanticContractRelPath = semanticUxContractRelPathForSlice(currentSlice.id);
+  if (!fs.existsSync(path.join(targetRoot, semanticContractRelPath))) {
+    throw new Error(`Cannot run coder:implement-current-slice: missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
+  }
   const { relPath: implementationNotesRelPath, absPath: implementationNotesPath } = ensureSliceImplementationNotesPath(targetRoot, currentSlice.id);
   if (!fs.existsSync(implementationNotesPath)) {
     throw new Error(`Cannot run coder:implement-current-slice: missing ${implementationNotesRelPath}; run coder:prepare-current-slice first`);
@@ -1728,6 +2154,7 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
   const fileTargets = deriveImplementationTargets(currentSlice);
   const baselineText = readText(baselinePath);
   const uxFlowText = readText(uxPath);
+  const semanticUxContractJson = readText(path.join(targetRoot, semanticContractRelPath));
   const briefText = fs.existsSync(briefPath) ? readText(briefPath) : '';
   const framingText = fs.existsSync(framingPath) ? readText(framingPath) : '';
   const values = loadValuesIfPresent(valuesPath);
@@ -1743,6 +2170,7 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
       fileTargets,
       baselineRelPath,
       uxRelPath,
+      semanticContractRelPath,
       implementationNotesRelPath,
       implementationNotesPath,
     });
@@ -1762,6 +2190,7 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
         fileTargets,
         baselineMarkdown: baselineText,
         uxFlowMarkdown: uxFlowText,
+        semanticUxContractJson,
         briefMarkdown: briefText,
         framingMarkdown: framingText,
         onProgress: (message) => {
@@ -1781,6 +2210,7 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
         slice: currentSlice,
         baselineMarkdown: baselineText,
         uxFlowMarkdown: uxFlowText,
+        semanticUxContractJson,
         briefMarkdown: briefText,
         framingMarkdown: framingText,
         onProgress: (message) => {
@@ -1848,7 +2278,8 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
     nextSteps: [
       'Run npm install to sync dependencies if package.json changed.',
       'Run npm run dev to open the customer-testable surface.',
-      'Run coder:close-current-slice after verifying the slice locally.',
+      'Run uiux:review-current-slice-semantics after verifying the slice locally.',
+      'Run coder:close-current-slice only after semantic UX review passes.',
     ],
     generatedAt,
   });
@@ -1861,6 +2292,351 @@ async function coderImplementCurrentSliceUnlocked({ targetRoot, valuesPath, forc
   console.log(`- implementation mode: ${implementationMode}`);
   console.log(`- llm output mode: ${llmOutputMode}`);
   console.log('- package scripts: dev, build, preview, test');
+}
+
+async function coderRepairImplementationFindings({ targetRoot, valuesPath }) {
+  const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
+  if (!fs.existsSync(currentSlicePath)) {
+    throw new Error('Cannot run coder:repair-implementation-findings: missing docs/product/current-slice.yaml');
+  }
+  const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+  if (!String(currentSlice.id || '').trim()) {
+    throw new Error('Cannot run coder:repair-implementation-findings: active slice has no id');
+  }
+
+  const checklistRelPath = checklistPathForSlice(currentSlice.id);
+  const checklistPath = path.join(targetRoot, checklistRelPath);
+  const { relPath: uxFlowRelPath, absPath: uxFlowPath } = ensureSliceUxFlowPath(targetRoot, currentSlice.id);
+  const semanticContractRelPath = semanticUxContractRelPathForSlice(currentSlice.id);
+  const semanticContractPath = path.join(targetRoot, semanticContractRelPath);
+  const implementationNotesRelPath = implementationNotesRelPathForSlice(currentSlice.id);
+  const implementationNotesPath = path.join(targetRoot, implementationNotesRelPath);
+
+  if (!fs.existsSync(checklistPath)) {
+    throw new Error(`Cannot run coder:repair-implementation-findings: missing ${checklistRelPath}; run uiux:generate-current-slice-flow first`);
+  }
+  if (!fs.existsSync(uxFlowPath)) {
+    throw new Error(`Cannot run coder:repair-implementation-findings: missing ${uxFlowRelPath}; run uiux:generate-current-slice-flow first`);
+  }
+  if (!fs.existsSync(semanticContractPath)) {
+    throw new Error(`Cannot run coder:repair-implementation-findings: missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
+  }
+  if (!fs.existsSync(implementationNotesPath)) {
+    throw new Error(`Cannot run coder:repair-implementation-findings: missing ${implementationNotesRelPath}; run coder:prepare-current-slice first`);
+  }
+
+  const checklistText = readText(checklistPath);
+  const checklistState = parseChecklistResultState(checklistText);
+  if (checklistState === 'pass') {
+    throw new Error(`Cannot run coder:repair-implementation-findings: ${checklistRelPath} is Pass; no manual implementation repair is required`);
+  }
+  if (checklistState === 'unresolved' || checklistState === 'missing_result_section') {
+    throw new Error(`Cannot run coder:repair-implementation-findings: ${checklistRelPath} result is unresolved; mark Status: Fail and document Manual QA Findings first`);
+  }
+  if (checklistState !== 'fail') {
+    throw new Error(`Cannot run coder:repair-implementation-findings: unsupported checklist result state ${checklistState}`);
+  }
+
+  const findings = parseManualQaFindings(checklistText);
+  if (findings.length === 0) {
+    throw new Error(`Cannot run coder:repair-implementation-findings: ${checklistRelPath} is Fail but has no Manual QA Findings to repair`);
+  }
+
+  const values = loadValuesIfPresent(valuesPath);
+  const workOrderRelPath = implementationRepairWorkOrderRelPathForSlice(currentSlice.id);
+  const workOrderPath = path.join(targetRoot, workOrderRelPath);
+  const workOrderText = renderImplementationRepairWorkOrder({
+    slice: currentSlice,
+    checklistRelPath,
+    uxFlowRelPath,
+    semanticContractRelPath,
+    implementationNotesRelPath,
+    findings,
+  });
+  writeTextAtomic(workOrderPath, workOrderText);
+
+  const allowed = implementationRepairAllowedPatterns({ slice: currentSlice });
+  console.log('fabric coder:repair-implementation-findings: starting Codex-backed implementation repair...');
+  console.log(`- slice: ${currentSlice.id} ${currentSlice.title}`);
+  console.log(`- checklist: ${checklistRelPath}`);
+  console.log(`- work order: ${workOrderRelPath}`);
+  console.log(`- selected manual QA findings: ${String(findings.length)}`);
+  console.log(`- allowed create paths: ${allowed.create.join(', ')}`);
+  console.log(`- allowed modify paths: ${allowed.modify.join(', ')}`);
+
+  const beforeStatus = gitStatusMap(targetRoot);
+  if (beforeStatus && beforeStatus.size > 0) {
+    console.warn(`- warning: git worktree already has ${beforeStatus.size} changed file(s); diff attribution may be conservative.`);
+  }
+
+  const startedAt = new Date().toISOString();
+  appendExecutionLedgerEntry(targetRoot, {
+    type: 'implementation_repair',
+    command: 'coder:repair-implementation-findings',
+    backend: 'codex_exec',
+    slice_id: currentSlice.id,
+    started_at: startedAt,
+    status: 'started',
+    checklist: checklistRelPath,
+    work_order: workOrderRelPath,
+    selected_findings: summarizeManualQaFindings(findings),
+  });
+
+  const codexResult = runCodexExec({
+    targetRoot,
+    values,
+    workOrderText,
+    onProgress: (message) => console.log(`- ${String(message)}`),
+  });
+  if (codexResult.stdout.trim()) console.log(codexResult.stdout.trim());
+  if (codexResult.stderr.trim()) console.warn(codexResult.stderr.trim());
+
+  const afterStatus = gitStatusMap(targetRoot);
+  const changedFiles = changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot });
+  const validation = validateImplementationRepairChangedFiles({ changedFiles, slice: currentSlice });
+  const completedAt = new Date().toISOString();
+
+  appendExecutionLedgerEntry(targetRoot, {
+    type: 'implementation_repair',
+    command: 'coder:repair-implementation-findings',
+    backend: 'codex_exec',
+    slice_id: currentSlice.id,
+    started_at: startedAt,
+    completed_at: completedAt,
+    status: codexResult.status === 0 && validation.violations.length === 0 ? 'completed' : 'failed',
+    checklist: checklistRelPath,
+    work_order: workOrderRelPath,
+    codex_command: codexResult.command,
+    codex_args: codexResult.argsPreview,
+    exit_status: codexResult.status,
+    exit_signal: codexResult.signal,
+    changed_files: changedFiles,
+    ignored_generated_artifacts: validation.ignoredGeneratedArtifacts,
+    path_policy_violations: validation.violations,
+  });
+
+  if (codexResult.error) throw new Error(`Codex implementation repair failed: ${codexResult.error}`);
+  if (codexResult.status !== 0) throw new Error(`Codex implementation repair failed with exit status ${codexResult.status}. See output above and ${workOrderRelPath}.`);
+  if (validation.violations.length > 0) {
+    throw new Error('Codex implementation repair changed files outside the allowed repair policy:\n' + validation.violations.map((relPath) => `- ${relPath}`).join('\n') + `\nReview the diff manually. Work order: ${workOrderRelPath}`);
+  }
+
+  const fileTargets = deriveImplementationTargets(currentSlice);
+  const fabricManifest = loadManifest();
+  const implHeader = metadataHeader(implementationNotesRelPath, 'templates/implementation-notes-template.md', fabricManifest.fabric_version, completedAt);
+  const notesBody = renderImplementationNotes({
+    slice: currentSlice,
+    statusLabel: 'Manual QA Implementation Repair Applied',
+    fileTargets,
+    changedFiles: [
+      ...new Set([
+        ...changedFiles.filter((relPath) => !isCodexGeneratedArtifact(relPath)),
+        workOrderRelPath,
+        executionLedgerRelPath(),
+      ]),
+    ].sort(),
+    verificationSummary: [
+      `Generated an implementation repair work order from ${checklistRelPath}.`,
+      `Selected ${String(findings.length)} manual QA finding(s) for repair.`,
+      validation.violations.length === 0 ? 'Changed files passed the implementation repair allowed-path policy.' : 'Changed files require manual review because they exceeded the implementation repair allowed-path policy.',
+    ],
+    executionNotes: [
+      'This command used Codex as the repair worker and Fabric as the orchestrator/validator.',
+      `Work order: ${workOrderRelPath}`,
+      `Checklist source: ${checklistRelPath}`,
+      `Codex exit status: ${String(codexResult.status)}`,
+      'The human reviewer remains responsible for re-running the manual checklist and marking it Pass only after acceptance.',
+    ],
+    nextSteps: [
+      'Inspect the git diff created by Codex.',
+      'Run npm test and npm run build if Codex did not already run them successfully.',
+      'Re-run uiux:review-current-slice-semantics and confirm status is pass.',
+      'Re-run the manual checklist; mark it Pass only when satisfied.',
+      'Run coder:close-current-slice only after semantic UX review passes and the checklist is Pass.',
+    ],
+    generatedAt: completedAt,
+  });
+  writeTextAtomic(implementationNotesPath, `${implHeader}${notesBody}`);
+
+  console.log('fabric coder:repair-implementation-findings: OK');
+  console.log(`- repaired slice: ${currentSlice.id} ${currentSlice.title}`);
+  console.log(`- changed files: ${String([...new Set(changedFiles)].length)}`);
+  console.log(`- updated: ${implementationNotesRelPath}`);
+  console.log('- next: rerun validation, semantic review, and manual checklist');
+}
+
+async function coderRepairSemanticUxFindings({ targetRoot, valuesPath, includeWarnings = false }) {
+  const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
+  if (!fs.existsSync(currentSlicePath)) {
+    throw new Error('Cannot run coder:repair-semantic-ux-findings: missing docs/product/current-slice.yaml');
+  }
+  const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+  if (!String(currentSlice.id || '').trim()) {
+    throw new Error('Cannot run coder:repair-semantic-ux-findings: active slice has no id');
+  }
+
+  const reviewJsonRelPath = semanticUxReviewJsonRelPathForSlice(currentSlice.id);
+  const reviewMdRelPath = semanticUxReviewMdRelPathForSlice(currentSlice.id);
+  const semanticContractRelPath = semanticUxContractRelPathForSlice(currentSlice.id);
+  const implementationNotesRelPath = implementationNotesRelPathForSlice(currentSlice.id);
+  const reviewJsonPath = path.join(targetRoot, reviewJsonRelPath);
+  const reviewMdPath = path.join(targetRoot, reviewMdRelPath);
+  const semanticContractPath = path.join(targetRoot, semanticContractRelPath);
+  const implementationNotesPath = path.join(targetRoot, implementationNotesRelPath);
+
+  if (!fs.existsSync(reviewJsonPath)) {
+    throw new Error(`Cannot run coder:repair-semantic-ux-findings: missing ${reviewJsonRelPath}; run uiux:review-current-slice-semantics first`);
+  }
+  if (!fs.existsSync(reviewMdPath)) {
+    throw new Error(`Cannot run coder:repair-semantic-ux-findings: missing ${reviewMdRelPath}; run uiux:review-current-slice-semantics first`);
+  }
+  if (!fs.existsSync(semanticContractPath)) {
+    throw new Error(`Cannot run coder:repair-semantic-ux-findings: missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
+  }
+  if (!fs.existsSync(implementationNotesPath)) {
+    throw new Error(`Cannot run coder:repair-semantic-ux-findings: missing ${implementationNotesRelPath}; run coder:prepare-current-slice first`);
+  }
+
+  const review = parseJsonFile(reviewJsonPath, reviewJsonRelPath);
+  if (String(review.status || '').toLowerCase() === 'pass') {
+    throw new Error(`Cannot run coder:repair-semantic-ux-findings: ${reviewJsonRelPath} already passes; no semantic repair is required`);
+  }
+
+  const allFindings = Array.isArray(review.findings) ? review.findings : [];
+  const blockerFindings = allFindings.filter((finding) => normalizeFindingSeverity(finding) === 'blocker');
+  const warningFindings = allFindings.filter((finding) => normalizeFindingSeverity(finding) === 'warning');
+  const findings = semanticUxFindingsForRepair(review, { includeWarnings });
+  if (findings.length === 0) {
+    if (!includeWarnings && warningFindings.length > 0) {
+      throw new Error('Cannot run coder:repair-semantic-ux-findings: review has no blockers; rerun with --include-warnings to repair warnings');
+    }
+    throw new Error('Cannot run coder:repair-semantic-ux-findings: review has no blocker or selected warning findings to repair');
+  }
+
+  const values = loadValuesIfPresent(valuesPath);
+  const workOrderRelPath = semanticUxRepairWorkOrderRelPathForSlice(currentSlice.id);
+  const workOrderPath = path.join(targetRoot, workOrderRelPath);
+  const workOrderText = renderSemanticUxRepairWorkOrder({
+    slice: currentSlice,
+    reviewJsonRelPath,
+    reviewMdRelPath,
+    semanticContractRelPath,
+    implementationNotesRelPath,
+    findings,
+    includeWarnings,
+  });
+  writeTextAtomic(workOrderPath, workOrderText);
+
+  const allowed = semanticRepairAllowedPatterns({ slice: currentSlice, findings });
+  console.log('fabric coder:repair-semantic-ux-findings: starting Codex-backed semantic UX repair...');
+  console.log(`- slice: ${currentSlice.id} ${currentSlice.title}`);
+  console.log(`- work order: ${workOrderRelPath}`);
+  console.log(`- selected findings: ${String(findings.length)} (${String(blockerFindings.length)} blocker(s), ${includeWarnings ? String(warningFindings.length) : '0'} warning(s) included)`);
+  console.log(`- allowed create paths: ${allowed.create.join(', ')}`);
+  console.log(`- allowed modify paths: ${allowed.modify.join(', ')}`);
+
+  const beforeStatus = gitStatusMap(targetRoot);
+  if (beforeStatus && beforeStatus.size > 0) {
+    console.warn(`- warning: git worktree already has ${beforeStatus.size} changed file(s); diff attribution may be conservative.`);
+  }
+
+  const startedAt = new Date().toISOString();
+  appendExecutionLedgerEntry(targetRoot, {
+    type: 'semantic_ux_repair',
+    command: 'coder:repair-semantic-ux-findings',
+    backend: 'codex_exec',
+    slice_id: currentSlice.id,
+    started_at: startedAt,
+    status: 'started',
+    work_order: workOrderRelPath,
+    review_json: reviewJsonRelPath,
+    review_md: reviewMdRelPath,
+    selected_findings: summarizeSemanticUxFindings(findings),
+    include_warnings: Boolean(includeWarnings),
+  });
+
+  const codexResult = runCodexExec({
+    targetRoot,
+    values,
+    workOrderText,
+    onProgress: (message) => console.log(`- ${String(message)}`),
+  });
+  if (codexResult.stdout.trim()) console.log(codexResult.stdout.trim());
+  if (codexResult.stderr.trim()) console.warn(codexResult.stderr.trim());
+
+  const afterStatus = gitStatusMap(targetRoot);
+  const changedFiles = changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot });
+  const validation = validateSemanticRepairChangedFiles({ changedFiles, slice: currentSlice, findings });
+  const completedAt = new Date().toISOString();
+
+  appendExecutionLedgerEntry(targetRoot, {
+    type: 'semantic_ux_repair',
+    command: 'coder:repair-semantic-ux-findings',
+    backend: 'codex_exec',
+    slice_id: currentSlice.id,
+    started_at: startedAt,
+    completed_at: completedAt,
+    status: codexResult.status === 0 && validation.violations.length === 0 ? 'completed' : 'failed',
+    work_order: workOrderRelPath,
+    review_json: reviewJsonRelPath,
+    review_md: reviewMdRelPath,
+    codex_command: codexResult.command,
+    codex_args: codexResult.argsPreview,
+    exit_status: codexResult.status,
+    exit_signal: codexResult.signal,
+    changed_files: changedFiles,
+    ignored_generated_artifacts: validation.ignoredGeneratedArtifacts,
+    path_policy_violations: validation.violations,
+    include_warnings: Boolean(includeWarnings),
+  });
+
+  if (codexResult.error) throw new Error(`Codex semantic UX repair failed: ${codexResult.error}`);
+  if (codexResult.status !== 0) throw new Error(`Codex semantic UX repair failed with exit status ${codexResult.status}. See output above and ${workOrderRelPath}.`);
+  if (validation.violations.length > 0) {
+    throw new Error('Codex semantic UX repair changed files outside the allowed repair policy:\n' + validation.violations.map((relPath) => `- ${relPath}`).join('\n') + `\nReview the diff manually. Work order: ${workOrderRelPath}`);
+  }
+
+  const fileTargets = deriveImplementationTargets(currentSlice);
+  const fabricManifest = loadManifest();
+  const implHeader = metadataHeader(implementationNotesRelPath, 'templates/implementation-notes-template.md', fabricManifest.fabric_version, completedAt);
+  const notesBody = renderImplementationNotes({
+    slice: currentSlice,
+    statusLabel: 'Semantic UX Repair Applied',
+    fileTargets,
+    changedFiles: [
+      ...new Set([
+        ...changedFiles.filter((relPath) => !isCodexGeneratedArtifact(relPath)),
+        workOrderRelPath,
+        executionLedgerRelPath(),
+      ]),
+    ].sort(),
+    verificationSummary: [
+      `Generated a semantic UX repair work order from ${reviewJsonRelPath}.`,
+      `Selected ${String(findings.length)} semantic finding(s) for repair.`,
+      validation.violations.length === 0 ? 'Changed files passed the semantic repair allowed-path policy.' : 'Changed files require manual review because they exceeded the semantic repair allowed-path policy.',
+    ],
+    executionNotes: [
+      'This command used Codex as the repair worker and Fabric as the orchestrator/validator.',
+      `Work order: ${workOrderRelPath}`,
+      `Review source: ${reviewMdRelPath}`,
+      `Codex exit status: ${String(codexResult.status)}`,
+      includeWarnings ? 'Warnings were included in the repair selection.' : 'Only blocker findings were selected for repair.',
+    ],
+    nextSteps: [
+      'Inspect the git diff created by Codex.',
+      'Run npm test and npm run build if Codex did not already run them successfully.',
+      'Re-run uiux:review-current-slice-semantics and confirm status is pass.',
+      'Complete the user checklist and run coder:close-current-slice only after semantic UX review passes.',
+    ],
+    generatedAt: completedAt,
+  });
+  writeTextAtomic(implementationNotesPath, `${implHeader}${notesBody}`);
+
+  console.log('fabric coder:repair-semantic-ux-findings: OK');
+  console.log(`- repaired slice: ${currentSlice.id} ${currentSlice.title}`);
+  console.log(`- changed files: ${String([...new Set(changedFiles)].length)}`);
+  console.log(`- updated: ${implementationNotesRelPath}`);
+  console.log('- next: run uiux:review-current-slice-semantics again');
 }
 
 async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = false }) {
@@ -1892,10 +2668,11 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
     issues.push(`missing ${implementationNotesRelPath}; run coder:prepare-current-slice first`);
   }
   let implementationNotesText = '';
+  let implementationNotesNeedArtifactReconciliation = false;
   if (fs.existsSync(implementationNotesPath)) {
     implementationNotesText = readText(implementationNotesPath);
     if (!implementationNotesContainsChangedFiles(implementationNotesText)) {
-      issues.push('implementation notes do not record changed files; run coder:implement-current-slice first');
+      implementationNotesNeedArtifactReconciliation = true;
     }
   }
   if (!fs.existsSync(checklistAbsPath)) {
@@ -1913,9 +2690,25 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
       issues.push(`${checklistRelPath} is marked Fail; resolve checklist failures before closeout`);
     }
   }
+  const semanticContractRelPath = semanticUxContractRelPathForSlice(currentSlice.id);
+  const semanticContractAbsPath = path.join(targetRoot, semanticContractRelPath);
+  if (!fs.existsSync(semanticContractAbsPath)) {
+    issues.push(`missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
+  }
+  const semanticReviewRelPath = semanticUxReviewJsonRelPathForSlice(currentSlice.id);
+  const semanticReview = readSemanticUxReviewStatus({ targetRoot, sliceId: currentSlice.id });
+  if (!semanticReview.exists) {
+    issues.push(`missing ${semanticReviewRelPath}; run uiux:review-current-slice-semantics before closeout`);
+  } else if (semanticReview.status !== 'pass') {
+    issues.push(`${semanticReviewRelPath} status is ${semanticReview.status}; resolve semantic UX findings before closeout`);
+  } else if (semanticReview.blockerCount > 0) {
+    issues.push(`${semanticReviewRelPath} still has blocker findings; resolve semantic UX findings before closeout`);
+  }
+
   for (const [rel, p] of [
     [baselineRelPath, baselinePath],
     [uxRelPath, uxPath],
+    [semanticContractRelPath, semanticContractAbsPath],
     [implementationNotesRelPath, implementationNotesPath],
   ]) {
     if (!fs.existsSync(p)) {
@@ -1929,11 +2722,14 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   }
   const fileTargets = deriveImplementationTargets(currentSlice);
   const requiredTargets = requiredImplementationTargets(fileTargets);
-  const missingTargets = requiredTargets.filter((target) => artifactsForTarget(targetRoot, target).length === 0);
+  const artifactEvidence = implementationArtifactEvidence(targetRoot, requiredTargets);
+  const missingTargets = artifactEvidence
+    .filter((entry) => entry.artifacts.length === 0)
+    .map((entry) => entry.target);
   if (missingTargets.length > 0) {
     issues.push(`missing implementation artifacts for required targets: ${missingTargets.join(', ')}`);
   }
-  const implementedArtifacts = collectImplementedArtifacts(targetRoot, fileTargets);
+  const implementedArtifacts = [...new Set(artifactEvidence.flatMap((entry) => entry.artifacts))].sort();
   if (implementedArtifacts.length === 0) {
     issues.push('no implementation artifacts found in src/tests for current slice; run coder:implement-current-slice first');
   }
@@ -1943,7 +2739,7 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
       requiredTargets.some((target) => targetPatternMatchesPath(target, relPath))
     );
     if (!hasTargetAlignedChange) {
-      issues.push('implementation notes changed files do not include any required target paths for this slice');
+      implementationNotesNeedArtifactReconciliation = true;
     }
   }
   const packageJsonPath = path.join(targetRoot, 'package.json');
@@ -1975,11 +2771,15 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
     changedFiles: implementedArtifacts,
     verificationSummary: [
       `Implementation artifacts recorded for closeout: ${implementedArtifacts.length}.`,
-      'Architecture baseline, UX flow, and implementation notes are all placeholder-free.',
+      missingTargets.length === 0 ? 'Required implementation artifacts exist on disk for every required target path.' : 'Required implementation artifacts are missing; closeout should not have proceeded.',
+      implementationNotesNeedArtifactReconciliation ? 'Implementation notes artifact evidence was reconciled from the filesystem during closeout.' : 'Implementation notes artifact evidence already aligned with required target paths or was refreshed during closeout.',
+      'Architecture baseline, UX flow, semantic UX contract, and implementation notes are all placeholder-free.',
+      `Semantic UX review passed: ${semanticReviewRelPath}.`,
       'package.json includes a local dev command so the slice can be customer-tested.',
     ],
     executionNotes: [
-      'Closeout now requires concrete implementation artifacts rather than documentation alone.',
+      'Closeout validates concrete implementation artifacts on disk before relying on implementation-note evidence.',
+      implementationNotesNeedArtifactReconciliation ? 'Closeout auto-reconciled stale implementation-note changed-file evidence from the filesystem.' : 'Closeout refreshed implementation notes with the verified implementation artifact list.',
       'Run fabric gate after closeout to verify overall coherence.',
     ],
     nextSteps: [
@@ -2001,6 +2801,9 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   console.log('fabric coder:close-current-slice: OK');
   console.log(`- closed slice: ${completedSlice.id} ${completedSlice.title}`);
   console.log(`- updated: ${implementationNotesRelPath}`);
+  if (implementationNotesNeedArtifactReconciliation) {
+    console.log('- reconciled implementation artifact evidence from filesystem');
+  }
   console.log('- current slice status: completed');
 }
 
@@ -2055,6 +2858,8 @@ export {
   dbReset,
   coderPrepareCurrentSlice,
   coderImplementCurrentSlice,
+  coderRepairSemanticUxFindings,
+  coderRepairImplementationFindings,
   coderCloseCurrentSlice,
   orchestratorAdvanceSlice,
 };

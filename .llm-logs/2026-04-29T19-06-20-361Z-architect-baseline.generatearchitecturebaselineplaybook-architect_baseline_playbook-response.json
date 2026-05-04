@@ -1,0 +1,51 @@
+{
+  "task": "architect_baseline_playbook",
+  "caller": "architect-baseline.generateArchitectureBaselinePlaybook",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-04-29T19:06:20.361Z",
+  "completed_utc": "2026-04-29T19:07:20.932Z",
+  "elapsed_ms": 60571,
+  "ok": true,
+  "response": {
+    "context": "Architecture baseline for slice SL-002 Health Item Detail and Completion. Scope is limited to opening any existing dashboard health item in a detail view, showing required item context with the unified status model, marking eligible items Done, and reflecting the resulting state on the dashboard and displayed health score for the active profile. This slice builds on the existing onboarding-to-dashboard flow and must reuse its profile and dashboard data foundation rather than introducing a parallel model.",
+    "decisions": [
+      "Use a single HealthItem record as the source of truth for both dashboard and detail surfaces; the detail route must load by activeProfileId plus healthItemId from the same repository or store already used to populate dashboard items.",
+      "For this slice, the HealthItem fields required at the domain boundary are: id, profileId, actionLabel, whyItMatters, recommendationFrequency, priorityHorizon, status, nextDueDate nullable, plannedForDate nullable, lastCompletedAt nullable, and updatedAt.",
+      "Define HealthItemStatus as a closed enum with exactly three values: Due, Planned, and Done. Dashboard and detail must import the same status type and labels so status terminology cannot drift between surfaces.",
+      "Define status context as a derived view concern from the HealthItem record: Due is derived from nextDueDate when present, Planned is derived from plannedForDate, and Done is derived from lastCompletedAt. No separate status-context persistence model is introduced for this slice.",
+      "Introduce one application use case for completion, markHealthItemDone(activeProfileId, healthItemId), owned by the SL-002 feature module. It is the only write path added in this slice for health items.",
+      "markHealthItemDone is allowed only when the current item status is Due or Planned. On success it must set status to Done, set lastCompletedAt to the completion timestamp, clear plannedForDate, persist the updated item, and update updatedAt.",
+      "Done items remain addressable by direct detail route lookup but are excluded from dashboard priority grouping. Dashboard placement must be derived from item status and horizon at read time so a completed item cannot appear in Today, Soon, or Later after completion and cannot be duplicated across groups by stale data."
+    ],
+    "guardrails": [
+      "Do not introduce a separate detail-only copy of health item state; dashboard and detail must read from the same underlying item data.",
+      "Do not add new status labels, aliases, or transitional states beyond Due, Planned, and Done.",
+      "Do not add reminder scheduling, rescheduling, undo-completion, full plan list navigation, family switching behavior, or vaccination logic in this slice.",
+      "Do not create recurring follow-up items or advance recommendation schedules on completion; frequency remains informational only in SL-002.",
+      "Do not embed health score calculation logic in the detail route or component; always call the existing shared progress or score calculator owned outside the detail UI.",
+      "Do not allow cross-profile item access; every item read and write must be scoped to the active profile context.",
+      "Do not rely on client-only optimistic state as the final source of truth; completion must persist and survive reload for the same test account."
+    ],
+    "verification": [
+      "Automated route coverage confirms that every health item rendered on the dashboard resolves to a detail view for the same item id under the active profile.",
+      "Detail-view tests confirm 100% of rendered item details include actionLabel, whyItMatters, recommendationFrequency, unified status label, and derived status context.",
+      "Application-level tests verify markHealthItemDone succeeds for items starting in Due and Planned states and rejects writes for items already in Done state.",
+      "Persistence tests verify that after marking an eligible item Done, reopening the same item and reloading the page in the same test account still shows status Done with lastCompletedAt-based status context.",
+      "Dashboard refresh tests verify a completed item is removed from active priority groups and is not shown in more than one group after completion.",
+      "Shared-score integration tests verify the displayed health score changes immediately after a successful completion and matches the value returned by the existing score calculator.",
+      "Regression coverage confirms the onboarding-to-generated-dashboard flow from slice 1 still works after SL-002 changes."
+    ],
+    "constraints": [
+      "Stay within SL-002 scope only: item detail read, unified status display, completion from detail, dashboard refresh, and score refresh.",
+      "Reuse the onboarding-generated dashboard item dataset and existing profile context; do not introduce a second plan-generation path or a separate dashboard data model.",
+      "Persist only the minimum completion data needed for this slice: status, lastCompletedAt, cleared plannedForDate, and updatedAt on the existing health item record.",
+      "Keep health guidance rule-based and informational; this slice must not imply medical record behavior, provider integration, external API use, or AI-derived recommendations.",
+      "Implementation must remain modular and slice-local, with SL-002 logic placed under src/features/health-item-detail-and-completion/, route wiring under src/routes/health-item-detail-and-completion*, and slice tests under tests/health-item-detail-and-completion/.",
+      "Health score behavior in this slice is integration-only: reuse the existing score derivation and do not redefine the formula as part of SL-002."
+    ],
+    "open_questions": [
+      "None."
+    ]
+  }
+}
