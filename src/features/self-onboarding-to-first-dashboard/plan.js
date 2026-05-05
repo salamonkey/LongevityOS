@@ -50,7 +50,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       dashboardBucket: matchedBand.dashboardBucket,
       targetAge: matchedBand.targetAge,
       priorityOrder: matchedBand.priorityOrder,
-      status: matchedBand.dashboardBucket === 'today' ? 'due' : 'planned',
+      status: matchedBand.dashboardBucket === 'today' ? 'due' : 'pending',
     });
   }
 

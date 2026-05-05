@@ -19,7 +19,7 @@ const SAMPLE_ITEMS = [
     dashboardBucket: 'soon',
     targetAge: 40,
     priorityOrder: 2,
-    status: 'planned',
+    status: 'pending',
   },
   {
     catalogItemId: 'b',
@@ -41,7 +41,7 @@ const SAMPLE_ITEMS = [
     dashboardBucket: 'later',
     targetAge: 50,
     priorityOrder: 1,
-    status: 'planned',
+    status: 'pending',
   },
 ];
 
@@ -64,7 +64,7 @@ test('highlight rule prefers today item, then soon, then later', () => {
   assert.equal(fallbackHighlighted.name, 'Item A');
 });
 
-test('health score uses bucket weights and due/planned status', () => {
+test('health score uses bucket weights and due/pending status', () => {
   const score = calculateHealthScore(SAMPLE_ITEMS);
   assert.equal(score, 50);
 });

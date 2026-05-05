@@ -1,0 +1,51 @@
+{
+  "task": "architect_baseline_playbook",
+  "caller": "architect-baseline.generateArchitectureBaselinePlaybook",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T11:42:08.863Z",
+  "completed_utc": "2026-05-05T11:43:21.837Z",
+  "elapsed_ms": 72974,
+  "ok": true,
+  "response": {
+    "context": "Architecture baseline for slice SL-004 \"Vaccination Tracking Area and Manual Entries\". Scope is limited to a dedicated self-profile vaccination area that combines read-only rule-based due guidance with manual vaccination entry creation and same-session display, while reusing existing onboarding, dashboard entry points, health plan browsing, and health item detail capabilities.",
+    "decisions": [
+      "Create a self-scoped feature module at `src/features/vaccination-tracking-area-and-manual-entries/` with a dedicated vaccination area route under the self profile context; this slice does not introduce family-profile routing, profile switching, or profile-id-driven public navigation.",
+      "Model the vaccination area as a composition of two separate read models: `VaccinationDueGuidance` for rule-derived guidance and `ManualVaccinationEntry` for user-recorded entries. These models render in separate UI sections and are never merged into a single mixed list.",
+      "Define `ManualVaccinationEntry` with the minimum slice-safe fields: `id`, `profileId`, `vaccinationKey`, `statusContext`, `entryDate`, and `createdAt`. `profileId` must resolve to the self profile only for this slice.",
+      "Restrict `vaccinationKey` to the existing MVP vaccination catalog already represented in the health plan item set. Manual entries are therefore attached only to known vaccination items and do not allow arbitrary free-text medical record creation.",
+      "Limit manual `statusContext` to `completed` and `planned` for MVP. Both statuses require an `entryDate`; `completed` entries must not use a future date, while `planned` entries may use any valid calendar date.",
+      "Store manual vaccination entries in a one-to-many relationship from the self profile to its entries. Default display order for manual entries is descending by `entryDate`, with `createdAt` as the tie-breaker so the newest visible state is deterministic.",
+      "Treat due guidance as a derived, read-only view produced from the existing MVP rule set and self profile attributes. The vaccination feature consumes this guidance but does not own rule generation logic or introduce new recommendation rules in SL-004.``,`VaccinationDueGuidance` must carry the catalog identity needed to"
+    ],
+    "guardrails": [
+      "Keep the slice self-profile only. Do not add family vaccination management, profile switching rules, or generalized multi-profile vaccination services in SL-004.",
+      "Do not position manual entries as provider-synced, provider-verified, or imported data. All vaccination entries created in this slice are user-entered records only.",
+      "Do not expand the data model into a broad medical record. Exclude attachments, document upload, provider fields, free-form clinical notes, lot numbers, and non-vaccination record types.",
+      "Do not introduce edit, delete, reconciliation, or duplicate-detection workflows for manual vaccination entries in this slice. Creation and display are the only manual-entry lifecycle requirements.",
+      "Do not auto-update dashboard priority buckets, overall Health Score, or plan-item completion state from manual vaccination entry creation in SL-004. Manual tracking and due guidance remain adjacent but structurally separate.",
+      "Reuse the existing health item detail capability for related vaccination item navigation instead of creating a new vaccination-detail subsystem.",
+      "Do not add new rule engines, AI labeling, or provider-sync abstractions. Due guidance must remain deterministic and clearly rule-based."
+    ],
+    "verification": [
+      "Behavior test: with zero manual vaccination entries for the self profile, the vaccination area still renders rule-based due guidance and a stable manual-entry empty state.",
+      "Behavior test: creating a valid manual vaccination entry for the self profile causes the new entry to appear in the manual entries section in the same session without requiring a new onboarding flow or profile reload.",
+      "Validation test: manual vaccination entry creation is rejected when `vaccinationKey`, `statusContext`, or `entryDate` is missing, and rejected when `statusContext=completed` uses a future date.",
+      "Rendering test: the vaccination area shows manual entries and due guidance in clearly separate sections, and the empty/populated manual-entry states do not remove or hide due guidance.",
+      "Navigation test: selecting a vaccination item from the vaccination area navigates to the existing related vaccination health item detail route for the mapped catalog item.",
+      "Artifact check: implementation artifacts exist for SL-004 targets in `src/features/vaccination-tracking-area-and-manual-entries/`, `src/routes/vaccination-tracking-area-and-manual-entries*`, and `tests/vaccination-tracking-area-and-manual-entries/`.",
+      "Artifact check: `docs/testing/SL-004-user-checklist.md` is completed and marked Pass for SL-004, `docs/implementation/SL-004-implementation-notes.md` records verification evidence and changed files, and `fabric doctor` passes without bootstrap semantic issues."
+    ],
+    "constraints": [
+      "Only the self profile may be read from or written to by this slice's vaccination area and manual-entry flows.",
+      "A manual vaccination entry must always include a known MVP vaccination catalog key, one allowed status context, and one calendar date.",
+      "Rule-based due guidance and manual vaccination entries must remain structurally distinct in the domain model, application layer, and UI composition.",
+      "The vaccination feature may depend on existing self profile context, existing rule-based health plan data, and existing health item detail routing, but it must not require provider integration or new external services.",
+      "The slice must preserve MVP framing as preventive guidance rather than comprehensive record storage; any data captured beyond the minimum manual vaccination fields is out of scope.",
+      "New architecture introduced in SL-004 must stay local to the vaccination tracking feature and avoid speculative abstractions for future family, sync, or document capabilities."
+    ],
+    "open_questions": [
+      "Replace malformed decision due to accidental truncation?"
+    ]
+  }
+}

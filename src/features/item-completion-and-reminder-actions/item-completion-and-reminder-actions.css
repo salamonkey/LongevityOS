@@ -2,6 +2,118 @@
   margin-top: var(--space-6);
 }
 
+.sl003-manual-entry-box {
+  margin-top: var(--space-3);
+}
+
+.sl003-manual-entry-action {
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.sl003-manual-entry-cta {
+  margin-top: 0;
+}
+
+.sl003-manual-entry-cta-inbox {
+  display: block;
+  margin-top: var(--space-3);
+  margin-left: auto;
+}
+
+.sl003-manual-entry-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-top: 0;
+  padding: 0;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 0;
+}
+
+.sl003-manual-entry-form-shell {
+  margin-top: var(--space-3);
+}
+
+.sl003-manual-empty {
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.sl003-manual-list {
+  margin-top: var(--space-3);
+}
+
+.sl003-manual-plan-row {
+  cursor: pointer;
+}
+
+.sl003-manual-plan-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.sl003-manual-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl003-manual-form label,
+.sl003-manual-form legend {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.sl003-manual-form select,
+.sl003-manual-form input[type='date'] {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+  background: var(--color-surface-card);
+}
+
+.sl003-manual-status-group {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl003-manual-status-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl003-manual-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl003-manual-form-actions .sl001-primary-action,
+.sl003-manual-form-actions .sl003-quiet-button {
+  margin-top: 0;
+}
+
+.sl003-vaccination-guidance {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.sl003-guidance-list {
+  margin-top: var(--space-3);
+}
+
 .sl003-action-area {
   border-top: 1px solid var(--color-surface-subtle);
   margin-top: var(--space-4);

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T12:06:04.979Z",
+  "slice_id": "SL-004",
+  "slice_title": "Vaccination Tracking Area and Manual Entries",
+  "status": "fail",
+  "summary": "LLM semantic review unavailable: fetch failed",
+  "contract": "docs/ux/SL-004-semantic-ux-contract.json",
+  "deterministic_findings_count": 0,
+  "llm_enabled": true,
+  "llm_required": true,
+  "llm_status": "unavailable",
+  "llm_reviewer": "",
+  "findings": [
+    {
+      "severity": "blocker",
+      "source": "llm",
+      "file": "docs/ux/SL-004-semantic-ux-contract.json",
+      "slot": "semantic_review_gate",
+      "issue_type": "llm_review_unavailable",
+      "observed": "LLM semantic review unavailable: fetch failed",
+      "required": "Configure the semantic UX LLM reviewer or set SEMANTIC_UX_LLM_REQUIRED=false intentionally."
+    }
+  ]
+}

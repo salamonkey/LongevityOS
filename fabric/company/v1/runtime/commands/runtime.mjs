@@ -1800,6 +1800,10 @@ export default preview;
   const changed = ['package.json'];
   for (const [relPath, content] of files.entries()) {
     const outPath = path.join(targetRoot, relPath);
+    if (!force && fs.existsSync(outPath) && !isGeneratedOrMissing(outPath)) {
+      // Preserve existing user-owned app files during scaffold sync.
+      continue;
+    }
     if (relPath === 'src/styles.css' && fs.existsSync(outPath) && readText(outPath) !== content) {
       continue;
     }
@@ -3805,6 +3809,36 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
     const stepLabel = next.canonicalStep || fallbackCanonicalStepForCommand(commandName) || '?';
     console.log('');
     console.log(`-> running step ${stepLabel}: ${commandName}`);
+    if (commandName === 'coder:repair-semantic-ux-findings') {
+      const semanticGateInfo = semanticUxLlmGateFailureInfo(targetRoot);
+      if (semanticGateInfo?.issueType === 'llm_review_unavailable' || semanticGateInfo?.issueType === 'llm_review_disabled') {
+        console.log('  - semantic repair is gated by semantic-review LLM availability; rerunning Step 21b in deterministic fallback mode instead of Step 21c');
+        const fallbackResult = await runFabricSubcommand({
+          targetRoot,
+          valuesPath,
+          commandName: 'uiux:review-current-slice-semantics',
+          envOverrides: {
+            SEMANTIC_UX_LLM_ENABLED: 'false',
+            SEMANTIC_UX_LLM_REQUIRED: 'false',
+          },
+        });
+        if (fallbackResult.status !== 0) {
+          console.log('');
+          printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
+          console.log('');
+          console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+          console.log('- reason: semantic UX fallback review failed while bypassing Step 21c LLM-gate repair');
+          console.log(`- failed command: ${next.commandText}`);
+          console.log(`- executed commands: ${executed}`);
+          return;
+        }
+        executed += 1;
+        console.log('  - fallback semantic review passed; continuing without semantic-repair step');
+        console.log('');
+        printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
+        continue;
+      }
+    }
     let result = await runFabricSubcommand({
       targetRoot,
       valuesPath,
@@ -3812,25 +3846,8 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
       force: false,
       includeWarnings: commandName === 'coder:repair-semantic-ux-findings',
     });
-    if (commandName === 'coder:implement-current-slice' && result.status !== 0) {
-      const refusalPattern = /Refusing to overwrite non-generated file without --force:/i;
-      const output = `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
-      if (refusalPattern.test(output)) {
-        console.log('  - retrying coder:implement-current-slice with --force (non-generated file overwrite refusal detected)');
-        result = await runFabricSubcommand({ targetRoot, valuesPath, commandName, force: true });
-      }
-    }
     if (result.status !== 0) {
       if (commandName === 'uiux:review-current-slice-semantics') {
-        const followUp = inferNextCommandFromPmStatus({ targetRoot, valuesPath });
-        const followUpName = parseFabricCommandNameFromText(followUp.commandText);
-        if (followUpName === 'coder:repair-semantic-ux-findings') {
-          executed += 1;
-          console.log('  - semantic UX review reported findings; continuing to repair step with warnings included');
-          console.log('');
-          printOrchestratorStateSnapshot(followUp);
-          continue;
-        }
         const semanticGateInfo = semanticUxLlmGateFailureInfo(targetRoot);
         if (semanticGateInfo?.issueType === 'llm_review_unavailable') {
           console.log('  - semantic UX LLM reviewer unavailable; retrying Step 21b with deterministic fallback mode');
@@ -3846,8 +3863,9 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
           if (result.status === 0) {
             console.log('  - fallback semantic review passed with LLM gate disabled for this run');
           } else {
+            const followUpAfterFallback = inferNextCommandFromPmStatus({ targetRoot, valuesPath });
             console.log('');
-            printOrchestratorStateSnapshot(followUp);
+            printOrchestratorStateSnapshot(followUpAfterFallback);
             console.log('');
             console.log('fabric orchestrator:run-until-blocked: BLOCKED');
             console.log('- reason: semantic UX fallback review failed after LLM unavailability');
@@ -3855,7 +3873,43 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
             console.log(`- executed commands: ${executed}`);
             return;
           }
-        } else if (semanticGateInfo?.reason) {
+        }
+        const followUp = inferNextCommandFromPmStatus({ targetRoot, valuesPath });
+        const followUpName = parseFabricCommandNameFromText(followUp.commandText);
+        if (followUpName === 'coder:repair-semantic-ux-findings') {
+          const followUpSemanticGateInfo = semanticUxLlmGateFailureInfo(targetRoot);
+          if (followUpSemanticGateInfo?.issueType === 'llm_review_unavailable' || followUpSemanticGateInfo?.issueType === 'llm_review_disabled') {
+            console.log('  - skipping Step 21c because the current semantic finding is an LLM gate issue; rerunning Step 21b in fallback mode');
+            result = await runFabricSubcommand({
+              targetRoot,
+              valuesPath,
+              commandName,
+              envOverrides: {
+                SEMANTIC_UX_LLM_ENABLED: 'false',
+                SEMANTIC_UX_LLM_REQUIRED: 'false',
+              },
+            });
+            if (result.status === 0) {
+              console.log('  - fallback semantic review passed with LLM gate disabled for this run');
+            } else {
+              console.log('');
+              printOrchestratorStateSnapshot(followUp);
+              console.log('');
+              console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+              console.log('- reason: semantic UX fallback review failed while bypassing Step 21c LLM-gate repair');
+              console.log(`- failed command: ${next.commandText}`);
+              console.log(`- executed commands: ${executed}`);
+              return;
+            }
+          } else {
+            executed += 1;
+            console.log('  - semantic UX review reported findings; continuing to repair step with warnings included');
+            console.log('');
+            printOrchestratorStateSnapshot(followUp);
+            continue;
+          }
+        }
+        if (semanticGateInfo?.reason) {
           console.log('');
           printOrchestratorStateSnapshot(followUp);
           console.log('');

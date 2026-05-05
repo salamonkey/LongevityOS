@@ -1,0 +1,135 @@
+.sl004-header-action {
+  margin-top: 0;
+}
+
+.sl004-section {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+  background: var(--color-surface-card);
+}
+
+.sl004-section h2 {
+  margin: 0;
+}
+
+.sl004-section-copy {
+  color: var(--color-text-secondary);
+  margin: var(--space-2) 0 0;
+}
+
+.sl004-guidance-list {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.sl004-manual-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sl004-manual-header .sl003-secondary-action {
+  margin-top: 0;
+}
+
+.sl004-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  background: var(--color-surface-subtle);
+}
+
+.sl004-form label,
+.sl004-form legend {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.sl004-form select,
+.sl004-form input[type='date'] {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+  background: var(--color-surface-card);
+}
+
+.sl004-status-group {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl004-status-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl004-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl004-form-actions .sl001-primary-action,
+.sl004-form-actions .sl003-quiet-button {
+  margin-top: 0;
+}
+
+.sl004-manual-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sl004-manual-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+  background: var(--color-surface-card);
+}
+
+.sl004-manual-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sl004-manual-topline h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sl004-manual-date {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.sl004-manual-row .sl003-quiet-button {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 520px) {
+  .sl004-manual-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sl004-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

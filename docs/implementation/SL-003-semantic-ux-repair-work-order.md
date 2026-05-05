@@ -21,7 +21,7 @@ Repair the current implementation so the active slice passes semantic UX review.
 - Existing implementation files referenced by the findings.
 
 ## Finding selection
-- Included blockers: 2
+- Included blockers: 1
 - Included warnings: 0
 - Warning repair mode: included by operator flag
 
@@ -30,27 +30,15 @@ Repair the current implementation so the active slice passes semantic UX review.
 [
   {
     "index": 1,
-    "issue_type": "internal_factory_language_in_visible_copy",
-    "severity": "blocker",
-    "source": "deterministic",
-    "confidence": "high",
-    "visibility": "likely_visible",
-    "file": "src/App.jsx",
-    "slot": "jsx_text_node",
-    "observed": "Run the current slice workflow to generate product-specific screens and Storybook stories.",
-    "required": "Replace visible internal language 'slice' with user-facing wording."
-  },
-  {
-    "index": 2,
-    "issue_type": "internal_copy_exposed",
+    "issue_type": "llm_review_unavailable",
     "severity": "blocker",
     "source": "llm",
     "confidence": "",
     "visibility": "",
-    "file": "src/App.jsx",
-    "slot": "primary_heading",
-    "observed": "The rendered screen shows 'Fabric app factory' and 'App shell ready', which are internal/generic labels and do not tell the user they can complete a health item or set a reminder.",
-    "required": "true"
+    "file": "docs/ux/SL-003-semantic-ux-contract.json",
+    "slot": "semantic_review_gate",
+    "observed": "LLM semantic review unavailable: fetch failed",
+    "required": "Configure the semantic UX LLM reviewer or set SEMANTIC_UX_LLM_REQUIRED=false intentionally."
   }
 ]
 ```

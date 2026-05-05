@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T11:59:48.338Z",
+  "slice_id": "SL-004",
+  "required_storybook_paths": [
+    "Product/AppShell",
+    "Product/HealthPlanItem",
+    "Product/StatusPill",
+    "Product/VaccinationStatusRow",
+    "Screens/family"
+  ],
+  "required_components": [
+    "AppShell",
+    "HealthPlanItem",
+    "StatusPill",
+    "VaccinationStatusRow"
+  ],
+  "required_screens": [
+    "family"
+  ],
+  "required_states": [
+    "default",
+    "loading",
+    "empty",
+    "error",
+    "success"
+  ],
+  "required_statuses": [
+    "done",
+    "due",
+    "soon",
+    "planned",
+    "overdue"
+  ],
+  "required_priorities": [
+    "today",
+    "soon",
+    "later"
+  ],
+  "copy_contract_slots": [
+    "primary_heading",
+    "status_label",
+    "empty_state",
+    "confirmation",
+    "error"
+  ],
+  "required_files": [
+    "src/stories/slices/SL-004/fixtures.ts",
+    "src/stories/slices/SL-004/SL-004.stories.tsx",
+    "src/stories/slices/SL-004/README.md"
+  ],
+  "closeout_gate": {
+    "required": true,
+    "rule": "A slice cannot close until Storybook stories exist for required components, screens, and semantic states and the Storybook review status is pass."
+  }
+}

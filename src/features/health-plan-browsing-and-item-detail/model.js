@@ -5,6 +5,7 @@ export const PLAN_CATEGORIES = Object.freeze({
 
 export const PLAN_STATUSES = Object.freeze({
   due: 'due',
+  pending: 'pending',
   planned: 'planned',
   done: 'done',
 });
@@ -14,7 +15,8 @@ export const ALLOWED_PLAN_STATUSES = Object.freeze(Object.values(PLAN_STATUSES))
 
 export const STATUS_LABELS = Object.freeze({
   due: 'Due now',
-  planned: 'Plan',
+  pending: 'Pending',
+  planned: 'Planned',
   done: 'Done',
 });
 
@@ -45,7 +47,7 @@ export function isAllowedPlanStatus(value) {
 }
 
 export function getStatusLabel(status) {
-  return STATUS_LABELS[status] ?? STATUS_LABELS.planned;
+  return STATUS_LABELS[status] ?? STATUS_LABELS.pending;
 }
 
 export function getCategoryLabel(category, mode = 'plural') {

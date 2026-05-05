@@ -120,6 +120,6 @@ test('unsupported source status is normalized to a safe allowed status', () => {
   const readModel = buildHealthPlanReadModel(mutated);
   const detail = resolveItemDetail(readModel, mutated.items[0].catalogItemId);
 
-  assert.equal(detail.status, 'planned');
-  assert.equal(detail.statusLabel, 'Plan');
+  assert.equal(detail.status, 'pending');
+  assert.equal(detail.statusLabel, 'Pending');
 });

@@ -1,6 +1,6 @@
 /* generated_from: fabric/company/v1/runtime/product/storybook.mjs
  * target: .storybook/main.ts
- * generated_at_utc: 2026-05-05T10:46:04.413Z
+ * generated_at_utc: 2026-05-05T11:59:48.345Z
  */
 import type { StorybookConfig } from '@storybook/react-vite';
 

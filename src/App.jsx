@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ItemCompletionAndReminderActionsRoute from './routes/item-completion-and-reminder-actions.jsx';
 import SelfOnboardingToFirstDashboardRoute from './routes/self-onboarding-to-first-dashboard.jsx';
+import VaccinationTrackingAreaAndManualEntriesRoute from './routes/vaccination-tracking-area-and-manual-entries.jsx';
 import { generateInitialPlanSnapshot } from './features/self-onboarding-to-first-dashboard/plan.js';
 import { DETAIL_ORIGIN, PLAN_CATEGORIES } from './features/health-plan-browsing-and-item-detail/model.js';
 
@@ -16,7 +17,7 @@ const demoPlanSnapshot = generateInitialPlanSnapshot(DEMO_PROFILE, { now: new Da
 function normalizeView(value) {
   const normalized = String(value || '').toLowerCase();
   if (normalized === 'plan') return 'plan';
-  // Keep legacy SL-003 URL working but fold it into the canonical plan flow.
+  if (normalized === 'vaccinations') return 'vaccinations';
   if (normalized === 'actions') return 'plan';
   return 'onboarding';
 }
@@ -29,6 +30,7 @@ function currentViewFromUrl() {
 function replaceViewInUrl(view) {
   const url = new URL(window.location.href);
   if (view === 'plan') url.searchParams.set('view', 'plan');
+  else if (view === 'vaccinations') url.searchParams.set('view', 'vaccinations');
   else url.searchParams.delete('view');
   const next = `${url.pathname}${url.search}${url.hash}`;
   const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -45,6 +47,9 @@ export default function App() {
     initialItemKey: undefined,
     initialOrigin: undefined,
     initialCategory: undefined,
+  });
+  const [runtimeVaccinationEntry, setRuntimeVaccinationEntry] = useState({
+    openAddEntry: false,
   });
 
   useEffect(() => {
@@ -76,6 +81,19 @@ export default function App() {
         initialCategory: PLAN_CATEGORIES.checkup,
       });
       setActiveView('onboarding');
+      return;
+    }
+
+    if (target?.destination === DETAIL_ORIGIN.vaccinations) {
+      setRuntimePlanEntry({
+        initialItemKey: undefined,
+        initialOrigin: undefined,
+        initialCategory: PLAN_CATEGORIES.vaccination,
+      });
+      setRuntimeVaccinationEntry({
+        openAddEntry: Boolean(target?.openAddEntry),
+      });
+      setActiveView('vaccinations');
     }
   };
 
@@ -83,6 +101,24 @@ export default function App() {
     if (nextPlanSnapshot) {
       setRuntimePlanSnapshot(nextPlanSnapshot);
     }
+  };
+
+  const openVaccinations = ({ planSnapshot, profile } = {}) => {
+    if (planSnapshot) setRuntimePlanSnapshot(planSnapshot);
+    if (profile) setRuntimeProfile(profile);
+    setRuntimeVaccinationEntry({ openAddEntry: false });
+    setActiveView('vaccinations');
+  };
+
+  const openVaccinationDetail = ({ itemKey, origin } = {}) => {
+    if (!itemKey) return;
+
+    setRuntimePlanEntry({
+      initialItemKey: itemKey,
+      initialOrigin: origin || DETAIL_ORIGIN.vaccinations,
+      initialCategory: PLAN_CATEGORIES.vaccination,
+    });
+    setActiveView('plan');
   };
 
   if (activeView === 'plan') {
@@ -99,11 +135,28 @@ export default function App() {
     );
   }
 
+  if (activeView === 'vaccinations') {
+    return (
+      <VaccinationTrackingAreaAndManualEntriesRoute
+        profile={runtimeProfile || DEMO_PROFILE}
+        planSnapshot={runtimePlanSnapshot || demoPlanSnapshot}
+        initialAddOpen={runtimeVaccinationEntry.openAddEntry}
+        onOpenDetail={openVaccinationDetail}
+        onNavigate={(target) => {
+          if (target?.destination === DETAIL_ORIGIN.dashboard) {
+            setActiveView('onboarding');
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <SelfOnboardingToFirstDashboardRoute
       initialProfile={runtimeProfile}
       initialPlanSnapshot={runtimePlanSnapshot}
       onOpenHealthPlan={openHealthPlan}
+      onOpenVaccinations={openVaccinations}
     />
   );
 }

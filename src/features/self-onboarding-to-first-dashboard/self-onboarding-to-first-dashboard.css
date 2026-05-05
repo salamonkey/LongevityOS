@@ -7,6 +7,7 @@
 
   --color-status-done: #0f766e;
   --color-status-due: #c2410c;
+  --color-status-pending: #ca8a04;
   --color-status-soon: #0c4a6e;
   --color-status-planned: #4338ca;
   --color-status-overdue: #9a3412;
@@ -64,6 +65,30 @@
 .sl001-dashboard-plan-cta {
   margin-top: 0;
   white-space: nowrap;
+}
+
+.sl001-secondary-action {
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-6);
+  font-weight: 700;
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  margin-top: var(--space-3);
+}
+
+.sl001-secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sl001-dashboard-vaccination-cta {
+  white-space: nowrap;
+}
+
+.sl001-dashboard-footer-actions {
+  margin-top: var(--space-4);
 }
 
 .sl001-form {
@@ -268,6 +293,7 @@
 
 .status-done { color: var(--color-status-done); }
 .status-due { color: var(--color-status-due); }
+.status-pending { color: var(--color-status-pending); }
 .status-soon { color: var(--color-status-soon); }
 .status-planned { color: var(--color-status-planned); }
 .status-overdue { color: var(--color-status-overdue); }

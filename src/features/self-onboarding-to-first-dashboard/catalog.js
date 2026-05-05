@@ -98,4 +98,26 @@ export const MVP_PREVENTIVE_CATALOG = Object.freeze([
       { gender: 'male', minAge: 50, maxAge: 120, targetAge: 50, dashboardBucket: 'soon', priorityOrder: 3 },
     ],
   },
+  {
+    itemId: 'covid-19-booster',
+    name: 'COVID-19 booster',
+    category: 'vaccination',
+    cadenceLabel: 'Seasonal booster guidance',
+    whyItMatters: 'Boosters help reduce the risk of severe respiratory illness and hospitalization.',
+    ruleBands: [
+      { gender: 'female', minAge: 18, maxAge: 120, targetAge: 18, dashboardBucket: 'today', priorityOrder: 4 },
+      { gender: 'male', minAge: 18, maxAge: 120, targetAge: 18, dashboardBucket: 'today', priorityOrder: 4 },
+    ],
+  },
+  {
+    itemId: 'hepatitis-b-vaccine',
+    name: 'Hepatitis B vaccine',
+    category: 'vaccination',
+    cadenceLabel: 'Series based on risk and history',
+    whyItMatters: 'Vaccination protects against hepatitis B infection and long-term liver complications.',
+    ruleBands: [
+      { gender: 'female', minAge: 18, maxAge: 120, targetAge: 18, dashboardBucket: 'later', priorityOrder: 4 },
+      { gender: 'male', minAge: 18, maxAge: 120, targetAge: 18, dashboardBucket: 'later', priorityOrder: 4 },
+    ],
+  },
 ]);

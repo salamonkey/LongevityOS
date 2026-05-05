@@ -39,6 +39,14 @@ function toDisplayItem(item) {
   };
 }
 
+function toDisplayStatus(status, reminderDate) {
+  if (status === PLAN_STATUSES.planned && !reminderDate) {
+    return PLAN_STATUSES.pending;
+  }
+
+  return status;
+}
+
 function toItems(snapshot) {
   return Array.isArray(snapshot?.items) ? snapshot.items.map(toDisplayItem) : [];
 }
@@ -121,13 +129,14 @@ export function buildPlanReadModelForSlice(planSnapshot) {
   const withReminderDetails = (item) => {
     const source = planSnapshot?.items?.find((sourceItem) => sourceItem.catalogItemId === item.itemKey);
     const reminderDate = source?.reminder?.scheduledFor ?? null;
+    const status = toDisplayStatus(source?.status ?? item.status, reminderDate);
 
     return {
       ...item,
       reminderDate,
       reminderDateLabel: reminderDate ? formatDateForConfirmation(reminderDate) : null,
-      statusLabel: getSafeStatusLabel(source?.status ?? item.status),
-      status: source?.status ?? item.status,
+      statusLabel: getSafeStatusLabel(status),
+      status,
     };
   };
 

@@ -3,6 +3,7 @@ import React from 'react';
 const STATUS_CLASS_MAP = {
   done: 'status-done',
   due: 'status-due',
+  pending: 'status-pending',
   soon: 'status-soon',
   planned: 'status-planned',
   overdue: 'status-overdue',
@@ -124,7 +125,7 @@ export function NextRecommendedStepCard({ highlightedItem }) {
       <p className="sl001-label">Next recommended step</p>
       <h2 className="sl001-summary-title">{highlightedItem?.name ?? 'No next step available'}</h2>
       <p className="sl001-summary-meta">
-        {highlightedItem ? `${highlightedItem.categoryLabel} - ${highlightedItem.cadenceLabel}` : 'Please return to onboarding and try again.'}
+        {highlightedItem ? `${highlightedItem.categoryLabel} - ${highlightedItem.cadenceLabel}` : 'You are all set for now. Check back soon for your next recommended item.'}
       </p>
     </section>
   );
@@ -155,13 +156,30 @@ export function FamilyProfileCard({ name, age, gender, dueCount }) {
 }
 
 export function VaccinationStatusRow({ vaccine, status, statusLabel, lastDate }) {
-  const safeStatusLabel = statusLabel || status || 'Plan';
+  const safeStatusLabel = statusLabel || status || 'Pending';
+  const normalizedLastDate = typeof lastDate === 'string' ? lastDate.trim() : '';
+  let statusContext = 'Review this item';
+
+  if (normalizedLastDate) {
+    statusContext = `Last dose: ${normalizedLastDate}`;
+  } else if (status === 'done') {
+    statusContext = 'Marked as done';
+  } else if (status === 'planned') {
+    statusContext = 'Reminder set';
+  } else if (status === 'pending') {
+    statusContext = 'No date set';
+  } else if (status === 'due' || status === 'overdue') {
+    statusContext = 'Action needed';
+  } else if (status === 'soon') {
+    statusContext = 'Coming up';
+  }
+
   return (
     <div className="sl001-vaccine-row" aria-label={`${vaccine} status`}>
       <span>{vaccine}</span>
       <span>
         <span className="sl001-vaccine-date">
-          {safeStatusLabel} - Last dose: {lastDate || 'Not recorded yet'}
+          {safeStatusLabel} - {statusContext}
         </span>
       </span>
     </div>

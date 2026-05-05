@@ -16,7 +16,7 @@ export const REMINDER_OPTION_LABELS = Object.freeze({
 
 export const DETAIL_ACTION_ERRORS = Object.freeze({
   missing_date: 'Please choose a reminder date.',
-  past_date: 'Choose today or a later date for your reminder.',
+  past_date: 'Choose a future date for your reminder.',
   invalid_date: 'Enter a valid calendar date.',
   action_failed: 'We could not save your update. Please try again.',
 });
@@ -134,7 +134,7 @@ export function resolveReminderScheduledFor(reminderInput, nowValue = new Date()
       throw new Error(missingDate ? DETAIL_ACTION_ERRORS.missing_date : DETAIL_ACTION_ERRORS.invalid_date);
     }
 
-    if (customIsoDate < todayIso) {
+    if (customIsoDate <= todayIso) {
       throw new Error(DETAIL_ACTION_ERRORS.past_date);
     }
 

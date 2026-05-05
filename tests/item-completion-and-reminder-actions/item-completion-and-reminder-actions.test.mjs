@@ -114,7 +114,7 @@ test('custom reminder date validation rejects missing and past dates', () => {
       { timingType: REMINDER_TIMING_TYPES.custom_date, customDate: '2026-05-01' },
       fixedNow,
     );
-  }, /today or a later date/i);
+  }, /future date/i);
 });
 
 test('reminder creation is reflected as planned status across plan and dashboard read models', () => {
@@ -170,7 +170,7 @@ test('highlighted next item recomputes with Today-then-Soon and health score use
         dashboardBucket: 'soon',
         targetAge: 41,
         priorityOrder: 1,
-        status: 'planned',
+        status: 'pending',
       },
     ],
   };

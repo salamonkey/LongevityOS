@@ -1,24 +1,23 @@
 # Storybook Map
 
-Generated at: 2026-05-05T10:38:07.908Z
+Generated at: 2026-05-05T11:44:01.829Z
 
 Storybook is the executable validation surface for Fabric UI/UX and design-system contracts. It must not become a competing source of truth: Fabric contracts drive stories, story review findings update implementation or the contracts deliberately.
 
 ## Active slice
 
-- Slice ID: SL-003
-- Slice title: Item Completion and Reminder Actions
+- Slice ID: SL-004
+- Slice title: Vaccination Tracking Area and Manual Entries
 
 ## Contract-to-story mapping
 
 | Fabric contract | Component/screen | Storybook path | Required stories/states | Validation focus |
 |---|---|---|---|---|
-| docs/ux/SL-003-component-contract.json | AppShell | Product/AppShell | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
-| docs/ux/SL-003-component-contract.json | HealthScoreCard | Product/HealthScoreCard | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
-| docs/ux/SL-003-component-contract.json | PrioritySection | Product/PrioritySection | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
-| docs/ux/SL-003-component-contract.json | HealthPlanItem | Product/HealthPlanItem | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
-| docs/ux/SL-003-component-contract.json | StatusPill | Product/StatusPill | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
-| docs/ux/SL-003-screen-contract.json | reminder | Screens/reminder | default, loading, empty, error, success | Layout order, action hierarchy, mobile clarity |
+| docs/ux/SL-004-component-contract.json | AppShell | Product/AppShell | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
+| docs/ux/SL-004-component-contract.json | HealthPlanItem | Product/HealthPlanItem | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
+| docs/ux/SL-004-component-contract.json | StatusPill | Product/StatusPill | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
+| docs/ux/SL-004-component-contract.json | VaccinationStatusRow | Product/VaccinationStatusRow | default, loading, empty, error, semantic statuses | State coverage, copy tone, token usage |
+| docs/ux/SL-004-screen-contract.json | family | Screens/family | default, loading, empty, error, success | Layout order, action hierarchy, mobile clarity |
 
 ## Closeout rule
 

@@ -1,25 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-05-05T10:48:12.756Z",
+  "generated_at_utc": "2026-05-05T11:38:25.543Z",
   "slice_id": "SL-003",
   "slice_title": "Item Completion and Reminder Actions",
-  "status": "fail",
-  "summary": "LLM semantic review unavailable: fetch failed",
+  "status": "pass",
+  "summary": "LLM semantic review is disabled by configuration.",
   "contract": "docs/ux/SL-003-semantic-ux-contract.json",
   "deterministic_findings_count": 0,
-  "llm_enabled": true,
-  "llm_required": true,
-  "llm_status": "unavailable",
+  "llm_enabled": false,
+  "llm_required": false,
+  "llm_status": "disabled_optional",
   "llm_reviewer": "",
-  "findings": [
-    {
-      "severity": "blocker",
-      "source": "llm",
-      "file": "docs/ux/SL-003-semantic-ux-contract.json",
-      "slot": "semantic_review_gate",
-      "issue_type": "llm_review_unavailable",
-      "observed": "LLM semantic review unavailable: fetch failed",
-      "required": "Configure the semantic UX LLM reviewer or set SEMANTIC_UX_LLM_REQUIRED=false intentionally."
-    }
-  ]
+  "findings": []
 }

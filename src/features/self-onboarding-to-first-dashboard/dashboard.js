@@ -14,8 +14,9 @@ const CATEGORY_LABELS = {
 const STATUS_LABELS = {
   done: 'Done',
   due: 'Due now',
+  pending: 'Pending',
   soon: 'Coming up',
-  planned: 'Plan',
+  planned: 'Planned',
   overdue: 'Overdue',
 };
 
@@ -37,7 +38,7 @@ function mapDisplayItem(item) {
   return {
     ...item,
     categoryLabel: CATEGORY_LABELS[item.category] ?? 'Preventive item',
-    statusLabel: STATUS_LABELS[item.status] ?? 'Plan',
+    statusLabel: STATUS_LABELS[item.status] ?? 'Pending',
   };
 }
 

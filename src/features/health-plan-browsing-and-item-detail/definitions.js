@@ -10,6 +10,8 @@ const RECOMMENDATION_TEXT_BY_ITEM_KEY = Object.freeze({
   'influenza-vaccine': 'Get a flu vaccine every year, ideally before each flu season begins.',
   'tdap-booster': 'Get a tetanus, diphtheria, and pertussis booster every 10 years to keep protection current.',
   'shingles-vaccine': "Complete the 2-dose shingles vaccine series after age 50, spaced according to your clinician's timing guidance.",
+  'covid-19-booster': 'Follow current booster guidance with your clinician to maintain protection against severe COVID-19 outcomes.',
+  'hepatitis-b-vaccine': 'Complete the hepatitis B vaccination series when indicated by your age, history, or risk profile.',
 });
 
 function normalizeText(value) {

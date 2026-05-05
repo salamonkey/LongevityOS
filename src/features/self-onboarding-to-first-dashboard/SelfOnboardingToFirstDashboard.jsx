@@ -153,7 +153,7 @@ export default function SelfOnboardingToFirstDashboard({
     if (typeof onOpenHealthPlan === 'function') {
       dashboardHeaderAction = (
         <button type="button" className="sl001-primary-action sl001-dashboard-plan-cta" onClick={openHealthPlan}>
-          Browse full plan
+          Plan details
         </button>
       );
     }

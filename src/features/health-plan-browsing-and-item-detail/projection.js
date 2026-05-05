@@ -28,7 +28,7 @@ function toDefinitionIndex(definitions) {
 }
 
 function toSafeStatus(status) {
-  return isAllowedPlanStatus(status) ? status : 'planned';
+  return isAllowedPlanStatus(status) ? status : 'pending';
 }
 
 function toViewItem(generatedItem, definition) {

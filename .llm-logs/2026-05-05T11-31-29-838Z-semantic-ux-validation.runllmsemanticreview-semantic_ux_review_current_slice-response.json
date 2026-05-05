@@ -1,0 +1,40 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T11:31:29.838Z",
+  "completed_utc": "2026-05-05T11:33:03.055Z",
+  "elapsed_ms": 93217,
+  "ok": true,
+  "response": {
+    "status": "fail",
+    "summary": "The slice has the required surfaces and most action copy is user-facing, but key status semantics fail in relevant views. After status changes, dashboard copy can contradict the user's action for vaccination items, the planned state is labeled ambiguously as \"Plan\" instead of a clear state, and a dashboard fallback tells users to return to onboarding even when the issue is simply that no next item qualifies under the current rule.",
+    "findings": [
+      {
+        "severity": "blocker",
+        "file": "src/features/self-onboarding-to-first-dashboard/components.jsx",
+        "slot": "status_context",
+        "issue_type": "contradictory_status_copy",
+        "observed": "Vaccination cards always render \"Last dose: Not recorded yet\" via VaccinationStatusRow. After a user marks a vaccination item done in this slice, the dashboard can show effectively \"Done - Last dose: Not recorded yet,\" which contradicts the completion action and shifts the product toward medical-record semantics that are out of scope.",
+        "required": "no"
+      },
+      {
+        "severity": "blocker",
+        "file": "src/features/health-plan-browsing-and-item-detail/model.js",
+        "slot": "status_context",
+        "issue_type": "ambiguous_status_label",
+        "observed": "The visible status label for planned items is \"Plan\" rather than a clear current-state label such as \"Planned.\" In this slice, reminder creation is supposed to change status to planned across detail, dashboard, and plan views; \"Plan\" reads like an action or noun, not a status result, so the user-facing state change is not communicated clearly.",
+        "required": "no"
+      },
+      {
+        "severity": "warning",
+        "file": "src/features/self-onboarding-to-first-dashboard/components.jsx",
+        "slot": "empty_or_error_state",
+        "issue_type": "misleading_recovery_copy",
+        "observed": "NextRecommendedStepCard falls back to \"Please return to onboarding and try again.\" when there is no highlighted item. In this slice that can happen after valid status changes under the Today-then-Soon rule, so the fallback is not a safe or relevant next step for the user.",
+        "required": "no"
+      }
+    ]
+  }
+}
