@@ -284,6 +284,55 @@ function validateDependencyHandoffEvidence({ targetRoot, slice }) {
   return { issues };
 }
 
+function hasOnboardingEntryOverride(checklistText) {
+  const text = String(checklistText || '');
+  return (
+    /carry-forward override:\s*onboarding default entry/i.test(text)
+    || /onboarding default entry override:\s*true/i.test(text)
+  );
+}
+
+function validateDefaultEntryOnboardingEvidence({
+  targetRoot,
+  carryForwardInvariants = [],
+  checklistText = '',
+}) {
+  const onboardingRouteRelPath = 'src/routes/self-onboarding-to-first-dashboard.jsx';
+  if (!fs.existsSync(path.join(targetRoot, onboardingRouteRelPath))) {
+    return { issues: [] };
+  }
+  if (hasOnboardingEntryOverride(checklistText)) {
+    return { issues: [] };
+  }
+  const requiresCarryForward = Array.isArray(carryForwardInvariants) && carryForwardInvariants.some((entry) => {
+    const id = String(entry?.sliceId || '').toLowerCase();
+    if (id === 'sl-001') return true;
+    return Array.isArray(entry?.assertions)
+      && entry.assertions.some((assertion) => /onboarding/i.test(String(assertion || '')));
+  });
+  if (!requiresCarryForward) return { issues: [] };
+
+  const appRelPath = fs.existsSync(path.join(targetRoot, 'src/App.jsx')) ? 'src/App.jsx' : 'src/App.tsx';
+  const appAbsPath = path.join(targetRoot, appRelPath);
+  if (!fs.existsSync(appAbsPath)) {
+    return { issues: [`missing ${appRelPath}; cannot verify onboarding default runtime entry`] };
+  }
+  const appText = readText(appAbsPath);
+  const hasOnboardingRouteImport = /from\s+['"]\.\/routes\/self-onboarding-to-first-dashboard\.jsx['"]/.test(appText)
+    || /from\s+['"]\.\/routes\/self-onboarding-to-first-dashboard\.tsx['"]/.test(appText);
+  const hasDefaultOnboardingReturn = /return\s*\(\s*<SelfOnboardingToFirstDashboardRoute\b[\s\S]*\)\s*;?\s*\}/.test(appText)
+    || /return\s*<SelfOnboardingToFirstDashboardRoute\b/.test(appText);
+
+  const issues = [];
+  if (!hasOnboardingRouteImport) {
+    issues.push(`default runtime entry is missing onboarding route import in ${appRelPath}`);
+  }
+  if (!hasDefaultOnboardingReturn) {
+    issues.push(`default runtime entry no longer returns onboarding as the fallback surface in ${appRelPath}`);
+  }
+  return { issues };
+}
+
 function extractChangedFilesFromImplementationNotes(notesText) {
   const lines = String(notesText || '').split('\n');
   const out = [];
@@ -689,6 +738,11 @@ async function testerValidateCurrentSlice({ targetRoot, valuesPath, onProgress }
     slice,
     invariants: carryForwardInvariants,
   });
+  const defaultEntryOnboardingEvidence = validateDefaultEntryOnboardingEvidence({
+    targetRoot,
+    carryForwardInvariants,
+    checklistText,
+  });
   const dependencyHandoffEvidence = validateDependencyHandoffEvidence({
     targetRoot,
     slice,
@@ -739,10 +793,19 @@ async function testerValidateCurrentSlice({ targetRoot, valuesPath, onProgress }
     required_repair: 'Wire a concrete runtime transition (callback/action + route handoff) and keep it covered by slice tests/checklist.',
     auto_repairable: true,
   }));
+  const deterministicOnboardingEntryFindings = (defaultEntryOnboardingEvidence.issues || []).map((issue) => ({
+    classification: 'A',
+    finding: String(issue),
+    expected: 'Default app entry must preserve onboarding surface carry-forward from prior passed slices unless checklist override is explicit.',
+    observed: String(issue),
+    required_repair: 'Restore onboarding as default entry in App routing, or declare checklist override: \"Carry-forward override: onboarding default entry\".',
+    auto_repairable: true,
+  }));
   const combinedFindings = [
     ...llmResult.findings,
     ...deterministicCarryForwardFindings,
     ...deterministicDependencyHandoffFindings,
+    ...deterministicOnboardingEntryFindings,
   ].slice(0, 20);
   const status = combinedFindings.length > 0 || llmResult.llmStatus !== 'pass' ? 'fail' : 'pass';
   const review = {

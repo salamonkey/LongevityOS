@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-05-04T06:34:08.337Z",
+  "generated_at_utc": "2026-05-05T08:01:36.576Z",
   "principle": "Components are the product grammar. Screens compose approved components instead of inventing one-off UI.",
   "components": {
     "AppShell": {

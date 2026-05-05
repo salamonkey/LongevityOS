@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T08:18:27.321Z",
+  "slice_id": "SL-001",
+  "slice_title": "Self Onboarding to First Dashboard",
+  "status": "pass",
+  "summary": "LLM semantic review is disabled by configuration.",
+  "contract": "docs/ux/SL-001-semantic-ux-contract.json",
+  "deterministic_findings_count": 0,
+  "llm_enabled": false,
+  "llm_required": false,
+  "llm_status": "disabled_optional",
+  "llm_reviewer": "",
+  "findings": []
+}

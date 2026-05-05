@@ -1,0 +1,70 @@
+{
+  "task": "brief_clarity_semantic_validation",
+  "caller": "brief-clarity-gate.reviewGeneratedBriefClarityAllSemantic",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:39:56.227Z",
+  "completed_utc": "2026-05-05T07:41:15.611Z",
+  "elapsed_ms": 79384,
+  "ok": true,
+  "response": {
+    "issues": [
+      {
+        "rule": "unresolved_alternative",
+        "section": "Header metadata",
+        "line": "Project: `Longevity Health OS / Health App MVP`",
+        "detail": "The project name is presented as two alternatives separated by a slash, with no default name selected.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "rule": "source_overreach",
+        "section": "1. Product Description",
+        "line": "Longevity Health OS is a responsive web MVP for preventive health navigation.",
+        "detail": "This hard-locks the platform to responsive web, but the evidence and framing leave platform choice open between web and cross-platform.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "rule": "source_overreach",
+        "section": "6. Core MVP Scope > Personal health plan and dashboard",
+        "line": "Show a simple health score per profile as the percentage of plan items currently up to date; exclude predictive or comparative analytics.",
+        "detail": "The sources support showing a health score or up-to-date summary, but they do not support locking the scoring formula to percentage of plan items currently up to date.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "rule": "source_overreach",
+        "section": "7. UX Principles and Tone",
+        "line": "Use German as the initial launch language across core screens and system copy.",
+        "detail": "The evidence includes German UX copy examples, but synthesis and framing explicitly leave launch language as an open decision rather than a locked MVP choice.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "rule": "source_overreach",
+        "section": "9. Technical Direction",
+        "line": "Build the MVP as a responsive web application to fit the 4–8 week delivery target.",
+        "detail": "This line locks the platform to responsive web, while the evidence and framing support web or cross-platform and keep the final platform decision open.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "rule": "ambiguous_term",
+        "section": "9. Technical Direction",
+        "line": "Use a simple authenticated backend with modular entities for accounts, profiles, plan items, reminders, and vaccinations.",
+        "detail": "The term 'simple' is subjective here and is not concretely bounded by an enforceable architectural limit on the same line.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "rule": "ambiguous_term",
+        "section": "10. Data and Privacy Constraints",
+        "line": "Use secure authenticated access and secure storage for all profile data.",
+        "detail": "The term 'secure' is not concretely bounded by specific controls, standards, or acceptance conditions in the same line.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      }
+    ]
+  }
+}

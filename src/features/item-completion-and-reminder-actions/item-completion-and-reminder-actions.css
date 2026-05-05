@@ -1,0 +1,75 @@
+.sl003-plan-browser {
+  margin-top: var(--space-6);
+}
+
+.sl003-action-area {
+  border-top: 1px solid var(--color-surface-subtle);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.sl003-action-area h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.sl003-secondary-action,
+.sl003-quiet-button {
+  border: 1px solid var(--color-surface-subtle);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: var(--space-2);
+}
+
+.sl003-reminder-form {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl003-reminder-fieldset {
+  border: 1px solid var(--color-surface-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl003-reminder-fieldset label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sl003-custom-date {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.sl003-custom-date input {
+  border: 1px solid var(--color-surface-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-2) var(--space-3);
+}
+
+.sl003-reminder-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl003-reminder-note,
+.sl003-complete-message,
+.sl003-confirmation {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.sl003-confirmation {
+  color: var(--color-status-done);
+  font-weight: 600;
+}

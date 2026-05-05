@@ -1,56 +1,55 @@
 <!-- generated_from: templates/architecture-baseline-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T07:36:55.962Z -->
+<!-- generated_at: 2026-05-05T07:59:01.347Z -->
 # Architecture Baseline
 
-Date: `2026-04-25`
+Date: `2026-05-05`
 Status: `Ready for implementation`
-Scope: Current slice `SL-001 First-profile Onboarding to Generated Dashboard`
+Scope: Current slice `SL-001 Self Onboarding to First Dashboard`
 
 ## 1. Context
 
-SL-001 establishes the minimum architecture for a self-only onboarding flow that captures age and gender, generates a deterministic first health plan before navigation, and renders a read-only prioritized dashboard for the sole active profile. The baseline is intentionally limited to the onboarding-to-dashboard path and does not introduce family, reminders, item completion, vaccination, item detail, or broader account architecture.
+Architecture baseline for slice SL-001, Self Onboarding to First Dashboard. Scope is limited to collecting age and gender for one self profile, generating one deterministic preventive plan from a locked MVP item set, and rendering one populated dashboard with Today, Soon, Later buckets, one highlighted next item, and one Health Score percentage in the same session.
 
 ## 2. Decisions
 
-- For SL-001, the Profile aggregate is the only required domain root. It owns the onboarding inputs and the generated dashboard snapshot: profileId, ageYears, gender, ruleSetVersion, generatedAt, healthScore, and planItems[].
-- SL-001 supports exactly one persisted profile and that profile is always the active profile. No Account aggregate, profile switching model, or family relationship model is introduced in this slice.
-- Valid onboarding input for this slice is ageYears as a whole number from 30 through 65 inclusive and gender as one of two supported values: female or male. These bounds define the supported rule domain for SL-001.
-- planItems are immutable generated records in this slice. Each item contains itemCode, title, whyItMatters, frequencyLabel, priorityHorizon, and displayOrder. Mutable status, reminders, history, and completion metadata are not introduced in SL-001.
-- priorityHorizon is a closed enum with exactly three values: Today, Soon, and Later. Every generated item must carry exactly one priorityHorizon value at generation time; dashboard grouping is a direct projection of that stored value.
-- Health plan generation is implemented as a deterministic domain service owned by src/features/profile/. It evaluates an in-repo static rule catalog keyed only by age and gender and produces a complete ordered item list plus a derived healthScore.
-- The rule catalog is versioned with a ruleSetVersion constant stored on the Profile aggregate. The invariant is: same ageYears, same gender, same ruleSetVersion yields identical item codes, horizons, order, and healthScore on every run of the generator service for SL-001 inputs within range 30-65 inclusive. The initiale
+- The slice operates on a single current-user context with exactly one self profile; account creation, authentication, and family profile relationships are outside this slice and must not be introduced into SL-001 behavior.
+- The core domain objects for SL-001 are SelfProfile, PreventiveCatalog, PersonalPlanSnapshot, PlanItemSnapshot, and DashboardProjection.
+- SelfProfile contains only the fields required by this slice: profileId, age, gender, createdAt, and onboardingCompletedAt. Age is an integer in the inclusive range 0-120. Gender is a required rule-input enum with values female or male for this slice.
+- PreventiveCatalog is a locked, versioned, in-code data set for MVP. Each catalog item has itemId, name, category, cadenceLabel, whyItMatters, and one or more rule bands. Category is fixed to checkup or vaccination.
+- Each rule band in PreventiveCatalog defines supported gender, age range, targetAge, dashboardBucket, and priorityOrder. Rule bands are the only source of inclusion, bucket assignment, and ordering for generated items in SL-001.
+- PersonalPlanSnapshot is created immediately after onboarding submission and persisted before dashboard render. It contains planId, profileId, catalogVersion, generatedAt, and generated PlanItemSnapshot records. The dashboard reads this persisted snapshot rather than recalculating rules on render.
+- PlanItemSnapshot is an immutable copy of the matched catalog output at generation time and contains catalogItemId, name, category, cadenceLabel, whyItMatters, dashboardBucket, targetAge, priorityOrder, and status. Initial status is due for Today items and planned for Soon or Later items. Done state is not part of this
 
 ## 3. Invariant and Guardrail Decisions
 
-- All rule predicates, generated item metadata, horizon assignment, and health score calculation must live in the profile domain layer, not in routes, UI components, or ad hoc helpers.
-- Dashboard rendering must consume the persisted generated snapshot from the Profile aggregate. The dashboard route must not regenerate plan data during render.
-- Onboarding completion is a single application command: validate input, create or overwrite the sole Profile aggregate, generate the plan, persist the aggregate, then navigate to the dashboard only after persistence succeeds.
-- The rule catalog must be authored so every supported age-and-gender input produces at least one item. An empty plan is an invalid generation result and must block dashboard navigation.
-- Item ordering must be stable and deterministic. Within each horizon group, ordering comes only from displayOrder; UI code must not apply additional sorting heuristics.
-- Copy shown in onboarding and dashboard must come from static product copy and must state that guidance is rule-based, not AI, and not a medical record.
-- SL-001 code under src/features/onboarding/ owns input collection and submission orchestration only; src/features/profile/ owns domain types, rule evaluation, score derivation, persistence boundary, and dashboard read shaping for the active profile slice state only. This is the single source of truth for Profile types,
+- Do not collect, validate, or persist any onboarding inputs beyond age and gender for SL-001.
+- Do not introduce family profile collections, profile switching, or more than one dashboard context in this slice.
+- Do not fetch preventive items or rules from external APIs, CMS systems, or user-editable storage; the MVP catalog must be local, deterministic, and source-controlled.
+- Do not place rule logic, bucket logic, summary-card selection, or Health Score math inside route components or presentational UI code; those rules must live in domain/application modules.
+- Do not add item detail navigation, mark-as-done behavior, reminder behavior, manual vaccination entry, or profile editing hooks inside SL-001 modules.
+- Do not store medical-record style history, appointment dates, provider data, or broad demographic attributes; this slice persists only the minimum data needed to reproduce the first dashboard.
 
 ## 4. Verification Decisions
 
-- Automated tests cover input validation for ageYears values below 30, above 65, non-integer entries, and unsupported gender values, and confirm that only valid inputs can complete onboarding.
-- Determinism tests run the generator multiple times for the same valid input pairs and verify identical itemCode lists, priorityHorizon values, displayOrder values, and healthScore outputs for the current ruleSetVersion.
-- Coverage tests verify that each supported boundary input pair for the slice domain produces a non-empty plan: age 30 female, age 30 male, age 65 female, and age 65 male.
-- Model tests verify that every generated item belongs to exactly one of Today, Soon, or Later and that the dashboard grouping partitions the full item set without omission or duplication.
-- Health score tests verify that the stored healthScore equals the value produced by the declared formula from the generated plan items and that the dashboard displays that stored value read-only.
-- An end-to-end mobile viewport test covers the happy path from Start through age-and-gender submission to dashboard load, verifies that generation occurs before navigation, and completes within 60 seconds.
-- A repository-level check confirms that SL-001 implementation paths do not import analytics SDKs, external API clients, or provider integration code, and that docs/testing/SL-001-user-checklist.md is marked Pass with corresponding evidence in docs/implementation/SL-001-implementation-notes.md.
+- Automated validation tests cover onboarding input rules: age is required, age accepts only integers from 0 to 120, and gender accepts only female or male for SL-001.
+- Pure plan-generation tests for at least one female sample profile and one male sample profile verify that every generated item originates from the locked PreventiveCatalog, each item category is checkup or vaccination, and repeated generation with the same profile and catalogVersion yields identical output.
+- Dashboard projection tests verify grouping into Today, Soon, and Later, sorting by targetAge then priorityOrder, summary-card selection order Today then Soon then Later, and Health Score calculation using the defined bucket weights.
+- An end-to-end onboarding test verifies that a new user can enter only age and gender, submit once, trigger GenerateInitialPlan, and land on a populated dashboard that shows all three bucket sections, one highlighted next item, and one percentage Health Score for the self profile.
+- A timing check in automated or instrumented verification confirms that initial plan generation completes within 5 seconds from onboarding submission under normal local test conditions.
+- docs/testing/SL-001-user-checklist.md is completed with passing evidence for at least one supported female path and one supported male path, docs/implementation/SL-001-implementation-notes.md records the catalogVersion and changed files for SL-001, and fabric doctor passes without bootstrap semantic issues.
 
 ## 5. Constraints
 
-- Scope is limited to the self-only onboarding path for the first profile and the resulting dashboard for that same active profile.
-- Only age and gender may be collected as onboarding data in SL-001; no names, family members, dates of birth, medical history, reminders, vaccination entries, or provider data are introduced.
-- Dashboard behavior is read-only in this slice. No item detail route, mark-done action, reminder creation, editing, or status mutation is part of the architecture baseline.
-- Dashboard content must reflect deterministic rule output from age and gender only. No AI logic, personalization heuristics, manual overrides, machine learning, or external guideline lookups are allowed.
-- Today, Soon, and Later are the only permitted priority groups in this slice, and each item must appear in exactly one group.
-- The architecture must remain mobile-first and fast enough to support the accepted happy path duration; generation logic must therefore be local, synchronous from the user's perspective, and free of external dependencies.
-- No external APIs, provider integrations, analytics features, or speculative account-management structures may be introduced for SL-001 under the guise of future-proofing the slice.
+- SL-001 scope is limited to self onboarding, first profile creation, first rule-based plan generation, and first dashboard render in one session.
+- The only supported dashboard bucket labels for this slice are Today, Soon, and Later.
+- The only supported preventive item categories for this slice are checkup and vaccination.
+- The only supported rule-input gender values for this slice are female and male; broader profile identity modeling is outside SL-001.
+- Generated item status in this slice is limited to due or planned; done, skipped, reminded, and historical states are not part of the SL-001 baseline.
+- Health Score must remain a simple derived percentage from the current plan snapshot only and must not imply medical risk analysis, prediction, or external data enrichment.
+- No route, module, or test in SL-001 may depend on provider integrations, third-party health systems, or external APIs to generate the first plan or dashboard.
 
 ## 6. Open Questions
 
-- None.
+- What exact named MVP preventive item list and per-item rule bands are approved for the locked catalog version used in SL-001?
+- Where will the catalogVersion and rule documentation live in-repo so product, design, QA, and tests all reference the same source of truth?

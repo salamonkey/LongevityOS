@@ -250,6 +250,8 @@ Artifact lifecycle policy:
 This is the only canonical end-to-end sequence. It matches the current runtime behavior.
 
 ### Command sequence from a clean fabric state
+ ./fabric/company/v1/fabric orchestrator:run-until-blocked --target . --values ./fabric.values.json
+
 
 STAGE 1
 1. (Optional, repo-specific) reset to fabric-only:
@@ -302,11 +304,12 @@ STAGE 4
     - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
 20. Generate implementation artifacts:
     - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
+    - Orchestrator note: when using `orchestrator:run-until-blocked`, Step 20 now runs `npm install` automatically before `npm test` and `npm run build`.
 20a. Generate or update Storybook stories for the implemented slice:
     - `./fabric/company/v1/fabric coder:generate-current-slice-stories --target . --values ./fabric.values.json`
     - This writes `src/stories/slices/<SLICE_ID>/` and ensures Storybook package scripts, dependencies, and `.storybook/` config exist when `package.json` is present.
 20b. Validate in app and Storybook manually:
-    - `npm install`
+    - `npm install` (manual/direct command flow; orchestrator Step 20 already auto-runs this before verification)
     - `npm run dev`
     - `npm run storybook`
     - Review the slice stories under `src/stories/slices/<SLICE_ID>/` against the screen, component, copy, and visual-state contracts.
@@ -318,9 +321,11 @@ STAGE 4
 21a. If Storybook review fails, repair stories/components/contracts and rerun Steps 20a, 20c, and 21.
 21b. Run semantic UX review:
     - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
+    - Orchestrator note: when using `orchestrator:run-until-blocked`, a semantic-review `fail` no longer hard-blocks; the flow proceeds to Step 21c automatically.
+    - Availability note: if the semantic UX LLM reviewer is unavailable (`llm_review_unavailable`), orchestrator retries Step 21b once with `SEMANTIC_UX_LLM_ENABLED=false` and `SEMANTIC_UX_LLM_REQUIRED=false` for deterministic fallback, then continues based on that result.
 21c. If semantic UX review fails, generate and run the Codex repair work order:
-    - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
-    - Add `--include-warnings` when you want warning findings included in the repair work order.
+    - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json --include-warnings`
+    - Default recommendation is to include warnings so the remediation pass is comprehensive.
     - Then rerun Step 21b until the review passes.
 21d. Run tester checklist validation:
     - `./fabric/company/v1/fabric tester:validate-current-slice --target . --values ./fabric.values.json`
@@ -635,6 +640,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Writes/updates `src/stories/slices/<SLICE_ID>/<SLICE_ID>.stories.tsx`.
   - Writes/updates `src/stories/slices/<SLICE_ID>/README.md`.
   - Ensures Storybook package scripts, dependencies, and `.storybook/` config exist when `package.json` is present.
+  - Fails the command when required `Product/*` or `Screens/*` stories still resolve to placeholder surfaces (`ComponentFallback` / `ContractSurface`).
 - Why it is in the canonical flow:
   - Every user-facing slice must have executable Storybook coverage before UX review and closeout.
 
@@ -769,6 +775,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Placeholder-free closeout docs.
   - Implementation artifacts exist under expected source/test locations for every required target path.
   - Carry-forward regression evidence exists for prior passed-slice invariants (`tests/<slice-slug>/carry-forward-invariants.test.mjs`) and references the relevant prior slice IDs.
+  - When prior passed slices require onboarding entry visibility, default runtime entry (`src/main.*` mount path) must still route to an onboarding-capable surface unless explicitly overridden in the current slice checklist with: `Carry-forward override: onboarding default entry`.
   - If implementation notes have stale or incomplete changed-file evidence but required artifacts exist on disk, closeout reconciles the notes automatically instead of failing on documentation drift.
 - On success:
   - Marks implementation notes `Completed` and refreshes changed-file evidence from the verified filesystem artifacts.
@@ -932,7 +939,8 @@ Storybook is now integrated as the executable validation surface for Fabric desi
   - Generates `docs/design-system/storybook-map.md` and `docs/storybook/{slice_id}-story-requirements.json` from the current slice design-system, screen, component, and copy contracts.
 - `coder:generate-current-slice-stories --target <project-root> [--values fabric.values.json]`
   - Generates or refreshes `src/stories/slices/{slice_id}/fixtures.ts`, `{slice_id}.stories.tsx`, and `README.md`.
-  - Uses real component modules when discovered; otherwise generates distinct per-component fallback visuals instead of mapping all component stories to the same route.
+  - Uses real component and route modules when discovered.
+  - Fails when required paths still bind to placeholder surfaces; implement/export the missing surfaces (or update contracts) before proceeding.
   - Adds `dev`, `storybook`, `build-storybook`, and `test:storybook` scripts plus React/Vite/Storybook dependencies and `.storybook/` config when `package.json` exists.
 - `uiux:review-current-slice-storybook --target <project-root> [--values fabric.values.json]`
   - Writes `docs/reviews/storybook/{slice_id}-storybook-review.json` and `.md`.

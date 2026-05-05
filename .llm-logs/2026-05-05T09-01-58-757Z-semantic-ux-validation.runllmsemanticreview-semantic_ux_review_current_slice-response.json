@@ -1,0 +1,48 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T09:01:58.757Z",
+  "completed_utc": "2026-05-05T09:02:25.959Z",
+  "elapsed_ms": 27202,
+  "ok": true,
+  "response": {
+    "status": "fail",
+    "summary": "The implemented app surface does not currently deliver the health plan browsing/detail experience for end users. The main visible UI is still an internal scaffold with generic factory/process copy, so the slice’s user-facing purpose is not met even though a feature component exists in source.",
+    "findings": [
+      {
+        "severity": "blocker",
+        "file": "src/App.jsx",
+        "slot": "primary_heading",
+        "issue_type": "internal_copy_exposed",
+        "observed": "The main rendered screen shows user-visible internal/process language: \"Fabric app factory\", \"App shell ready\", and \"Run the current slice workflow to generate product-specific screens and Storybook stories.\" This violates the contract and does not tell the user anything about browsing checkups, vaccinations, or item details.",
+        "required": ">? nope"
+      },
+      {
+        "severity": "blocker",
+        "file": "src/App.jsx",
+        "slot": "primary_action",
+        "issue_type": "slice_not_surfaced",
+        "observed": "The only apparent next step is an internal build instruction rather than a user action for the active slice. The health plan list/detail flow is not the surfaced experience, so users cannot understand recommended items, open detail, or navigate back as required.",
+        "required": ">? nope"
+      },
+      {
+        "severity": "warning",
+        "file": "index.html",
+        "slot": "primary_heading",
+        "issue_type": "generic_product_copy",
+        "observed": "The browser title is \"Fabric App\", which is generic/internal and not aligned to the preventive health plan experience.",
+        "required": ">? nope"
+      },
+      {
+        "severity": "warning",
+        "file": "src/features/health-plan-browsing-and-item-detail/HealthPlanBrowsingAndItemDetail.jsx",
+        "slot": "primary_heading",
+        "issue_type": "generic_screen_label",
+        "observed": "When detail is shown, the AppShell title is \"Item detail\". That is a generic component-style label rather than a user-task-specific heading; the item name is only secondary on the page.",
+        "required": ">? nope"
+      }
+    ]
+  }
+}

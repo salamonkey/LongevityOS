@@ -1,9 +1,9 @@
 # generated_from: method/workflow-rules.template.yaml
 # fabric_version: v1
-# generated_at: 2026-05-04T06:43:27.439Z
+# generated_at: 2026-05-05T07:57:43.384Z
 schema_version: 1
 rules_version: 1
-generated_at_utc: "2026-04-25T05:35:21.246Z"
+generated_at_utc: "2026-05-05T07:57:05.639Z"
 mode_detection:
   bootstrap_mode_when:
     - foundational_project_description_exists
@@ -75,6 +75,9 @@ delivery_workflow:
     - check_slice_readiness
     - invoke_minimum_required_specialists
     - implement_and_update_artifacts
+    - generate_storybook_contract_map
+    - generate_or_update_current_slice_stories
+    - review_storybook_against_fabric_contracts
     - run_product_review_gate
     - accept_revise_or_escalate
   readiness_criteria:
@@ -122,10 +125,16 @@ routing_rules:
     - slice_has_meaningful_user_facing_flow
     - ux_guidance_missing_or_unclear
     - user_facing_output_needs_review
+    - storybook_contract_map_missing_or_review_failed
   invoke_coder_when:
     - slice_ready_for_implementation
     - product_constraints_clear
     - required_architecture_and_ux_guidance_available
+    - storybook_stories_missing_for_current_slice
+  invoke_tester_when:
+    - semantic_ux_review_passed_for_current_slice
+    - checklist_validation_required_before_closeout
+    - implementation_repair_verification_required
 
 review_gates:
   product_manager:
@@ -141,6 +150,26 @@ review_gates:
   uiux:
     mandatory_when:
       - meaningful_user_flow_or_screen_changes
+    storybook_gate:
+      required_when:
+        - user_facing_component_or_screen_changed
+      required_commands:
+        - uiux:generate-storybook-map
+        - coder:generate-current-slice-stories
+        - uiux:review-current-slice-storybook
+      closeout_requires_review_status: pass
+      required_state_coverage:
+        - default
+        - loading
+        - empty
+        - error_or_invalid
+        - primary_semantic_states
+  tester:
+    mandatory_when:
+      - semantic_ux_review_passed_for_current_slice
+    required_commands:
+      - tester:validate-current-slice
+      - coder:repair-implementation-findings
 
 escalation_policy:
   escalate_only_when_material_customer_owned_decision: true
@@ -240,3 +269,30 @@ slice_closeout_transition_rules:
     - docs/product/current-slice.yaml
     - .system/project-manifest.yaml
   do_not_wait_for_optional_review_reply: true
+
+
+storybook_workflow:
+  principle: fabric_contracts_drive_storybook_not_the_reverse
+  bootstrap_required_after:
+    - uiux:generate-design-system
+  per_slice_sequence:
+    - uiux:generate-storybook-map
+    - coder:generate-current-slice-stories
+    - uiux:review-current-slice-storybook
+    - uiux:review-current-slice-semantics
+    - coder:close-current-slice
+  required_package_scripts:
+    - storybook
+    - build-storybook
+    - test:storybook
+  closeout_gate:
+    required_review_artifact: docs/reviews/storybook/{slice_id}-storybook-review.json
+    required_status: pass
+    required_coverage:
+      - components_from_docs_ux_component_contract
+      - screens_from_docs_ux_screen_contract
+      - default_loading_empty_error_success_states
+      - semantic_statuses_and_priorities_where_applicable
+  ci_expectation:
+    - npm_run_build_storybook_passes_before_release_readiness
+    - npm_run_test_storybook_passes_when_interaction_tests_are_enabled

@@ -1,9 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  getMissingFactoryInitTargets,
+  getBootstrapReviewRelPaths,
+  loadValuesIfPresent,
   readText,
   parseStatusBlock,
   parseBlockScalars,
+  parseSectionListValues,
   parseBacklogSlices,
   parseBriefApprovalStatus,
 } from '../lib/core.mjs';
@@ -26,6 +30,7 @@ function resolveStatusValuesArg({ targetRoot, valuesPath }) {
 }
 
 const CANONICAL_STEP_BY_COMMAND = Object.freeze({
+  'init-factory': '2',
   'pm:intake': '3',
   'pm:brief-readiness': '4',
   'pm:brief-draft': '5',
@@ -107,12 +112,28 @@ function semanticUxReviewPathForSlice(targetRoot, sliceId) {
 
 function semanticUxReviewStatus(targetRoot, sliceId) {
   const reviewPath = semanticUxReviewPathForSlice(targetRoot, sliceId);
-  if (!fs.existsSync(reviewPath)) return 'missing';
+  if (!fs.existsSync(reviewPath)) {
+    return {
+      status: 'missing',
+      hasLlmGateFailure: false,
+    };
+  }
   try {
     const parsed = JSON.parse(readText(reviewPath));
-    return String(parsed.status || '').toLowerCase() || 'unknown';
+    const findings = Array.isArray(parsed?.findings) ? parsed.findings : [];
+    const hasLlmGateFailure = findings.some((finding) => {
+      const issueType = String(finding?.issue_type || '').trim().toLowerCase();
+      return issueType === 'llm_review_unavailable' || issueType === 'llm_review_disabled';
+    });
+    return {
+      status: String(parsed.status || '').toLowerCase() || 'unknown',
+      hasLlmGateFailure,
+    };
   } catch (_) {
-    return 'invalid';
+    return {
+      status: 'invalid',
+      hasLlmGateFailure: false,
+    };
   }
 }
 
@@ -173,6 +194,27 @@ function hasSlicePrerequisites(targetRoot, sliceId) {
   const uxExists = fs.existsSync(uxFlowPathForSlice(targetRoot, sliceId))
     || fs.existsSync(path.join(targetRoot, 'docs/ux/current-slice-flow.md'));
   return { baselineExists, uxExists };
+}
+
+function resolveBootstrapDeliveryRecoveryCommand({ targetRoot, valuesPath, valuesArg }) {
+  const manifestPath = path.join(targetRoot, '.system/project-manifest.yaml');
+  if (!fs.existsSync(manifestPath)) return '';
+  const manifestText = readText(manifestPath);
+  const operatingModel = parseBlockScalars(manifestText, 'operating_model');
+  const currentMode = String(operatingModel.current_mode || '').trim().toLowerCase();
+  if (currentMode !== 'delivery') return '';
+
+  const approvedReviews = parseSectionListValues(manifestText, 'status', 'approved_reviews');
+  const values = loadValuesIfPresent(valuesPath);
+  const reviewRelPaths = Object.values(getBootstrapReviewRelPaths(values));
+  const missingReviewFiles = reviewRelPaths.filter((relPath) => !fs.existsSync(path.join(targetRoot, relPath)));
+  if (missingReviewFiles.length > 0) {
+    return `./fabric/company/v1/fabric pm:finalize-bootstrap-reviews --target . --values ${valuesArg}`;
+  }
+  if (approvedReviews.length === 0) {
+    return `./fabric/company/v1/fabric pm:bootstrap-signoff --target . --values ${valuesArg}`;
+  }
+  return '';
 }
 
 function fileMtimeMs(filePath) {
@@ -353,9 +395,10 @@ function resolveNextCommandForInProgress({ pipelineStatus, implementationStatus,
     if (!storybookReviewPassed(targetRoot, sliceId)) {
       return `./fabric/company/v1/fabric uiux:review-current-slice-storybook --target . --values ${valuesArg}`;
     }
-    const uxReviewStatus = semanticUxReviewStatus(targetRoot, sliceId);
-    if (uxReviewStatus === 'fail') {
-      return `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ${valuesArg}`;
+    const uxReviewState = semanticUxReviewStatus(targetRoot, sliceId);
+    const uxReviewStatus = String(uxReviewState?.status || '').toLowerCase();
+    if (uxReviewStatus === 'fail' && !uxReviewState.hasLlmGateFailure) {
+      return `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ${valuesArg} --include-warnings`;
     }
     if (uxReviewStatus !== 'pass') {
       return `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ${valuesArg}`;
@@ -372,7 +415,7 @@ function resolveNextCommandForInProgress({ pipelineStatus, implementationStatus,
   return `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ${valuesArg}`;
 }
 
-function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orchestratorState, targetRoot }) {
+function buildStatusRows({ slices, valuesArg, valuesPath, implementationStatusBySlice, orchestratorState, targetRoot }) {
   const rows = slices.map((slice) => {
     const pipelineStatus = String(slice.status || '');
     const implementationStatus = resolveImplementationStatus({
@@ -414,6 +457,7 @@ function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orche
   const activeSliceHasCompletedBefore = hasCompletedSliceBeforeIndex(rows, activeRowIndex);
   const gatePassedAtMs = latestGatePassMs(orchestratorState);
   const currentSliceMtimeMs = fileMtimeMs(path.join(targetRoot, 'docs/product/current-slice.yaml'));
+  const bootstrapRecoveryCommand = resolveBootstrapDeliveryRecoveryCommand({ targetRoot, valuesPath, valuesArg });
   if (activeRowIndex >= 0) {
     const activeRow = rows[activeRowIndex];
     const activePipeline = String(activeRow.pipelineStatus || '').toLowerCase();
@@ -457,6 +501,11 @@ function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orche
       return rows;
     }
     if (activePipeline === 'completed') {
+      if (bootstrapRecoveryCommand) {
+        activeRow.nextCommand = bootstrapRecoveryCommand;
+        activeRow.nextCanonicalStep = resolveCanonicalStep(activeRow.nextCommand);
+        return rows;
+      }
       if (gatePassedAtMs < currentSliceMtimeMs) {
         activeRow.nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
         activeRow.nextCanonicalStep = '23';
@@ -471,6 +520,11 @@ function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orche
   const firstNotStartedIndex = rows.findIndex((row) => String(row.implementationStatus).toLowerCase() === 'not started');
   if (firstNotStartedIndex >= 0) {
     if (activeSliceState === 'completed') {
+      if (bootstrapRecoveryCommand) {
+        rows[firstNotStartedIndex].nextCommand = bootstrapRecoveryCommand;
+        rows[firstNotStartedIndex].nextCanonicalStep = resolveCanonicalStep(rows[firstNotStartedIndex].nextCommand);
+        return rows;
+      }
       if (gatePassedAtMs < currentSliceMtimeMs) {
         rows[firstNotStartedIndex].nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
         rows[firstNotStartedIndex].nextCanonicalStep = '23';
@@ -609,6 +663,11 @@ function detectBootstrapProgress(targetRoot) {
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const valuesJsonPath = path.join(targetRoot, 'fabric.values.json');
   const valuesYamlPath = path.join(targetRoot, 'fabric.values.yaml');
+  const missingFactoryInitTargets = getMissingFactoryInitTargets(targetRoot);
+  const factoryInitReady = missingFactoryInitTargets.length === 0;
+  const factoryInitMissingSummary = factoryInitReady
+    ? ''
+    : `${String(missingFactoryInitTargets.length)} missing`;
 
   const intakeDone = fs.existsSync(intakeSourcesPath) && fs.existsSync(intakeReportPath);
   const readinessDone = fs.existsSync(readinessPath);
@@ -654,7 +713,10 @@ function detectBootstrapProgress(targetRoot) {
   let nextCommand = './fabric/company/v1/fabric pm:intake --target .';
   let reason = 'No intake artifacts detected yet.';
 
-  if (intakeDone && !readinessDone) {
+  if (!factoryInitReady) {
+    nextCommand = './fabric/company/v1/fabric init-factory --target .';
+    reason = 'Factory-init artifacts are missing; init-factory must run before pm:intake.';
+  } else if (intakeDone && !readinessDone) {
     nextCommand = './fabric/company/v1/fabric pm:brief-readiness --target .';
     reason = 'Intake artifacts exist; readiness gate has not been recorded yet.';
   } else if (intakeDone && readinessDone && !readinessSufficient) {
@@ -690,6 +752,8 @@ function detectBootstrapProgress(targetRoot) {
   }
 
   return {
+    factoryInitReady,
+    factoryInitMissingSummary,
     intakeDone,
     readinessDone,
     readinessVerdict,
@@ -708,6 +772,9 @@ function printBootstrapStatusTerminal(progress) {
   console.log('fabric pm:status: bootstrap');
   console.log('');
   console.log('PM Bootstrap State:');
+  console.log(
+    `  Factory Init: ${progress.factoryInitReady ? 'present' : `missing (${progress.factoryInitMissingSummary})`}`,
+  );
   console.log(`  Intake Artifacts: ${progress.intakeDone ? 'present' : 'missing'}`);
   console.log(`  Readiness Review: ${progress.readinessDone ? 'present' : 'missing'}`);
   console.log(`  Readiness Verdict: ${progress.readinessVerdict}`);
@@ -719,6 +786,8 @@ function printBootstrapStatusTerminal(progress) {
   console.log(`Guidance: ${progress.reason}`);
   console.log(`Next Command: ${progress.nextCommand}`);
   console.log(`Next Canonical Step: ${resolveCanonicalStep(progress.nextCommand) || '(none)'}`);
+  console.log('Bootstrap Prerequisite:');
+  console.log('  2) ./fabric/company/v1/fabric init-factory --target .');
   console.log('PM Bootstrap Sequence:');
   console.log('  1) ./fabric/company/v1/fabric pm:intake --target .');
   console.log('  2) ./fabric/company/v1/fabric pm:brief-readiness --target .');
@@ -731,6 +800,9 @@ function printBootstrapStatusMarkdown(progress) {
   console.log('## PM Bootstrap State');
   console.log('');
   console.log(`- intake artifacts: ${progress.intakeDone ? 'present' : 'missing'}`);
+  console.log(
+    `- factory init: ${progress.factoryInitReady ? 'present' : `missing (${escapeMarkdownCell(progress.factoryInitMissingSummary)})`}`,
+  );
   console.log(`- readiness review: ${progress.readinessDone ? 'present' : 'missing'}`);
   console.log(`- readiness verdict: ${progress.readinessVerdict}`);
   console.log(`- draft step: ${progress.draftDone ? 'completed' : 'pending'}`);
@@ -740,6 +812,10 @@ function printBootstrapStatusMarkdown(progress) {
   console.log(`- guidance: ${escapeMarkdownCell(progress.reason)}`);
   console.log(`- next command: \`${progress.nextCommand}\``);
   console.log(`- next canonical step: ${escapeMarkdownCell(resolveCanonicalStep(progress.nextCommand) || '(none)')}`);
+  console.log('');
+  console.log('### Bootstrap Prerequisite');
+  console.log('');
+  console.log('2. `./fabric/company/v1/fabric init-factory --target .`');
   console.log('');
   console.log('### PM Bootstrap Sequence');
   console.log('');
@@ -779,6 +855,7 @@ function pmStatus({ targetRoot, valuesPath, format = 'terminal' }) {
   const rows = buildStatusRows({
     slices,
     valuesArg,
+    valuesPath,
     implementationStatusBySlice,
     orchestratorState,
     targetRoot,

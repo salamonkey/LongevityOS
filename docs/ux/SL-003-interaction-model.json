@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T10:37:28.475Z",
+  "slice_id": "SL-003",
+  "user_goal": "Turn guidance into follow-through by allowing users to mark items done or planned and see the plan update immediately.",
+  "entry_points": [
+    "primary_app_flow"
+  ],
+  "screens": [
+    "reminder"
+  ],
+  "states": [
+    "default",
+    "loading",
+    "empty",
+    "validation_error",
+    "success"
+  ],
+  "transitions": [
+    {
+      "from": "entry",
+      "action": "open",
+      "to": "reminder"
+    },
+    {
+      "from": "reminder",
+      "action": "primary_action",
+      "to": "success_or_next_state"
+    },
+    {
+      "from": "reminder",
+      "action": "invalid_input",
+      "to": "validation_error"
+    }
+  ],
+  "primary_actions": [
+    "primary_action"
+  ],
+  "secondary_actions": [
+    "open_detail",
+    "set_reminder"
+  ],
+  "validation_rules": [
+    "Required user inputs must be validated before transition.",
+    "Errors must be specific and user-facing."
+  ],
+  "recovery_paths": [
+    "Let the user correct invalid or missing input without losing context."
+  ],
+  "trust_constraints": [
+    "Do not imply medical diagnosis.",
+    "Use calm, clear, trustworthy copy."
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "task": "brief_clarity_finding_adjudication",
+  "caller": "brief-clarity-gate.adjudicatePassOneFindingsWithSemantic",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:42:24.158Z",
+  "completed_utc": "2026-05-05T07:42:50.179Z",
+  "elapsed_ms": 26021,
+  "ok": true,
+  "response": {
+    "assessments": [
+      {
+        "id": "finding-001",
+        "is_violation": false,
+        "detail": "This sentence does not present competing alternatives that require a decision. It specifies one feature: a health score per profile based on plan status.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-002",
+        "is_violation": false,
+        "detail": "The reminder options are an explicit allowed set, not an unresolved choice. Offering 1 month, 3 months, and custom date is a concrete product decision.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-003",
+        "is_violation": true,
+        "detail": "This leaves a material implementation choice undecided between responsive web and cross-platform delivery. That is a real technical-direction ambiguity for an MVP brief.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-004",
+        "is_violation": true,
+        "detail": "'Simple health score' is too subjective for a core product element. The brief does not define what the score represents or how it is determined, which can affect design and implementation decisions.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-005",
+        "is_violation": false,
+        "detail": "The scope is bounded by a specific dashboard presentation and by limiting prioritization to internal timing rules.",
+        "boundary_type": "temporal",
+        "evidence_span": "Display prioritized actions in 'Now / Soon / Later' buckets on the dashboard; limit prioritization to internal timing rules."
+      },
+      {
+        "id": "finding-006",
+        "is_violation": false,
+        "detail": "The item-detail scope is explicitly bounded to listed fields and excludes clinician advice.",
+        "boundary_type": "in_out_scope",
+        "evidence_span": "Show item detail with description, why-it-matters explanation, recommendation cadence, and current status context; exclude clinician advice."
+      },
+      {
+        "id": "finding-007",
+        "is_violation": false,
+        "detail": "This is a bounded interaction: users can mark an item done from item detail, and the update must propagate to the plan and dashboard state.",
+        "boundary_type": "workflow_state",
+        "evidence_span": "Allow users to mark an item as done from item detail and reflect the update in the plan and dashboard state."
+      },
+      {
+        "id": "finding-008",
+        "is_violation": false,
+        "detail": "The scope is bounded by defined data sources and explicit exclusions. Guidance is based only on stored entries and internal rules, not verification or imports.",
+        "boundary_type": "data_source",
+        "evidence_span": "Show vaccination status guidance from stored entries and internal rules; exclude provider verification and external vaccination imports."
+      },
+      {
+        "id": "finding-009",
+        "is_violation": false,
+        "detail": "The profile-switching scope is bounded to viewing profile-specific dashboard, plan, and vaccination data.",
+        "boundary_type": "in_out_scope",
+        "evidence_span": "Let users switch between profiles to view profile-specific dashboard, plan, and vaccination data."
+      }
+    ]
+  }
+}

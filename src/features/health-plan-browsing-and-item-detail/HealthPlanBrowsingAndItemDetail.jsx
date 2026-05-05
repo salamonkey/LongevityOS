@@ -58,11 +58,9 @@ function NotFoundState({ onRecover }) {
   );
 }
 
-function DetailView({ item, onBack }) {
+function DetailView({ item }) {
   return (
     <section className="sl002-detail-view" aria-label={`${item.displayName} details`}>
-      <button type="button" className="sl002-back-link" onClick={onBack}>Back</button>
-      <h2>{item.displayName}</h2>
       <div className="sl002-detail-topline">
         <StatusPill status={item.status} label={item.statusLabel} />
         <span className="sl002-detail-category">{item.categoryLabel}</span>
@@ -164,8 +162,15 @@ export default function HealthPlanBrowsingAndItemDetail({
 
   if (detailItem) {
     return (
-      <AppShell title={detailItem.displayName}>
-        <DetailView item={detailItem} onBack={handleBackFromDetail} />
+      <AppShell
+        title={detailItem.displayName}
+        headerAction={(
+          <button type="button" className="sl002-back-button" onClick={handleBackFromDetail}>
+            Back
+          </button>
+        )}
+      >
+        <DetailView item={detailItem} />
       </AppShell>
     );
   }

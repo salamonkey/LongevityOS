@@ -149,11 +149,14 @@ export default function SelfOnboardingToFirstDashboard({
 
   if (isDashboardReady && projection) {
     const dueTodayCount = projection.sections.find((section) => section.priority === 'today')?.items.length ?? 0;
-    const dashboardHeaderAction = typeof onOpenHealthPlan === 'function' ? (
-      <button type="button" className="sl001-primary-action sl001-dashboard-plan-cta" onClick={openHealthPlan}>
-        Browse full plan
-      </button>
-    ) : null;
+    let dashboardHeaderAction;
+    if (typeof onOpenHealthPlan === 'function') {
+      dashboardHeaderAction = (
+        <button type="button" className="sl001-primary-action sl001-dashboard-plan-cta" onClick={openHealthPlan}>
+          Browse full plan
+        </button>
+      );
+    }
 
     return (
       <AppShell title="Your preventive dashboard" headerAction={dashboardHeaderAction}>
@@ -188,9 +191,9 @@ export default function SelfOnboardingToFirstDashboard({
         Share your age and gender so we can create a personalized plan with clear next steps.
       </p>
       <form className="sl001-form" onSubmit={handleSubmit} noValidate>
-        {submissionError ? (
+        {submissionError && (
           <p className="sl001-error-banner" role="alert">{submissionError}</p>
-        ) : null}
+        )}
 
         <label htmlFor="sl001-age">Age</label>
         <input
@@ -207,9 +210,9 @@ export default function SelfOnboardingToFirstDashboard({
           aria-describedby="sl001-age-help sl001-age-error"
         />
         <p className="sl001-helper" id="sl001-age-help">We use your age to generate your first plan.</p>
-        {errors.age ? (
+        {errors.age && (
           <p className="sl001-field-error" id="sl001-age-error" role="alert">{errors.age}</p>
-        ) : null}
+        )}
 
         <fieldset ref={genderRef} aria-describedby="sl001-gender-error" className="sl001-gender-field" disabled={isSubmitting}>
           <legend>Gender</legend>
@@ -234,9 +237,9 @@ export default function SelfOnboardingToFirstDashboard({
             Male
           </label>
         </fieldset>
-        {errors.gender ? (
+        {errors.gender && (
           <p className="sl001-field-error" id="sl001-gender-error" role="alert">{errors.gender}</p>
-        ) : null}
+        )}
 
         <button
           type="submit"

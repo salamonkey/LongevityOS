@@ -1,55 +1,57 @@
 <!-- generated_from: templates/architecture-baseline-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-29T19:06:20.359Z -->
+<!-- generated_at: 2026-05-05T08:53:49.062Z -->
 # Architecture Baseline
 
-Date: `2026-04-29`
+Date: `2026-05-05`
 Status: `Ready for implementation`
-Scope: Current slice `SL-002 Health Item Detail and Completion`
+Scope: Current slice `SL-002 Health Plan Browsing and Item Detail`
 
 ## 1. Context
 
-Architecture baseline for slice SL-002 Health Item Detail and Completion. Scope is limited to opening any existing dashboard health item in a detail view, showing required item context with the unified status model, marking eligible items Done, and reflecting the resulting state on the dashboard and displayed health score for the active profile. This slice builds on the existing onboarding-to-dashboard flow and must reuse its profile and dashboard data foundation rather than introducing a parallel model.
+Architecture baseline for SL-002 Health Plan Browsing and Item Detail. This slice adds read-only self-profile plan browsing and item detail using the generated preventive item set from onboarding/dashboard, with consistent item identity, content, status display, and back-navigation context.
 
 ## 2. Decisions
 
-- Use a single HealthItem record as the source of truth for both dashboard and detail surfaces; the detail route must load by activeProfileId plus healthItemId from the same repository or store already used to populate dashboard items.
-- For this slice, the HealthItem fields required at the domain boundary are: id, profileId, actionLabel, whyItMatters, recommendationFrequency, priorityHorizon, status, nextDueDate nullable, plannedForDate nullable, lastCompletedAt nullable, and updatedAt.
-- Define HealthItemStatus as a closed enum with exactly three values: Due, Planned, and Done. Dashboard and detail must import the same status type and labels so status terminology cannot drift between surfaces.
-- Define status context as a derived view concern from the HealthItem record: Due is derived from nextDueDate when present, Planned is derived from plannedForDate, and Done is derived from lastCompletedAt. No separate status-context persistence model is introduced for this slice.
-- Introduce one application use case for completion, markHealthItemDone(activeProfileId, healthItemId), owned by the SL-002 feature module. It is the only write path added in this slice for health items.
-- markHealthItemDone is allowed only when the current item status is Due or Planned. On success it must set status to Done, set lastCompletedAt to the completion timestamp, clear plannedForDate, persist the updated item, and update updatedAt.
-- Done items remain addressable by direct detail route lookup but are excluded from dashboard priority grouping. Dashboard placement must be derived from item status and horizon at read time so a completed item cannot appear in Today, Soon, or Later after completion and cannot be duplicated across groups by stale data.
+- Model health plan content with two read-side structures only: `PreventiveItemDefinition` for locked catalog content and `GeneratedHealthItem` for self-profile instance state. Views compose them by stable `itemKey` instead of duplicating display strings.
+- For this slice, `PreventiveItemDefinition` owns `itemKey`, `displayName`, `category`, `cadenceText`, `recommendationText`, and `whyItMattersText`. `GeneratedHealthItem` owns `itemKey`, `profileId`, and one current `status`.
+- The only valid categories in SL-002 are `checkup` and `vaccination`. Every generated item belongs to exactly one category based on its definition, and plan browsing derives exactly two list sections from that category.
+- The only valid statuses in SL-002 are `due`, `planned`, and `done`. Each generated item exposes exactly one current status, and list/detail/dashboard views must all consume the same status mapping.
+- Health item detail is not a separate entity or persistence record. It is the same generated item instance rendered with extended catalog content from its linked definition.
+- This feature is self-profile only. Plan lists and detail routes resolve data from the current account's self profile created by onboarding and do not introduce family profile selection or cross-profile lookup.
+- The feature owns three route surfaces: self checkups list, self vaccinations list, and self item detail by `itemKey`. Route handlers may assemble read models and handle missing/not-found cases, but they do not generate plans or mutate item state for this slice alone and must not recompute recommendation logic. The only
 
 ## 3. Invariant and Guardrail Decisions
 
-- Do not introduce a separate detail-only copy of health item state; dashboard and detail must read from the same underlying item data.
-- Do not add new status labels, aliases, or transitional states beyond Due, Planned, and Done.
-- Do not add reminder scheduling, rescheduling, undo-completion, full plan list navigation, family switching behavior, or vaccination logic in this slice.
-- Do not create recurring follow-up items or advance recommendation schedules on completion; frequency remains informational only in SL-002.
-- Do not embed health score calculation logic in the detail route or component; always call the existing shared progress or score calculator owned outside the detail UI.
-- Do not allow cross-profile item access; every item read and write must be scoped to the active profile context.
-- Do not rely on client-only optimistic state as the final source of truth; completion must persist and survive reload for the same test account.
+- Do not introduce write actions for status changes, reminders, manual vaccination entry, or profile updates inside this feature.
+- Do not duplicate item names, cadence text, recommendation text, why-it-matters text, or status labels across dashboard, plan list, and detail components; consume them from shared definition/constants and mappers.
+- Do not allow free-form category or status values in UI or adapters; use only the canonical enums for this slice.
+- Do not persist navigation origin or back-stack state as domain data; keep it as transient router state/history only.
+- Do not broaden data access beyond the current self profile, even if account data already contains family profiles.
+- Do not create a separate vaccination tracker model in this slice; vaccination plan browsing here is read-only list/detail presentation of generated health items.
+- Do not render an item detail view unless the `itemKey` exists in both the self profile's generated plan and the locked preventive item definition set.
 
 ## 4. Verification Decisions
 
-- Automated route coverage confirms that every health item rendered on the dashboard resolves to a detail view for the same item id under the active profile.
-- Detail-view tests confirm 100% of rendered item details include actionLabel, whyItMatters, recommendationFrequency, unified status label, and derived status context.
-- Application-level tests verify markHealthItemDone succeeds for items starting in Due and Planned states and rejects writes for items already in Done state.
-- Persistence tests verify that after marking an eligible item Done, reopening the same item and reloading the page in the same test account still shows status Done with lastCompletedAt-based status context.
-- Dashboard refresh tests verify a completed item is removed from active priority groups and is not shown in more than one group after completion.
-- Shared-score integration tests verify the displayed health score changes immediately after a successful completion and matches the value returned by the existing score calculator.
-- Regression coverage confirms the onboarding-to-generated-dashboard flow from slice 1 still works after SL-002 changes.
+- Test that the combined self checkups list and self vaccinations list contain every generated self-profile `itemKey` exactly once.
+- Test that every rendered plan item shows a display name, cadence text, and exactly one status label from the allowed set.
+- Test that opening any plan-list item or dashboard-highlighted item loads detail for the same `itemKey` and shows matching name and status plus non-empty recommendation and why-it-matters content.
+- Test that direct access to an unknown `itemKey`, an item outside the self profile plan, or an item missing from the locked definition set resolves to not-found behavior rather than partial rendering.
+- User-flow test that entering detail from dashboard returns to dashboard, and entering detail from checkups or vaccinations returns to the originating list with browser history context preserved.
+- Content verification that 100% of locked MVP preventive item definitions used in this slice have populated `category`, `displayName`, `cadenceText`, `recommendationText`, and plain-language `whyItMattersText` fields.
+- Test that dashboard, plan list, and detail render the same item display name and status label for the same `itemKey`.
 
 ## 5. Constraints
 
-- Stay within SL-002 scope only: item detail read, unified status display, completion from detail, dashboard refresh, and score refresh.
-- Reuse the onboarding-generated dashboard item dataset and existing profile context; do not introduce a second plan-generation path or a separate dashboard data model.
-- Persist only the minimum completion data needed for this slice: status, lastCompletedAt, cleared plannedForDate, and updatedAt on the existing health item record.
-- Keep health guidance rule-based and informational; this slice must not imply medical record behavior, provider integration, external API use, or AI-derived recommendations.
-- Implementation must remain modular and slice-local, with SL-002 logic placed under src/features/health-item-detail-and-completion/, route wiring under src/routes/health-item-detail-and-completion*, and slice tests under tests/health-item-detail-and-completion/.
-- Health score behavior in this slice is integration-only: reuse the existing score derivation and do not redefine the formula as part of SL-002.
+- Implementation must stay read-only for SL-002; changing item status is out of scope.
+- Implementation must stay self-profile only; family profile views and switching are out of scope.
+- Only the locked MVP preventive item set may be displayed in this slice; items outside that set are excluded.
+- Only two plan sections are allowed in this slice: checkups and vaccinations.
+- Detail content must explain why the item matters in plain language and must not expand into medical-record behavior, provider integration, or clinical reference workflows.
+- A generated health item must always have one stable `itemKey`, one category, one cadence text, and one current status wherever it is rendered.
+- This slice may consume onboarding/dashboard outputs but must not introduce new recommendation-generation logic or separate plan-calculation rules.
 
 ## 6. Open Questions
 
-- None.
+- should return-to-origin while detail is open, or may it be considered no longer valid if list data changes during the same session?
+- should a direct-loaded detail page without history show a visible back target to checkups/vaccinations, or is browser back only sufficient for this slice?

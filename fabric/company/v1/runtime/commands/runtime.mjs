@@ -1365,6 +1365,178 @@ function validateCarryForwardRegressionEvidence({ targetRoot, currentSlice, inva
   return { issues: [], testRelPath };
 }
 
+function collectPassedSliceOnboardingInvariantSources({ targetRoot, activeSliceId }) {
+  const testingDir = path.join(targetRoot, 'docs/testing');
+  if (!fs.existsSync(testingDir)) return [];
+  const files = fs.readdirSync(testingDir)
+    .filter((name) => /^SL-[A-Za-z0-9_-]+-user-checklist\.md$/i.test(name))
+    .sort();
+  const matches = [];
+  const onboardingInvariantPattern = /^the onboarding entry screen is visible and clear\b/i;
+  for (const file of files) {
+    const absPath = path.join(testingDir, file);
+    const text = readText(absPath);
+    const resultState = parseChecklistResultState(text);
+    if (resultState !== 'pass') continue;
+    const meta = parseChecklistSliceMetadata(text);
+    const sliceId = String(meta.id || '').trim();
+    if (!sliceId || sliceId === String(activeSliceId || '').trim()) continue;
+    const expected = parseExpectedResultLines(text);
+    if (expected.some((line) => onboardingInvariantPattern.test(String(line || '').trim().toLowerCase()))) {
+      matches.push({ sliceId, checklistRelPath: `docs/testing/${file}` });
+    }
+  }
+  return matches;
+}
+
+function currentChecklistHasOnboardingEntryOverride(checklistText) {
+  const text = String(checklistText || '');
+  const overridePatterns = [
+    /carry-forward override:\s*onboarding default entry/i,
+    /onboarding default entry override:\s*true/i,
+    /fabric_onboarding_entry_override\s*:\s*true/i,
+  ];
+  return overridePatterns.some((pattern) => pattern.test(text));
+}
+
+function resolveRelativeImportCandidates(fromRelPath, importSpec) {
+  const fromDir = path.posix.dirname(fromRelPath.replace(/\\/g, '/'));
+  const resolvedNoExt = path.posix.normalize(path.posix.join(fromDir, importSpec));
+  return [
+    `${resolvedNoExt}.jsx`,
+    `${resolvedNoExt}.tsx`,
+    `${resolvedNoExt}.js`,
+    `${resolvedNoExt}.ts`,
+    `${resolvedNoExt}/index.jsx`,
+    `${resolvedNoExt}/index.tsx`,
+    `${resolvedNoExt}/index.js`,
+    `${resolvedNoExt}/index.ts`,
+  ].map((candidate) => candidate.replace(/^\.\/+/, ''));
+}
+
+function parseRelativeImportsByAlias(moduleText) {
+  const map = new Map();
+  const importPattern = /^\s*import\s+([A-Za-z0-9_]+)\s+from\s+['"]([^'"]+)['"];?/gm;
+  let match = importPattern.exec(String(moduleText || ''));
+  while (match) {
+    const alias = String(match[1] || '').trim();
+    const spec = String(match[2] || '').trim();
+    if (alias && spec.startsWith('.')) {
+      map.set(alias, spec);
+    }
+    match = importPattern.exec(String(moduleText || ''));
+  }
+  return map;
+}
+
+function parseRenderedComponentAliases(moduleText) {
+  const aliases = new Set();
+  const jsxTagPattern = /<([A-Z][A-Za-z0-9_]*)\b/g;
+  let tagMatch = jsxTagPattern.exec(String(moduleText || ''));
+  while (tagMatch) {
+    aliases.add(String(tagMatch[1] || '').trim());
+    tagMatch = jsxTagPattern.exec(String(moduleText || ''));
+  }
+  return [...aliases];
+}
+
+function resolveMountedModulesForRelPath({ targetRoot, moduleRelPath }) {
+  const moduleAbsPath = path.join(targetRoot, moduleRelPath);
+  if (!fs.existsSync(moduleAbsPath)) return [];
+  let text = '';
+  try {
+    text = readText(moduleAbsPath);
+  } catch (_) {
+    return [];
+  }
+  const importsByAlias = parseRelativeImportsByAlias(text);
+  const renderedAliases = parseRenderedComponentAliases(text);
+  const out = [];
+  for (const alias of renderedAliases) {
+    const spec = importsByAlias.get(alias);
+    if (!spec) continue;
+    const candidates = resolveRelativeImportCandidates(moduleRelPath, spec);
+    const existing = candidates.find((relPath) => fs.existsSync(path.join(targetRoot, relPath)));
+    if (existing) out.push(existing);
+  }
+  return [...new Set(out)];
+}
+
+function resolveDefaultEntryRuntimeModules(targetRoot) {
+  const entries = ['src/main.jsx', 'src/main.tsx', 'src/main.js', 'src/main.ts'];
+  const mainEntryRelPath = entries.find((relPath) => fs.existsSync(path.join(targetRoot, relPath))) || '';
+  if (!mainEntryRelPath) return { mainEntryRelPath: '', modules: [] };
+  const visited = new Set();
+  const queue = [mainEntryRelPath];
+  const modules = [];
+  const maxDepthModules = 12;
+  while (queue.length > 0 && modules.length < maxDepthModules) {
+    const next = queue.shift();
+    if (!next || visited.has(next)) continue;
+    visited.add(next);
+    modules.push(next);
+    const children = resolveMountedModulesForRelPath({ targetRoot, moduleRelPath: next });
+    for (const child of children) {
+      if (!visited.has(child)) queue.push(child);
+    }
+  }
+  return { mainEntryRelPath, modules };
+}
+
+function moduleHasOnboardingEntrySignal({ targetRoot, moduleRelPath }) {
+  const normalizedPath = String(moduleRelPath || '').replace(/\\/g, '/');
+  if (
+    normalizedPath.endsWith('src/routes/self-onboarding-to-first-dashboard.jsx')
+    || normalizedPath.endsWith('src/routes/self-onboarding-to-first-dashboard.tsx')
+    || normalizedPath.endsWith('src/features/self-onboarding-to-first-dashboard/SelfOnboardingToFirstDashboard.jsx')
+    || normalizedPath.endsWith('src/features/self-onboarding-to-first-dashboard/SelfOnboardingToFirstDashboard.tsx')
+  ) {
+    return true;
+  }
+  const absPath = path.join(targetRoot, moduleRelPath);
+  if (!fs.existsSync(absPath)) return false;
+  const text = readText(absPath);
+  const importsByAlias = parseRelativeImportsByAlias(text);
+  const renderedAliases = parseRenderedComponentAliases(text);
+  for (const alias of renderedAliases) {
+    if (/selfonboardingtofirstdashboard/i.test(alias)) return true;
+    const spec = importsByAlias.get(alias);
+    if (spec && /self-onboarding-to-first-dashboard\/(?:SelfOnboardingToFirstDashboard|index|self-onboarding-to-first-dashboard)/i.test(spec)) return true;
+  }
+  return false;
+}
+
+function validateDefaultEntryOnboardingCarryForward({ targetRoot, currentSliceId, checklistText }) {
+  const inheritedSources = collectPassedSliceOnboardingInvariantSources({ targetRoot, activeSliceId: currentSliceId });
+  if (inheritedSources.length === 0) {
+    return { issues: [], inheritedSources: [], analyzedModules: [] };
+  }
+  if (currentChecklistHasOnboardingEntryOverride(checklistText)) {
+    return { issues: [], inheritedSources, analyzedModules: [] };
+  }
+  const { mainEntryRelPath, modules } = resolveDefaultEntryRuntimeModules(targetRoot);
+  if (!mainEntryRelPath) {
+    return {
+      issues: [
+        'cannot verify onboarding default entry invariant: missing src/main.* entry file',
+      ],
+      inheritedSources,
+      analyzedModules: [],
+    };
+  }
+  const hasSignal = modules.some((relPath) => moduleHasOnboardingEntrySignal({ targetRoot, moduleRelPath: relPath }));
+  if (hasSignal) {
+    return { issues: [], inheritedSources, analyzedModules: modules };
+  }
+  return {
+    issues: [
+      `default runtime entry no longer shows an onboarding-capable surface (analyzed: ${modules.join(', ') || mainEntryRelPath}). Add onboarding as default entry or declare an explicit checklist override line: "Carry-forward override: onboarding default entry".`,
+    ],
+    inheritedSources,
+    analyzedModules: modules,
+  };
+}
+
 function parseManualQaFindings(checklistText) {
   const findingsBody = sectionBodyByHeading(checklistText, /^\s*##\s+Manual QA Findings\s*$/i);
   if (!findingsBody) return [];
@@ -1466,7 +1638,7 @@ function ensureReactViteStorybookPackageJson(targetRoot, valuesPath) {
     dev: 'vite',
     build: 'vite build',
     preview: 'vite preview',
-    test: pkg.scripts.test || 'node --test tests/**/*.test.mjs',
+    test: pkg.scripts.test || 'node --test',
     storybook: 'storybook dev -p 6006',
     'build-storybook': 'storybook build',
     'test:storybook': 'vitest --config vitest.config.ts',
@@ -3241,6 +3413,14 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   for (const issue of carryForwardEvidence.issues) {
     issues.push(issue);
   }
+  const onboardingCarryForward = validateDefaultEntryOnboardingCarryForward({
+    targetRoot,
+    currentSliceId: currentSlice.id,
+    checklistText: fs.existsSync(checklistAbsPath) ? readText(checklistAbsPath) : '',
+  });
+  for (const issue of onboardingCarryForward.issues) {
+    issues.push(issue);
+  }
   const artifactEvidence = implementationArtifactEvidence(targetRoot, requiredTargets);
   const missingTargets = artifactEvidence
     .filter((entry) => entry.artifacts.length === 0)
@@ -3449,17 +3629,55 @@ function manualBlockReason({ targetRoot, commandName }) {
   return `tester gate Step 21d requires attention in ${checklistRelPath}`;
 }
 
-async function runFabricSubcommand({ targetRoot, valuesPath, commandName, force = false }) {
+function semanticUxLlmGateFailureInfo(targetRoot) {
+  const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
+  if (!fs.existsSync(currentSlicePath)) return null;
+  try {
+    const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+    const sliceId = String(currentSlice?.id || '').trim();
+    if (!sliceId) return null;
+    const reviewRelPath = `docs/reviews/ux/${normalizeSliceIdForWorkOrder(sliceId)}-semantic-ux-review.json`;
+    const reviewPath = path.join(targetRoot, reviewRelPath);
+    if (!fs.existsSync(reviewPath)) return null;
+    const review = parseJsonFile(reviewPath, reviewRelPath);
+    if (String(review?.status || '').trim().toLowerCase() !== 'fail') return null;
+    const findings = Array.isArray(review?.findings) ? review.findings : [];
+    const gateFinding = findings.find((finding) => {
+      const issueType = String(finding?.issue_type || '').trim().toLowerCase();
+      return issueType === 'llm_review_unavailable' || issueType === 'llm_review_disabled';
+    });
+    if (!gateFinding) return null;
+    const observed = String(gateFinding?.observed || '').trim() || 'LLM semantic reviewer unavailable';
+    return {
+      issueType: String(gateFinding?.issue_type || '').trim().toLowerCase(),
+      reason: `semantic UX review gate is blocked (${observed}); fix LLM connectivity/config or set SEMANTIC_UX_LLM_REQUIRED=false intentionally before rerunning Step 21b`,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+async function runFabricSubcommand({
+  targetRoot,
+  valuesPath,
+  commandName,
+  force = false,
+  includeWarnings = false,
+  envOverrides = null,
+}) {
   const fabricBin = path.join(targetRoot, 'fabric/company/v1/fabric');
   const valuesArg = resolveValuesArgForStatus({ targetRoot, valuesPath });
   const args = [commandName, '--target', '.', '--values', valuesArg, '--no-next-steps'];
+  if (includeWarnings && commandName === 'coder:repair-semantic-ux-findings') {
+    args.push('--include-warnings');
+  }
   if (force) {
     args.push('--force');
   }
   return await new Promise((resolve) => {
     const child = spawn(fabricBin, args, {
       cwd: targetRoot,
-      env: process.env,
+      env: envOverrides ? { ...process.env, ...envOverrides } : process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const stdoutChunks = [];
@@ -3496,7 +3714,16 @@ async function runFabricSubcommand({ targetRoot, valuesPath, commandName, force 
 }
 
 function runPostImplementationVerification({ targetRoot }) {
+  const packageJsonPath = path.join(targetRoot, 'package.json');
+  if (!fs.existsSync(packageJsonPath)) {
+    return {
+      ok: false,
+      failedCheck: 'package.json presence check',
+      status: 1,
+    };
+  }
   const checks = [
+    { label: 'npm install', cmd: 'npm', args: ['install'] },
     { label: 'npm test', cmd: 'npm', args: ['test'] },
     { label: 'npm run build', cmd: 'npm', args: ['run', 'build'] },
   ];
@@ -3551,8 +3778,15 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
 
     const signature = `${next.activeSliceId || '(unknown-slice)'}|${next.activeSliceState || '(unknown-state)'}|${next.canonicalStep}|${commandName}|${next.commandText}`;
     if (seen.has(signature)) {
+      const semanticGateInfo = commandName === 'uiux:review-current-slice-semantics'
+        ? semanticUxLlmGateFailureInfo(targetRoot)
+        : null;
       console.log('fabric orchestrator:run-until-blocked: BLOCKED');
-      console.log(`- reason: no forward progress (repeated next step ${next.canonicalStep || '(unknown)'})`);
+      if (semanticGateInfo?.reason) {
+        console.log(`- reason: ${semanticGateInfo.reason}`);
+      } else {
+        console.log(`- reason: no forward progress (repeated next step ${next.canonicalStep || '(unknown)'})`);
+      }
       console.log(`- next command: ${next.commandText}`);
       console.log(`- executed commands: ${executed}`);
       return;
@@ -3571,7 +3805,13 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
     const stepLabel = next.canonicalStep || fallbackCanonicalStepForCommand(commandName) || '?';
     console.log('');
     console.log(`-> running step ${stepLabel}: ${commandName}`);
-    let result = await runFabricSubcommand({ targetRoot, valuesPath, commandName, force: false });
+    let result = await runFabricSubcommand({
+      targetRoot,
+      valuesPath,
+      commandName,
+      force: false,
+      includeWarnings: commandName === 'coder:repair-semantic-ux-findings',
+    });
     if (commandName === 'coder:implement-current-slice' && result.status !== 0) {
       const refusalPattern = /Refusing to overwrite non-generated file without --force:/i;
       const output = `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
@@ -3581,14 +3821,61 @@ async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 
       }
     }
     if (result.status !== 0) {
-      console.log('');
-      printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
-      console.log('');
-      console.log('fabric orchestrator:run-until-blocked: BLOCKED');
-      console.log(`- reason: command failed (exit ${result.status ?? 'unknown'})`);
-      console.log(`- failed command: ${next.commandText}`);
-      console.log(`- executed commands: ${executed}`);
-      return;
+      if (commandName === 'uiux:review-current-slice-semantics') {
+        const followUp = inferNextCommandFromPmStatus({ targetRoot, valuesPath });
+        const followUpName = parseFabricCommandNameFromText(followUp.commandText);
+        if (followUpName === 'coder:repair-semantic-ux-findings') {
+          executed += 1;
+          console.log('  - semantic UX review reported findings; continuing to repair step with warnings included');
+          console.log('');
+          printOrchestratorStateSnapshot(followUp);
+          continue;
+        }
+        const semanticGateInfo = semanticUxLlmGateFailureInfo(targetRoot);
+        if (semanticGateInfo?.issueType === 'llm_review_unavailable') {
+          console.log('  - semantic UX LLM reviewer unavailable; retrying Step 21b with deterministic fallback mode');
+          result = await runFabricSubcommand({
+            targetRoot,
+            valuesPath,
+            commandName,
+            envOverrides: {
+              SEMANTIC_UX_LLM_ENABLED: 'false',
+              SEMANTIC_UX_LLM_REQUIRED: 'false',
+            },
+          });
+          if (result.status === 0) {
+            console.log('  - fallback semantic review passed with LLM gate disabled for this run');
+          } else {
+            console.log('');
+            printOrchestratorStateSnapshot(followUp);
+            console.log('');
+            console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+            console.log('- reason: semantic UX fallback review failed after LLM unavailability');
+            console.log(`- failed command: ${next.commandText}`);
+            console.log(`- executed commands: ${executed}`);
+            return;
+          }
+        } else if (semanticGateInfo?.reason) {
+          console.log('');
+          printOrchestratorStateSnapshot(followUp);
+          console.log('');
+          console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+          console.log(`- reason: ${semanticGateInfo.reason}`);
+          console.log(`- failed command: ${next.commandText}`);
+          console.log(`- executed commands: ${executed}`);
+          return;
+        }
+      }
+      if (result.status !== 0) {
+        console.log('');
+        printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
+        console.log('');
+        console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+        console.log(`- reason: command failed (exit ${result.status ?? 'unknown'})`);
+        console.log(`- failed command: ${next.commandText}`);
+        console.log(`- executed commands: ${executed}`);
+        return;
+      }
     }
 
     executed += 1;

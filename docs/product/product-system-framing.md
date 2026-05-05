@@ -2,7 +2,7 @@
 
 ## Product Essence
 
-A preventive health navigation product that gives users a clear, prioritized view of what health action to take next, when to take it, and why it matters; it is explicitly not a medical record.
+A preventive health navigation product that gives users immediate clarity on what health action to take next, when to take it, and why, without acting as a medical record.
 
 ## Target Users
 
@@ -12,131 +12,137 @@ A preventive health navigation product that gives users a clear, prioritized vie
 
 ## Jobs To Be Done
 
-- Understand which preventive health actions are relevant to me now and next
-- Get a personal health plan quickly from minimal input
-- Track whether health actions are due, planned, or completed
-- Manage preventive health tasks for multiple family members in one account
+- Understand the next relevant preventive health action quickly
+- See which health actions matter now versus later
+- Follow a personalized health plan based on basic personal attributes
+- Understand why a recommended action matters
+- Track completion status of preventive health items
+- Set reminders so preventive actions are not missed
+- Manage preventive health for multiple family profiles in one place
 - Track vaccination status through manual entry and guidance
-- Set reminders so important health actions are not missed
 
 ## Core Concepts
 
-- **Account** — The primary user container that can hold one or more managed profiles.
-- **Profile** — An individual person for whom a health plan, status, reminders, vaccinations, and score are shown.
-- **Onboarding Inputs** — The minimal initial personal data used to generate a first plan; explicitly evidenced as age and gender.
-- **Personal Health Plan** — A rule-based checklist of preventive health items relevant to a profile.
-- **Health Item** — A preventive action or check-up shown with recommendation frequency, current status, and supporting explanation.
-- **Priority Horizon** — The time-based grouping used to organize health items into immediate and upcoming attention windows.
-- **Dashboard** — The overview screen that surfaces a profile’s prioritized items and health progress at a glance.
-- **Health Score** — A displayed indicator of how up to date a profile is, without a defined calculation method in current evidence.
-- **Reminder** — A user-set prompt for a health item, with preset or custom timing.
-- **Vaccination Tracker** — The vaccination area for viewing status guidance and manually adding vaccination entries.
-- **Rule-based Guidance** — Deterministic health guidance derived from simple inputs and rules; not AI and not clinical decision-making.
-- **Family Mode** — Multi-profile support within one account for planning and monitoring family health.
+- **Account** — The primary user relationship with the product that can contain one or more health profiles.
+- **Health Profile** — A person-specific preventive health context defined at minimum by age and gender, used to generate guidance.
+- **Personal Health Plan** — A rule-based list of recommended preventive health items for a specific profile.
+- **Health Item** — A recommended preventive action with status, recommended cadence, and explanatory context.
+- **Priority Buckets** — Three time-based groupings used on the dashboard to prioritize health items; exact canonical labels remain to be chosen.
+- **Health Score** — A simple up-to-date summary indicator shown per profile to signal overall preventive progress, without implying complex analytics.
+- **Detail View** — The item-level view showing what the action is, why it matters, current status context, and available actions.
+- **Reminder** — A user-set follow-up prompt tied to a health item using preset or custom timing.
+- **Vaccination Tracker** — The product area for manually recording vaccinations and showing status guidance.
+- **Family Mode** — The capability to manage multiple health profiles within one account and view each profile’s status.
+- **Rule-Based Guidance** — Deterministic recommendation logic that creates plans and guidance from defined rules rather than real AI.
 
 ## Product Rules
 
-- The product must remain framed as a preventive navigator, not as a medical record or data-storage system.
-- The core promise is that users should always know their next health step.
-- The MVP must deliver obvious user value immediately, with a personal plan generated from initial onboarding.
-- Core onboarding inputs are age and gender.
-- Guidance in MVP is rule-based only; smart guidance must not be framed as real AI.
-- Health items must communicate the action, timing, and why it matters.
-- Health items are status-driven and must use a unified status model across plan and detail experiences.
-- Dashboard content must be prioritized by time horizon rather than presented as an undifferentiated list.
-- Family support means multiple profiles can be managed within one account.
-- Vaccination tracking in MVP is based on manual entry and status guidance.
-- Reminder setting is a core product behavior and must support preset and custom timing choices.
-- The product should use minimal sensitive data and maintain a high-trust, clarity-first experience.
-- MVP scope excludes doctor or provider integration, external API integration, real AI, and complex analytics.
-- Future-roadmap capabilities must not be implied as part of MVP scope.
+- The product must be positioned as preventive guidance, not as a medical record.
+- The core promise is immediate clarity on the user's next health step.
+- The MVP must deliver visible user value within 60 seconds of starting onboarding.
+- Onboarding must collect at minimum age and gender for each profile.
+- A personal health plan must be generated from rule-based logic using profile attributes.
+- Guidance labeled as smart or insightful must remain rule-based in the MVP and must not be presented as real AI.
+- The dashboard must prioritize actions using three temporal buckets and a simple overall progress summary.
+- Health items must include plain-language explanation of why the action matters.
+- Users must be able to mark a health item as done and set a reminder from the item context.
+- Vaccination tracking is part of the MVP and must support manual entry plus status guidance.
+- Family mode is part of the MVP and must allow multiple profiles under one account.
+- The MVP should use minimal sensitive data and maintain a high-trust feel.
+- The MVP must stay lean and simple; complex analytics are not part of the product model.
+- Doctor or provider integration is excluded from the MVP.
+- External APIs or ecosystem integrations are excluded from the MVP.
+- Insurance links and broader health ecosystem connectivity are excluded from the MVP.
 
 ## Primary Workflows
 
-### Create initial personal plan
+### Onboard and generate plan
 
-1. Start onboarding
-2. Enter age and gender
-3. Choose self-only or add family
-4. Generate a profile-specific health plan
-5. Land on the prioritized dashboard
+1. User starts onboarding
+2. User enters minimum profile inputs: age and gender
+3. User chooses whether to plan only for self or add family members
+4. Product generates a personal health plan for the initial profile
+5. User lands on the dashboard with prioritized next steps
 
 ### Review priorities from dashboard
 
-1. Open dashboard overview
-2. See health score and priority horizons
-3. Identify the next relevant health item
-4. Open an item for more context
+1. User opens the dashboard overview
+2. User sees health score or up-to-date summary
+3. User reviews prioritized health items grouped into three time buckets
+4. User selects an item to view more detail
 
 ### Act on a health item
 
-1. Open health item detail
-2. Read description, recommendation, and why it matters
-3. Review current or last-known status context
-4. Mark the item done or set a reminder
+1. User opens an item detail view
+2. User reads description, recommendation cadence, current status, and why it matters
+3. User marks the item done or chooses to set a reminder
+4. Product reflects the updated item state in the plan and dashboard
 
 ### Set a reminder
 
-1. Start reminder from a health item
-2. Choose 1 month, 3 months, or a custom date
-3. Confirm reminder timing
-4. Return to the item or dashboard with reminder state updated
+1. User initiates reminder setting from an item
+2. User chooses a preset interval or a custom date
+3. Product confirms that the reminder is set
+4. The item remains trackable for later follow-up
 
-### Manage family health
+### Manage family profiles
 
-1. Open family area
-2. View all profiles and per-person progress
-3. Select a profile
-4. Review that profile’s dashboard and plan
+1. User opens family mode
+2. User views all profiles with per-person status summary
+3. User selects a profile to review its dashboard or plan
+4. User adds or maintains family profiles as needed
 
 ### Track vaccinations
 
-1. Open vaccination tracker for a profile
-2. Review vaccination list and status guidance
-3. Add a vaccination entry manually
-4. Return to updated vaccination status overview
+1. User opens the vaccination tracker
+2. User reviews vaccination entries and status guidance
+3. User manually adds a vaccination entry
+4. Vaccination status contributes to the relevant profile view
 
 ### Adjust profile and preferences
 
-1. Open profile/settings area
-2. Review account, family, and preference options
-3. Update relevant settings
-4. Return to core navigation
+1. User opens profile or settings
+2. User reviews personal or family-related settings
+3. User updates basic preferences relevant to product use
 
 ## MVP Boundaries
 
 ### In Scope
 
-- Onboarding with age and gender
-- Immediate generation of a personal health plan
-- Prioritized dashboard with time-horizon grouping
-- Health item list and detail views
-- Status-driven health action tracking
-- Reminder setup with preset and custom timing
-- Vaccination tracker with manual entry
+- Welcome and onboarding flow
+- Minimum profile capture with age and gender
+- Optional family profile setup during onboarding
+- Rule-based personal health plan generation
+- Dashboard with three priority buckets
+- Simple health score or up-to-date summary
+- Health plan list with item status and recommendation cadence
+- Item detail view with why-it-matters explanation
+- Mark item as done
+- Set reminders using preset or custom timing
+- Vaccination tracker with manual entry and status guidance
 - Family mode with multiple profiles in one account
-- Profile/settings area
-- Rule-based guidance presented as smart but non-AI insights
+- Basic profile/settings area for family and preferences
+- Clear, calm, trustworthy product framing and copy
 
 ### Out of Scope
 
+- Medical-record positioning or comprehensive record storage
 - Doctor or provider integration
-- External API integrations
+- External APIs or third-party health system integrations
 - Real AI or AI-driven recommendations
-- Complex or advanced analytics
+- Advanced or complex analytics
 - Insurance or ecosystem links
-- Automated vaccination imports, verification, or document scanning
-- Any future-roadmap feature not explicitly evidenced for MVP
+- Any future-roadmap integrations beyond the lean MVP
 
 ## Open Decisions
 
-- Which single label set should define the priority horizons consistently across product surfaces
-- How Health Score is calculated, updated, and explained to users
-- How rule-based guidance is surfaced and whether it appears only within items or also as dashboard insights
-- Where family management ownership lives across onboarding, family area, and profile/settings
-- Which reminder delivery channels are included in MVP
-- How deep the vaccination model goes beyond status, last date, and manual add entry
-- What the complete data model is for health plan items beyond frequency, status, and simple history
-- Which languages and geographic/medical guideline context the MVP supports
-- Whether profile/settings includes only preferences or broader account-management capabilities
-- Which product form factor is chosen for MVP, given source evidence leaves platform unresolved
+- Canonical product name: 'Longevity Health OS' vs 'Health App'
+- Primary launch language and localization approach
+- Canonical labels for the three dashboard priority buckets
+- Initial rule set for which preventive items are included in the personal health plan
+- Minimal health score calculation and how it updates without becoming analytics-heavy
+- Reminder delivery channel definition
+- Family mode basics such as profile limits and switching behavior
+- Minimal vaccination data model and status rules
+- Exact scope of profile/settings beyond family and preferences
+- Platform choice between responsive web and cross-platform mobile

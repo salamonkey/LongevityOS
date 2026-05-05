@@ -1,25 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-05-02T17:04:10.120Z",
+  "generated_at_utc": "2026-05-05T10:33:09.127Z",
   "slice_id": "SL-002",
-  "slice_title": "Health Item Detail and Completion",
+  "slice_title": "Health Plan Browsing and Item Detail",
   "status": "pass",
-  "summary": "The implemented SL-002 flow is semantically fit overall: dashboard items lead into a user-understandable detail view, detail content uses clear action/status/rationale language, completion uses the correct user-facing status model, and error/fallback copy is plain and safe. One dashboard heading is somewhat generic and could better orient users to reviewing priorities and opening items.",
+  "summary": "LLM semantic review is disabled by configuration.",
   "contract": "docs/ux/SL-002-semantic-ux-contract.json",
   "deterministic_findings_count": 0,
-  "llm_enabled": true,
-  "llm_required": true,
-  "llm_status": "pass",
-  "llm_reviewer": "openai/gpt-5.4",
-  "findings": [
-    {
-      "severity": "warning",
-      "source": "llm",
-      "file": "src/features/health-item-detail-and-completion/HealthItemDetailAndCompletionPage.jsx",
-      "slot": "primary_heading",
-      "issue_type": "generic_orientation_copy",
-      "observed": "The dashboard heading 'Your personalized plan is ready' confirms setup completion but does not clearly tell users this screen is for reviewing prioritized health items and opening one for details.",
-      "required": "false"
-    }
-  ]
+  "llm_enabled": false,
+  "llm_required": false,
+  "llm_status": "disabled_optional",
+  "llm_reviewer": "",
+  "findings": []
 }

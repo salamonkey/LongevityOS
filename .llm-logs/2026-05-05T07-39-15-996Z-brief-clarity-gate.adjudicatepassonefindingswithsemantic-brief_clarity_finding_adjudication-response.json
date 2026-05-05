@@ -1,0 +1,91 @@
+{
+  "task": "brief_clarity_finding_adjudication",
+  "caller": "brief-clarity-gate.adjudicatePassOneFindingsWithSemantic",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:39:15.996Z",
+  "completed_utc": "2026-05-05T07:39:56.225Z",
+  "elapsed_ms": 40229,
+  "ok": true,
+  "response": {
+    "assessments": [
+      {
+        "id": "finding-001",
+        "is_violation": false,
+        "detail": "This is not an unresolved alternative. The sentence makes a single concrete decision: health score = percentage of plan items currently up to date.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-002",
+        "is_violation": false,
+        "detail": "This lists supported reminder options, not an unresolved choice. The MVP can support 1 month, 3 months, and custom date together.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-003",
+        "is_violation": false,
+        "detail": "Although 'simple' is soft wording, the metric is explicitly defined by the rest of the sentence, so it is not materially ambiguous in context.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-004",
+        "is_violation": false,
+        "detail": "'Simple' is soft, but in this technical-direction context it does not create a material decision gap because the backend responsibilities and entity boundaries are otherwise specified.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      },
+      {
+        "id": "finding-005",
+        "is_violation": false,
+        "detail": "The scope is bounded by the required priority buckets and by restricting prioritization to internal timing rules.",
+        "boundary_type": "data_source",
+        "evidence_span": "limit prioritization to internal timing rules"
+      },
+      {
+        "id": "finding-006",
+        "is_violation": false,
+        "detail": "The item-detail scope is sufficiently bounded by the enumerated fields and the explicit exclusion of clinician advice.",
+        "boundary_type": "in_out_scope",
+        "evidence_span": "exclude clinician advice"
+      },
+      {
+        "id": "finding-007",
+        "is_violation": false,
+        "detail": "This is a narrowly defined capability: mark done from item detail and propagate the update to plan and dashboard state.",
+        "boundary_type": "workflow_state",
+        "evidence_span": "from item detail and reflect the update in the plan and dashboard state"
+      },
+      {
+        "id": "finding-008",
+        "is_violation": false,
+        "detail": "The scope is bounded by the allowed inputs and logic source: stored entries plus internal rules, with provider verification and external imports excluded.",
+        "boundary_type": "data_source",
+        "evidence_span": "from stored entries and internal rules; exclude provider verification and external vaccination imports"
+      },
+      {
+        "id": "finding-009",
+        "is_violation": false,
+        "detail": "This is bounded to profile switching for viewing specific profile-level surfaces: dashboard, plan, and vaccination data.",
+        "boundary_type": "channel",
+        "evidence_span": "view profile-specific dashboard, plan, and vaccination data"
+      },
+      {
+        "id": "finding-010",
+        "is_violation": true,
+        "detail": "There is some boundary from excluding advanced account administration, but 'basic settings area' plus 'family management and product preferences' remains too open-ended for MVP implementation scope.",
+        "boundary_type": "in_out_scope",
+        "evidence_span": "exclude advanced account administration"
+      },
+      {
+        "id": "finding-011",
+        "is_violation": true,
+        "detail": "Per adjudication policy, draft_integrity_issue findings are always treated as violations.",
+        "boundary_type": "none",
+        "evidence_span": ""
+      }
+    ]
+  }
+}

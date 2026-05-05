@@ -1,6 +1,6 @@
 <!-- generated_from: method/fabric-validation-checklist.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T05:05:32.044Z -->
+<!-- generated_at: 2026-05-05T07:36:47.814Z -->
 # Fabric Validation Checklist
 
 Use this checklist when extracting or updating fabric to ensure it remains reusable, self-contained, and cleanly separated from project content.

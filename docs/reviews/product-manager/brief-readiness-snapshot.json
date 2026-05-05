@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-25T05:07:04.709Z",
+  "generatedAt": "2026-05-05T07:36:48.452Z",
   "source": "pm:brief-readiness",
   "reviewPath": "docs/reviews/product-manager/brief-readiness-review.md",
   "verdict": "sufficient",
@@ -11,9 +11,9 @@
   ],
   "inputFingerprint": {
     "schemaVersion": 1,
-    "fileCount": 10,
-    "totalBytes": 20784,
-    "sha256": "ae6bc8b0bac3531496537ffaaaf83e6f5fb5cab52e376df7db4d3e4317457cfa",
+    "fileCount": 9,
+    "totalBytes": 20260,
+    "sha256": "87ca7fa0e878f5aa1a4b3840005462949d9c25f4e74f349379c11f9bb2f85ed4",
     "files": [
       {
         "path": "docs/customer-input/Health_App_Wireframes.pdf",
@@ -43,12 +43,7 @@
       {
         "path": "docs/pm/intake/extracted-text/readme.txt",
         "sizeBytes": 552,
-        "sha256": "a5ab0406b8308f0119cc791ecf12abe8d8aaf38cc5c58d13f6a479237da18756"
-      },
-      {
-        "path": "docs/pm/intake/extracted-text/sample.txt",
-        "sizeBytes": 524,
-        "sha256": "dddc542d686b321b94ec866bd9d3e0d4b0b6f5c808a1b34e9b6ff43da8df215a"
+        "sha256": "e02b7cce223d60ce50af7fef9a6c45f68a4001a2bd250d1c8ffa0b103d7b4c8d"
       },
       {
         "path": "docs/pm/intake/extracted-text/ux_copy_health_app.txt",
@@ -58,12 +53,12 @@
       {
         "path": "docs/pm/intake/intake-report.md",
         "sizeBytes": 1187,
-        "sha256": "6774f7f2a38d03bb9caa171d468de0861f851923d79bbe6d6dc604b122440447"
+        "sha256": "0112e60222c3089a680828c20ce86029ba3a10772b8e3d0127c1114b3f207c95"
       },
       {
         "path": "docs/pm/intake/sources.json",
         "sizeBytes": 1834,
-        "sha256": "043368dd74bc7ae903973c896a2062c67640316299a497919461c1587fec408e"
+        "sha256": "4770ff037f5742289b8d98dd110bca1f8506ed1ba060e3c42b32a7e24b1f43e0"
       }
     ]
   },

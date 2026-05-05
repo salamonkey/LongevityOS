@@ -911,6 +911,21 @@ function loadValuesIfPresent(valuesPath) {
   return loadValues(valuesPath);
 }
 
+function factoryInitTargets(manifest) {
+  const entries = Array.isArray(manifest?.factory_init_source_of_truth)
+    ? manifest.factory_init_source_of_truth
+    : [];
+  return entries
+    .map((entry) => String(entry?.target || '').trim())
+    .filter((target) => target.length > 0);
+}
+
+function getMissingFactoryInitTargets(targetRoot) {
+  const manifest = loadManifest();
+  const targets = factoryInitTargets(manifest);
+  return targets.filter((target) => !fs.existsSync(path.join(targetRoot, target)));
+}
+
 export {
   readText,
   writeTextAtomic,
@@ -964,6 +979,7 @@ export {
   assertMinimumCustomerInput,
   getBootstrapReviewRelPaths,
   loadValuesIfPresent,
+  getMissingFactoryInitTargets,
   FABRIC_ROOT,
   MANIFEST_PATH_JSON,
   MANIFEST_PATH_YAML,

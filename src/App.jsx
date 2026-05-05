@@ -1,20 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import HealthPlanBrowsingAndItemDetailRoute from './routes/health-plan-browsing-and-item-detail.jsx';
+import ItemCompletionAndReminderActionsRoute from './routes/item-completion-and-reminder-actions.jsx';
 import SelfOnboardingToFirstDashboardRoute from './routes/self-onboarding-to-first-dashboard.jsx';
 import { generateInitialPlanSnapshot } from './features/self-onboarding-to-first-dashboard/plan.js';
-import { DETAIL_ORIGIN } from './features/health-plan-browsing-and-item-detail/model.js';
+import { DETAIL_ORIGIN, PLAN_CATEGORIES } from './features/health-plan-browsing-and-item-detail/model.js';
 
 const DEMO_PROFILE = Object.freeze({
   profileId: 'self',
   name: 'You',
-  age: 52,
+  age: 45,
   gender: 'female',
 });
 
-const demoPlanSnapshot = generateInitialPlanSnapshot(DEMO_PROFILE);
+const demoPlanSnapshot = generateInitialPlanSnapshot(DEMO_PROFILE, { now: new Date() });
 
 function normalizeView(value) {
-  return String(value || '').toLowerCase() === 'plan' ? 'plan' : 'onboarding';
+  const normalized = String(value || '').toLowerCase();
+  if (normalized === 'plan') return 'plan';
+  // Keep legacy SL-003 URL working but fold it into the canonical plan flow.
+  if (normalized === 'actions') return 'plan';
+  return 'onboarding';
 }
 
 function currentViewFromUrl() {
@@ -69,23 +73,32 @@ export default function App() {
       setRuntimePlanEntry({
         initialItemKey: undefined,
         initialOrigin: undefined,
-        initialCategory: undefined,
+        initialCategory: PLAN_CATEGORIES.checkup,
       });
       setActiveView('onboarding');
     }
   };
 
+  const handlePlanSnapshotChange = (nextPlanSnapshot) => {
+    if (nextPlanSnapshot) {
+      setRuntimePlanSnapshot(nextPlanSnapshot);
+    }
+  };
+
   if (activeView === 'plan') {
     return (
-      <HealthPlanBrowsingAndItemDetailRoute
-        planSnapshot={runtimePlanSnapshot || demoPlanSnapshot}
+      <ItemCompletionAndReminderActionsRoute
+        profile={runtimeProfile || DEMO_PROFILE}
+        initialPlanSnapshot={runtimePlanSnapshot || demoPlanSnapshot}
         initialItemKey={runtimePlanEntry.initialItemKey}
         initialOrigin={runtimePlanEntry.initialOrigin}
         initialCategory={runtimePlanEntry.initialCategory}
         onNavigate={handlePlanNavigate}
+        onPlanSnapshotChange={handlePlanSnapshotChange}
       />
     );
   }
+
   return (
     <SelfOnboardingToFirstDashboardRoute
       initialProfile={runtimeProfile}

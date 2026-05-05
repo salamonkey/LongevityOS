@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T09:27:56.496Z",
+  "slice_id": "SL-002",
+  "screens": [
+    {
+      "screen_id": "health_plan",
+      "purpose": "Let users understand each recommended preventive item by viewing complete plan lists and item detail with clear rationale.",
+      "required_sections": [
+        "main_content",
+        "primary_action"
+      ],
+      "required_components": [
+        "AppShell",
+        "HealthPlanItem",
+        "StatusPill"
+      ],
+      "visible_data": [
+        "user_relevant_state",
+        "available_actions"
+      ],
+      "states": [
+        "default",
+        "loading",
+        "empty",
+        "error",
+        "success"
+      ],
+      "action_hierarchy": [
+        "primary_action",
+        "secondary_action"
+      ],
+      "rules": [
+        "Primary action must be visually and semantically clear."
+      ]
+    }
+  ]
+}

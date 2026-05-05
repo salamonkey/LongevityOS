@@ -1,4 +1,4 @@
-# Semantic UX repair work order: SL-002 Health Item Detail and Completion
+# Semantic UX repair work order: SL-002 Health Plan Browsing and Item Detail
 
 You are acting as the Coder role for a targeted Fabric repair run.
 Repair the current implementation so the active slice passes semantic UX review.
@@ -21,30 +21,80 @@ Repair the current implementation so the active slice passes semantic UX review.
 - Existing implementation files referenced by the findings.
 
 ## Finding selection
-- Included blockers: 1
-- Included warnings: 0
-- Warning repair mode: not included unless needed to fix blockers
+- Included blockers: 3
+- Included warnings: 2
+- Warning repair mode: included by operator flag
 
 ## Findings to fix
 ```json
 [
   {
     "index": 1,
-    "issue_type": "mechanistic_rationale_copy",
+    "issue_type": "internal_factory_language_in_visible_copy",
+    "severity": "blocker",
+    "source": "deterministic",
+    "confidence": "high",
+    "visibility": "likely_visible",
+    "file": "src/App.jsx",
+    "slot": "jsx_text_node",
+    "observed": "Run the current slice workflow to generate product-specific screens and Storybook stories.",
+    "required": "Replace visible internal language 'slice' with user-facing wording."
+  },
+  {
+    "index": 2,
+    "issue_type": "internal_copy_exposed",
     "severity": "blocker",
     "source": "llm",
     "confidence": "",
     "visibility": "",
-    "file": "src/features/profile/profilePlan.js",
-    "slot": "explanation_or_rationale",
-    "observed": "Several generated 'Why it matters' strings are not semantically fit for end users because they explain prioritization/planning mechanics rather than why the health action matters. Examples include 'A quick check helps keep the highest-priority items visible.' and 'A simple lab review keeps next steps easy to prioritize.' These strings appear in item detail views, so the required rationale content fails for some items instead of 100% of items.",
-    "required": "visible"
+    "file": "src/App.jsx",
+    "slot": "primary_heading",
+    "observed": "The main rendered screen shows user-visible internal/process language: \"Fabric app factory\", \"App shell ready\", and \"Run the current slice workflow to generate product-specific screens and Storybook stories.\" This violates the contract and does not tell the user anything about browsing checkups, vaccinations, or item details.",
+    "required": ">? nope"
+  },
+  {
+    "index": 3,
+    "issue_type": "slice_not_surfaced",
+    "severity": "blocker",
+    "source": "llm",
+    "confidence": "",
+    "visibility": "",
+    "file": "src/App.jsx",
+    "slot": "primary_action",
+    "observed": "The only apparent next step is an internal build instruction rather than a user action for the active slice. The health plan list/detail flow is not the surfaced experience, so users cannot understand recommended items, open detail, or navigate back as required.",
+    "required": ">? nope"
+  },
+  {
+    "index": 4,
+    "issue_type": "generic_product_copy",
+    "severity": "warning",
+    "source": "llm",
+    "confidence": "",
+    "visibility": "",
+    "file": "index.html",
+    "slot": "primary_heading",
+    "observed": "The browser title is \"Fabric App\", which is generic/internal and not aligned to the preventive health plan experience.",
+    "required": ">? nope"
+  },
+  {
+    "index": 5,
+    "issue_type": "generic_screen_label",
+    "severity": "warning",
+    "source": "llm",
+    "confidence": "",
+    "visibility": "",
+    "file": "src/features/health-plan-browsing-and-item-detail/HealthPlanBrowsingAndItemDetail.jsx",
+    "slot": "primary_heading",
+    "observed": "When detail is shown, the AppShell title is \"Item detail\". That is a generic component-style label rather than a user-task-specific heading; the item name is only secondary on the page.",
+    "required": ">? nope"
   }
 ]
 ```
 
 ## Repair rules
 - Fix the implementation, not the review file.
+- Preserve previously working user actions from earlier slices unless the active slice explicitly redefines them.
+- Do not remove existing user-visible functionality as a side effect of semantic repair.
 - User-facing copy must be meaningful to the end user.
 - Do not expose internal process, slice, schema, test, route, payload, ranking, bucket, implementation, acceptance-criteria, or factory language in visible UI.
 - Do not mention excluded features as internal limitations.

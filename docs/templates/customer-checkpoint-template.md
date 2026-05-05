@@ -1,11 +1,11 @@
 <!-- generated_from: templates/customer-checkpoint-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-05-04T06:43:27.439Z -->
+<!-- generated_at: 2026-05-05T07:57:43.384Z -->
 # Customer Checkpoint Template
 
 Date: `YYYY-MM-DD`
 Prepared by: `Product Manager`
-Project: `Longevity Health OS (Health App MVP)`
+Project: `Longevity Health OS`
 
 ## 1. Checkpoint Type
 

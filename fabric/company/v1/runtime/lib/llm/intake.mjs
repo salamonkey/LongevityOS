@@ -1390,7 +1390,7 @@ function resolveBriefDraftModelControls(values = {}, env = process.env) {
     env.BRIEF_DRAFT_LLM_TIMEOUT_MS,
     env.PM_LLM_TIMEOUT_MS,
     env.LLM_TIMEOUT_MS,
-  ], 90000);
+  ], 300000);
   return {
     maxContextChars,
     maxSources,

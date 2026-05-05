@@ -1,3 +1,8 @@
+/* generated_from: fabric/company/v1/runtime/commands/runtime.mjs
+ * target: src/main.jsx
+ * fabric_version: v1
+ * generated_at_utc: 2026-05-05T10:38:08.640Z
+ */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';

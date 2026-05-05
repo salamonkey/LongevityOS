@@ -3,6 +3,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {
   ensureDir,
+  getMissingFactoryInitTargets,
   listFilesRecursive,
   loadUtf8TextOrNull,
   writeTextAtomic,
@@ -194,6 +195,18 @@ function renderIntakeReport({
 }
 
 async function pmIntake({ targetRoot }) {
+  const missingFactoryInitTargets = getMissingFactoryInitTargets(targetRoot);
+  if (missingFactoryInitTargets.length > 0) {
+    const preview = missingFactoryInitTargets.slice(0, 4).join(', ');
+    const overflowCount = Math.max(0, missingFactoryInitTargets.length - 4);
+    const overflowSuffix = overflowCount > 0 ? ` (+${String(overflowCount)} more)` : '';
+    console.error('fabric pm:intake: FAIL');
+    console.error('- init-factory prerequisite not satisfied');
+    console.error(`- missing factory-init artifacts: ${preview}${overflowSuffix}`);
+    console.error('- run: ./fabric/company/v1/fabric init-factory --target .');
+    process.exit(1);
+  }
+
   const inputDirAbs = path.join(targetRoot, INPUT_DIR_REL);
   const extractedDirAbs = path.join(targetRoot, EXTRACTED_TEXT_DIR_REL);
 

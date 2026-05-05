@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-05-02T14:03:29.175Z",
+  "generated_at_utc": "2026-05-05T09:27:56.496Z",
   "slice_id": "SL-002",
-  "slice_title": "Health Item Detail and Completion",
+  "slice_title": "Health Plan Browsing and Item Detail",
   "surface_type": "user_facing",
   "global_rules": {
     "must": [
@@ -71,11 +71,10 @@
     }
   ],
   "acceptance_criteria": [
-    "Every health item shown on the dashboard opens to a detail view",
-    "100% of health item detail views show action, why it matters, and status context",
-    "A user can mark an eligible item as Done from detail view and see the updated Done status after returning to the item",
-    "After an item is marked Done, the dashboard refreshes without showing the item in more than one priority group",
-    "The displayed health score updates consistently after an item is marked Done"
+    "Every generated health item is visible in a plan view and opens into a detail view",
+    "100% of generated health items show a recommendation cadence, one current status, and a why-it-matters explanation",
+    "A user can open any dashboard-highlighted item into detail and return to the prior view without losing context",
+    "Item detail copy uses plain-language rationale rather than clinical detail"
   ],
   "deterministic_scan": {
     "forbidden_visible_fragments": [

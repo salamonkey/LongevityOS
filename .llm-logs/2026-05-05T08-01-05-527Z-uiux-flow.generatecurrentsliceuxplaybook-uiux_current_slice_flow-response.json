@@ -1,0 +1,59 @@
+{
+  "task": "uiux_current_slice_flow",
+  "caller": "uiux-flow.generateCurrentSliceUxPlaybook",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T08:01:05.527Z",
+  "completed_utc": "2026-05-05T08:01:36.573Z",
+  "elapsed_ms": 31046,
+  "ok": true,
+  "response": {
+    "context": "Slice SL-001 — Self Onboarding to First Dashboard. User goal: in a single session, a new user enters only age and gender, submits once, the system generates a deterministic preventive plan from the locked MVP catalog, and the user lands on a populated self dashboard that makes the next health action obvious. Scope is limited to one self profile, one generated plan snapshot, and one dashboard view with Today, Soon, and Later buckets, one highlighted next item, and one Health Score percentage.",
+    "primary_flow": {
+      "entry": "User opens the first-run onboarding screen for the self profile in an unauthenticated or pre-established current-user context; no family, settings, or alternate destinations are shown in this slice.",
+      "behaviors": [
+        "Onboarding screen purpose: collect the minimum required inputs and set expectation that a personalized preventive plan will be created immediately after submission.",
+        "Onboarding layout is a single vertical form with two required fields and one primary action. Sections in order: brief value statement, age field, gender field, primary submit button.",
+        "Age input uses a numeric text field optimized for mobile number entry. Label: Age. Helper copy clarifies that age is used to generate the first plan. Field accepts whole numbers only.",
+        "Gender input uses a required segmented control or radio group with exactly two visible options: Female and Male. No additional options, free text, or preference controls are shown in this slice.",
+        "Primary action label is Generate my plan. The button remains disabled until age is present and one gender option is selected.",
+        "Inline validation behavior on age: if empty after attempted submit, show Age is required. If non-integer, show Enter a whole number. If outside 0 to 120, show Enter an age from 0 to 120. Validation appears at the field and focus moves to the first invalid field on submit.",
+        "Inline validation behavior on gender: if missing after attempted submit, show Select a gender to continue.",
+        "When the user taps Generate my plan with valid inputs, the form enters a submitting state: all inputs become read-only, the primary button shows a loading label, and duplicate submits are blocked until completion or failure response resolves the state."
+      ]
+    },
+    "failure_paths": [
+      "Validation failure path: user attempts submit with missing or invalid input; the screen does not navigate; invalid fields show explicit inline messages; the first invalid field receives focus; previously valid input stays intact; the primary action remains available after correction.",
+      "Generation failure path: onboarding submission succeeds client-side but plan generation or persistence fails or exceeds expected response window; stay on the onboarding screen and show a non-alarmist inline error banner above the form: We couldn’t create your plan right now. Please try again.; preserve entered age and,",
+      " data remains on the screen; restore inputs and primary action so the user can resubmit once; do not navigate to an empty or partial dashboard.",
+      "Dashboard data integrity failure path: if navigation to dashboard occurs but the projection lacks bucketed items or summary data, do not render blank sections as success; instead show a blocking full-page error state with one recovery action Return to onboarding; no item-level placeholders or fake content are shown in.",
+      "age and gender are the only required, collected, validated, and persisted onboarding inputs for this slice.",
+      "Only one self profile exists in the flow. The user never sees profile switching, family creation, profile editing, or preferences.",
+      "After successful submit, the next screen is always the self dashboard. There is no intermediate plan review screen, detail screen, or optional branch.",
+      "Plan generation must read only from the locked local preventive catalog and the age/gender rule bands. UX must not imply clinician review, AI generation, external enrichment, or medical-record syncing. The copy should describe the output as a personalized preventive plan, not medical advice or diagnosis. The summary or"
+    ],
+    "rules": [
+      "Dashboard screen purpose: show the first generated plan in a scannable priority structure and make the next step obvious on first load.",
+      "Dashboard top section contains a single summary card for the self profile. It must show one Health Score percentage and one highlighted next item. The highlighted item selection rule is fixed and visible in implementation logic: choose the highest-priority Today item; if Today is empty, choose the earliest Soon item;if"
+    ],
+    "constraints": [
+      "Do not introduce additional onboarding questions, account steps, consent flows, education carousels, or optional profile enrichment in SL-001.",
+      "Do not provide navigation to health item detail screens, mark-as-done actions, reminder actions, vaccination manual entry, family mode, settings, or profile editing.",
+      "Do not expose raw rule metadata, target-age calculations, catalog version labels, or internal status names beyond user-facing bucket labels and plain-language item info.",
+      "Do not render empty-state marketing content on a successful first dashboard; the dashboard must be populated from the generated snapshot.",
+      "Do not recalculate the plan in the UI during dashboard render. The UX assumes a persisted generated snapshot is the source for displayed items.",
+      "Do not use alarming, shaming, or overly clinical copy. Use calm, clear, plain language about recommended preventive actions and why they matter.",
+      "Do not use more than one primary action per screen in this slice: onboarding has Generate my plan; dashboard is informational only for SL-001."
+    ],
+    "acceptance": [
+      "A first-time user can complete the onboarding form by entering only age and gender and reach the dashboard without encountering any additional required step.",
+      "The onboarding screen prevents invalid submission with observable inline validation for empty age, non-integer age, out-of-range age, and missing gender.",
+      "After valid submission, the UI shows a clear in-progress state, prevents duplicate submits, and either lands on the dashboard or returns to an actionable retry state without losing entered values.",
+      "The first dashboard render shows a visible summary card with exactly one Health Score percentage and exactly one highlighted next item selected from Today first, otherwise Soon, otherwise Later.",
+      "The dashboard displays three labeled sections: Today, Soon, and Later. Each generated item appears in exactly one of these sections and shows its name, category, cadence label, and why-it-matters text.",
+      "The dashboard content is visibly populated from the generated plan within 5 seconds of onboarding completion under normal conditions.",
+      "No screen in this slice exposes family profiles, item detail navigation, completion actions, reminder controls, manual vaccination entry, or profile editing.",
+      "In moderated walkthrough testing, a new user can move from first onboarding view to populated dashboard in 60 seconds or less and can identify the next recommended health step from the summary card on first dashboard load."
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "task": "uiux_current_slice_flow",
+  "caller": "uiux-flow.generateCurrentSliceUxPlaybook",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T08:55:01.596Z",
+  "completed_utc": "2026-05-05T08:55:37.110Z",
+  "elapsed_ms": 35514,
+  "ok": true,
+  "response": {
+    "context": "SL-002 defines the read-only self-profile browsing flow for preventive health items after onboarding/dashboard already exists. The user goal in this slice is to review the full personal plan in two categories—checkups and vaccinations—open any item into a detail view, understand cadence, current status, recommendation, and plain-language rationale, then return to the exact prior context. The slice covers only three route surfaces: self checkups list, self vaccinations list, and self item detail by itemKey. Data shown in all views must be composed from the generated self-profile item plus its locked preventive item definition; no recommendation logic or status mutation occurs here.",
+    "primary_flow": {
+      "entry": "User lands from the existing self dashboard or directly opens a self plan route for checkups or vaccinations.",
+      "behaviors": [
+        "On the self checkups route, show a page title for Checkups, a top-level segmented navigation or equivalent two-option switch for Checkups and Vaccinations, and a list of all generated self-profile items whose definition category is checkup.",
+        "On the self vaccinations route, show the same page structure with Vaccinations selected and list all generated self-profile items whose definition category is vaccination.",
+        "Each plan row is fully clickable and must display: display name, cadence text, and exactly one current status badge using only due, planned, or done.",
+        "Plan rows are scan-first: primary text is the item name, secondary text is cadence, tertiary emphasis is status. No inline edit, reminder, or completion controls are shown in this slice.",
+        "Selecting any plan row opens the self item detail route for the same itemKey.",
+        "Dashboard-highlighted items use the same detail route and open the same item detail layout; the route receives transient origin context from the dashboard or the specific plan list.",
+        "The item detail page shows, in order: back control, item name, status badge, category label, cadence text, recommendation section, and Why it matters section.",
+        "Recommendation section uses catalog recommendationText verbatim as the authoritative guidance copy for this slice; Why it matters uses whyItMattersText in plain language and avoids clinical depth or alarmist framing, while keeping the copy informational rather than action-editing oriented for this slice only; no status"
+      ]
+    },
+    "failure_paths": [
+      "If the user opens an item detail route whose itemKey does not exist in both the current self-profile generated items and the locked definition set, show a not-found state instead of partial content. The state must include a clear message that the item is unavailable in this plan and a single recovery action labeled to)",
+      "If a plan category has zero generated items for the self profile, show an empty list state instead of a blank page. The empty state must keep the category navigation visible, explain that there are no items in this category for the current plan, and offer one recovery action to switch to the other category.",
+      "If plan or detail data is still loading, show a non-jumping loading state that preserves page structure: heading and navigation shell visible, list skeleton rows for plan pages, and content block skeletons for detail. Do not show stale data from a different item or category during load.",
+      "If the user entered item detail from the dashboard and uses the back control, return to the dashboard. If they entered from checkups or vaccinations, return to the originating list view. If there is no valid in-app history, the back control must route to the item's category list determined from the item definition."
+    ],
+    "rules": [
+      "Screen contract for self checkups list: required elements are page title, category switch, list or empty state, and stable per-row status visibility. Screen contract for self vaccinations list is identical except for selected category and filtered contents.",
+      "Screen contract for item detail: required elements are back control, item name, status, category, cadence, recommendation text, and why-it-matters explanation. No mutation controls, reminder controls, or profile-selection controls may appear.",
+      "Component contract for plan row: one row per generated itemKey; row contains name, cadence text, and a status badge. Whole row is the tap target. Do not duplicate item names or status labels in ad-hoc subcomponents.",
+      "Component contract for status badge: allowed values are only due, planned, and done. The same semantic label and styling token must be reused on dashboard, plan lists, and detail for the same item status.",
+      "Navigation rule: category switch changes between the two self plan routes without changing profile context. Detail is always itemKey-driven and must preserve transient origin context for back navigation.",
+      "Relationship clarity rule: users must always be able to tell that checkups and vaccinations are two views of the same self profile plan, and that item detail is the expanded view of one existing plan item rather than a separate record.",
+      "Copy contract: use calm, plain, trustworthy language. Prefer 'Why it matters' over technical explanations. Forbidden copy patterns include internal implementation terms, unsupported medical claims, alarmist warnings, and record-keeping language that implies this product is a medical chart.",
+      "Visual hierarchy rule: status must be visible without opening detail; cadence must be visible without opening detail; rationale appears only in detail to keep lists scannable. Recommendation text and why-it-matters text are separate sections, not merged into a long paragraphing block, and do not introduce status change"
+    ],
+    "constraints": [
+      "Read-only slice only: no changing item status, no reminder creation, no manual vaccination entry, no profile edits, and no family-profile switching.",
+      "Self-profile only: all routes resolve against the current account's self profile created by onboarding; family views are excluded even if family data exists elsewhere.",
+      "Only locked MVP preventive item definitions may be rendered. Detail must not render if the linked definition is missing.",
+      "Only two categories exist in this slice: checkup and vaccination. UI must not expose additional category labels, filters, or tabs.",
+      "Only three statuses exist in this slice: due, planned, and done. UI must not display inferred statuses such as overdue, soon, complete, or unknown.",
+      "No new recommendation-generation logic is allowed in the UI. Lists and detail consume shared definition content and shared status mappings already provided by the system.",
+      "Navigation origin is transient router state/history only. It must not be stored as domain data or persisted across sessions.",
+      "The experience must stay mobile-first and simple: one obvious primary action per screen, with detail opening from list rows and returning cleanly to prior context."
+    ],
+    "acceptance": [
+      "From the self checkups and self vaccinations views combined, every generated self-profile item appears exactly once in the correct category and opens into item detail for the same itemKey.",
+      "Every visible plan row shows three observable fields: item name, cadence text, and exactly one status badge using only due, planned, or done.",
+      "Every item detail page shows non-empty recommendation text and non-empty Why it matters text in plain language, along with matching item name and status compared with the originating dashboard card or plan row.",
+      "A user who opens detail from a dashboard-highlighted item can use the page back control and return to the dashboard; a user who opens detail from checkups or vaccinations returns to the same originating list without losing category context.",
+      "Direct access to an invalid or unavailable itemKey produces a not-found experience with a recovery action and never shows partial item content.",
+      "A category route with zero items shows an explicit empty state while preserving the ability to switch to the other category.",
+      "No screen in this slice exposes controls or copy for changing status, creating reminders, adding vaccinations, editing the profile, or switching to family members."
+    ]
+  }
+}

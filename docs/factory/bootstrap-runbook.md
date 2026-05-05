@@ -1,6 +1,6 @@
 <!-- generated_from: method/bootstrap-runbook.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T05:05:32.044Z -->
+<!-- generated_at: 2026-05-05T07:36:47.814Z -->
 # Bootstrap Runbook (New Project)
 
 Use this runbook to initialize a new project using only `fabric/company/v1/*`.
@@ -78,7 +78,7 @@ Create project copies from fabric templates:
 - `docs/templates/slice-closeout-review-template.md`
 - `docs/reviews/product-manager/bootstrap-foundation-review.md`
 - `docs/reviews/product-manager/bootstrap-backlog-slice-review.md`
-- `docs/architecture/baseline.md` (if structural slice or invariants require it)
+- `docs/architecture/<SLICE_ID>-baseline.md` (if structural slice or invariants require it)
 - `docs/ux/{slice_id}-current-slice-flow.md` (if slice has meaningful user-facing flow)
 - `docs/implementation/{slice_id}-implementation-notes.md` (when implementation starts)
 - `docs/operations/deployment-flow.md` (before first release process)

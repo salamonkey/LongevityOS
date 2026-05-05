@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T08:01:05.524Z",
+  "slice_id": "SL-001",
+  "screens": [
+    {
+      "screen_id": "onboarding",
+      "purpose": "Enable a new user to enter the minimum required profile inputs, generate a rule-based preventive plan, and land on a populated personal dashboard in one session.",
+      "required_sections": [
+        "health_score",
+        "today",
+        "soon",
+        "later"
+      ],
+      "required_components": [
+        "AppShell",
+        "HealthScoreCard",
+        "PrioritySection",
+        "HealthPlanItem",
+        "StatusPill",
+        "FamilyProfileCard",
+        "VaccinationStatusRow"
+      ],
+      "visible_data": [
+        "profile_name",
+        "health_score",
+        "due_items",
+        "upcoming_items"
+      ],
+      "states": [
+        "default",
+        "loading",
+        "empty",
+        "error",
+        "success"
+      ],
+      "action_hierarchy": [
+        "open_next_due_action",
+        "set_reminder",
+        "open_later_item"
+      ],
+      "rules": [
+        "Today / Soon / Later order is mandatory.",
+        "Today can dominate visually but must not create anxiety."
+      ]
+    }
+  ]
+}

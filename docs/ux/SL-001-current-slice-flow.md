@@ -1,58 +1,64 @@
 <!-- generated_from: templates/ux-current-slice-flow-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-04-25T07:48:06.600Z -->
+<!-- generated_at: 2026-05-05T08:01:05.524Z -->
 # UX Flow - Current Slice
 
-Date: `2026-04-25`
+Date: `2026-05-05`
 Status: `Ready for implementation`
-Scope: `SL-001 First-profile Onboarding to Generated Dashboard`
+Scope: `SL-001 Self Onboarding to First Dashboard`
 
 ## 1. Context
 
-Slice SL-001 defines the mobile-first responsive MVP flow from first launch to a generated dashboard for a first profile. Scope is limited to self-only onboarding, required age and gender capture, deterministic plan generation before dashboard load, and a read-only dashboard with health score plus Today/Soon/Later grouping.
+Slice SL-001 — Self Onboarding to First Dashboard. User goal: in a single session, a new user enters only age and gender, submits once, the system generates a deterministic preventive plan from the locked MVP catalog, and the user lands on a populated self dashboard that makes the next health action obvious. Scope is limited to one self profile, one generated plan snapshot, and one dashboard view with Today, Soon, and Later buckets, one highlighted next item, and one Health Score percentage.
 
 ## 2. Flow Definition
 
 ### Flow A - Primary Path
 
-- Entry: User opens the app and lands on a simple welcome screen with a clear value statement and a single primary action: Start.
+- Entry: User opens the first-run onboarding screen for the self profile in an unauthenticated or pre-established current-user context; no family, settings, or alternate destinations are shown in this slice.
 - Expected behavior:
-  - Welcome screen purpose: reassure the user they can get a personal preventive plan quickly from minimal input. Layout contains headline, one short supporting sentence, and one primary CTA: Start.
-  - Tapping Start opens a single onboarding form screen for the first profile. The screen title is personal and direct, such as 'Build your plan'.
-  - The onboarding form contains only two required inputs: Age and Gender. Age is a numeric field optimized for whole-number entry. Gender is a single-select control with exactly two options: Female and Male.
-  - A short helper line under the inputs explains that these answers are used only to generate rule-based preventive guidance for this profile.
-  - The primary action on the form is Generate my plan. A back action returns to the welcome screen without losing already entered values during the same session.
-  - On valid submission, the form transitions immediately to a blocking generating state. The screen shows progress feedback such as 'Building your dashboard...' and does not reveal dashboard content until generation succeeds.
-  - When generation returns a non-empty plan, the user is taken directly to the active profile dashboard with no intermediate choice screens or setup steps.
-  - Dashboard structure is fixed in this order: page header, read-only health score card, Today section, Soon section, Later section. The header labels the view as the user's dashboard for the active profile without requiring a profile name for this slice.
+  - Onboarding screen purpose: collect the minimum required inputs and set expectation that a personalized preventive plan will be created immediately after submission.
+  - Onboarding layout is a single vertical form with two required fields and one primary action. Sections in order: brief value statement, age field, gender field, primary submit button.
+  - Age input uses a numeric text field optimized for mobile number entry. Label: Age. Helper copy clarifies that age is used to generate the first plan. Field accepts whole numbers only.
+  - Gender input uses a required segmented control or radio group with exactly two visible options: Female and Male. No additional options, free text, or preference controls are shown in this slice.
+  - Primary action label is Generate my plan. The button remains disabled until age is present and one gender option is selected.
+  - Inline validation behavior on age: if empty after attempted submit, show Age is required. If non-integer, show Enter a whole number. If outside 0 to 120, show Enter an age from 0 to 120. Validation appears at the field and focus moves to the first invalid field on submit.
+  - Inline validation behavior on gender: if missing after attempted submit, show Select a gender to continue.
+  - When the user taps Generate my plan with valid inputs, the form enters a submitting state: all inputs become read-only, the primary button shows a loading label, and duplicate submits are blocked until completion or failure response resolves the state.
 
 ### Flow B - Failure and Recovery Paths
 
-- If the user taps Generate my plan with invalid input, submission is blocked on the onboarding form. Age errors appear inline for blank, non-numeric, decimal, or out-of-range values with the message 'Enter your age in whole years.' Gender shows an inline required error such as 'Select a gender.' Focus moves to the first
+- Validation failure path: user attempts submit with missing or invalid input; the screen does not navigate; invalid fields show explicit inline messages; the first invalid field receives focus; previously valid input stays intact; the primary action remains available after correction.
+- Generation failure path: onboarding submission succeeds client-side but plan generation or persistence fails or exceeds expected response window; stay on the onboarding screen and show a non-alarmist inline error banner above the form: We couldn’t create your plan right now. Please try again.; preserve entered age and,
+- data remains on the screen; restore inputs and primary action so the user can resubmit once; do not navigate to an empty or partial dashboard.
+- Dashboard data integrity failure path: if navigation to dashboard occurs but the projection lacks bucketed items or summary data, do not render blank sections as success; instead show a blocking full-page error state with one recovery action Return to onboarding; no item-level placeholders or fake content are shown in.
+- age and gender are the only required, collected, validated, and persisted onboarding inputs for this slice.
+- Only one self profile exists in the flow. The user never sees profile switching, family creation, profile editing, or preferences.
+- After successful submit, the next screen is always the self dashboard. There is no intermediate plan review screen, detail screen, or optional branch.
+- Plan generation must read only from the locked local preventive catalog and the age/gender rule bands. UX must not imply clinician review, AI generation, external enrichment, or medical-record syncing. The copy should describe the output as a personalized preventive plan, not medical advice or diagnosis. The summary or
 
 ## 3. Interaction and Validation Rules
 
-- Age is required and must be a whole number from 1 to 120 inclusive.
-- Gender is required and must allow exactly one selection from Female or Male.
-- Only age and gender are collected in this slice; no name, email, family members, reminders, status, or medical-history fields appear in the flow.
-- The onboarding form must keep entered values visible after validation errors so the user can correct them without re-entering other fields.
-- The generating state must be shown after valid submission and before dashboard load; the dashboard must never appear before plan generation completes successfully.
-- Successful generation must produce at least one health item before the user can land on the dashboard.
-- The dashboard must always present priority groups in the fixed order Today, Soon, Later.
-- Every generated health item must render in exactly one section only; duplication across sections is not allowed at the UI level or data-binding level.
+- Dashboard screen purpose: show the first generated plan in a scannable priority structure and make the next step obvious on first load.
+- Dashboard top section contains a single summary card for the self profile. It must show one Health Score percentage and one highlighted next item. The highlighted item selection rule is fixed and visible in implementation logic: choose the highest-priority Today item; if Today is empty, choose the earliest Soon item;if
 
 ## 4. Implementation Constraints
 
-- Self-only onboarding only; no add-family choice, family CTAs, or profile-switching controls are shown.
-- Health items are read-only in this slice; no tap-through to detail, no Done action, and no reminder action are exposed.
-- Health score is displayed as a read-only summary value only; no calculator explanation, editing, or drill-down is included.
-- Dashboard content must reflect deterministic rule output from entered age and gender only; no manual additions, inferred history, or external data sources are surfaced.
-- Copy and labels must frame the product as rule-based preventive guidance and must not imply AI, diagnosis, or medical-record functionality.
+- Do not introduce additional onboarding questions, account steps, consent flows, education carousels, or optional profile enrichment in SL-001.
+- Do not provide navigation to health item detail screens, mark-as-done actions, reminder actions, vaccination manual entry, family mode, settings, or profile editing.
+- Do not expose raw rule metadata, target-age calculations, catalog version labels, or internal status names beyond user-facing bucket labels and plain-language item info.
+- Do not render empty-state marketing content on a successful first dashboard; the dashboard must be populated from the generated snapshot.
+- Do not recalculate the plan in the UI during dashboard render. The UX assumes a persisted generated snapshot is the source for displayed items.
+- Do not use alarming, shaming, or overly clinical copy. Use calm, clear, plain language about recommended preventive actions and why they matter.
+- Do not use more than one primary action per screen in this slice: onboarding has Generate my plan; dashboard is informational only for SL-001.
 
 ## 5. Acceptance Mapping
 
-- From welcome-screen Start to dashboard load, the happy path can be completed within 60 seconds by a new user entering valid age and gender once.
-- A user who submits valid age and gender is shown a generating state and lands on a dashboard only after a non-empty plan exists.
-- The dashboard visibly includes a read-only health score for the active profile above the grouped item lists.
-- All displayed health items appear under exactly one of these section headers: Today, Soon, or Later.
-- Out-of-scope features for this slice are absent from the UI: add-family onboarding, health item detail, mark Done, reminders, vaccination tracking, and settings.
+- A first-time user can complete the onboarding form by entering only age and gender and reach the dashboard without encountering any additional required step.
+- The onboarding screen prevents invalid submission with observable inline validation for empty age, non-integer age, out-of-range age, and missing gender.
+- After valid submission, the UI shows a clear in-progress state, prevents duplicate submits, and either lands on the dashboard or returns to an actionable retry state without losing entered values.
+- The first dashboard render shows a visible summary card with exactly one Health Score percentage and exactly one highlighted next item selected from Today first, otherwise Soon, otherwise Later.
+- The dashboard displays three labeled sections: Today, Soon, and Later. Each generated item appears in exactly one of these sections and shows its name, category, cadence label, and why-it-matters text.
+- The dashboard content is visibly populated from the generated plan within 5 seconds of onboarding completion under normal conditions.
+- No screen in this slice exposes family profiles, item detail navigation, completion actions, reminder controls, manual vaccination entry, or profile editing.
+- In moderated walkthrough testing, a new user can move from first onboarding view to populated dashboard in 60 seconds or less and can identify the next recommended health step from the summary card on first dashboard load.

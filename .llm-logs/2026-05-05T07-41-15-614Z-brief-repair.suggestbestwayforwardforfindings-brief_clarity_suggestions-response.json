@@ -1,0 +1,77 @@
+{
+  "task": "brief_clarity_suggestions",
+  "caller": "brief-repair.suggestBestWayForwardForFindings",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:41:15.614Z",
+  "completed_utc": "2026-05-05T07:41:51.490Z",
+  "elapsed_ms": 35876,
+  "ok": true,
+  "response": {
+    "suggestions": [
+      {
+        "id": "issue-001",
+        "best_way_forward": "Bound the settings scope to named MVP actions and explicit exclusions, e.g. limit it to family profile management and basic product preferences only, and list advanced account tools as out of scope.",
+        "rationale": "This keeps the section testable for implementation while staying aligned to the framing that settings are part of MVP but their exact breadth is still open.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Provide one MVP settings area limited to (1) family profile management and (2) basic product preferences such as reminder defaults. Exclude permissions, billing, integrations, data export, and other advanced account administration.\""
+      },
+      {
+        "id": "issue-002",
+        "best_way_forward": "Repair the sentence and remove malformed quoting by describing the buckets as three time-based groups, with current labels treated as working labels rather than locked canon.",
+        "rationale": "This fixes syntax and stays consistent with framing that the dashboard uses three temporal buckets while exact labels remain open.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Display prioritized actions in three time-based dashboard buckets, using working labels such as Now, Soon, and Later until canonical labels are finalized; limit prioritization to internal timing rules.\""
+      },
+      {
+        "id": "issue-003",
+        "best_way_forward": "Set one default working project name in the header and remove the slash-based alternative.",
+        "rationale": "The brief needs a single reference name for decision-ready reading, but using a working title preserves the open naming decision.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Project: `Longevity Health OS`\" or \"Project: `Longevity Health OS` (working title)\"."
+      },
+      {
+        "id": "issue-004",
+        "best_way_forward": "Rephrase the product description so platform is framed as an initial delivery default or current assumption, not a fixed product requirement.",
+        "rationale": "This preserves alignment with the open platform decision while still giving the brief a practical MVP direction.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Longevity Health OS is an MVP for preventive health navigation, initially scoped for a lightweight client experience; final platform selection remains between responsive web and cross-platform delivery.\""
+      },
+      {
+        "id": "issue-005",
+        "best_way_forward": "Describe the health score as a simple progress indicator derived from plan status without locking the scoring formula.",
+        "rationale": "The framing supports a basic up-to-date summary, but not a specific percentage formula.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Show a simple per-profile health score or up-to-date summary derived from current plan status; exclude predictive or comparative analytics.\""
+      },
+      {
+        "id": "issue-006",
+        "best_way_forward": "Change the language line from a launch commitment to a working assumption or copy example, while keeping final launch language open.",
+        "rationale": "This matches the evidence that German copy exists but the launch language decision is not yet finalized.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Use clear, calm, trustworthy copy across core screens; current examples may use German, while final launch language remains to be decided.\""
+      },
+      {
+        "id": "issue-007",
+        "best_way_forward": "Update technical direction to keep platform choice open, with responsive web stated only as a current delivery-leaning option if needed.",
+        "rationale": "This avoids overcommitting beyond the framing while still giving engineering a realistic implementation posture.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Select the MVP client platform based on the 4–8 week delivery target, with responsive web as the current default path and cross-platform still viable pending final choice.\""
+      },
+      {
+        "id": "issue-008",
+        "best_way_forward": "Replace \"simple\" with a bounded backend statement that names the MVP entity set and excludes non-MVP domains.",
+        "rationale": "That makes the architecture line enforceable without adding unsupported technical scope.",
+        "confidence": "high",
+        "implementation_note": "Example rewrite: \"Use one authenticated backend for the MVP with five core entity groups: accounts, profiles, plan items, reminders, and vaccinations; exclude external integration domains.\""
+      },
+      {
+        "id": "issue-009",
+        "best_way_forward": "Replace \"secure\" with specific baseline controls for access and storage in the same sentence.",
+        "rationale": "Concrete controls make the privacy constraint reviewable and remove subjective wording.",
+        "confidence": "medium",
+        "implementation_note": "Example rewrite: \"Require authenticated access for all profile data, encrypt data in transit, and encrypt persisted profile data at rest.\""
+      }
+    ]
+  }
+}

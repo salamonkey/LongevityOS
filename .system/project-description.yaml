@@ -1,51 +1,51 @@
 # generated_from: templates/project-description.template.yaml
 # fabric_version: v1
-# generated_at: 2026-05-04T06:43:27.439Z
+# generated_at: 2026-05-05T07:57:43.384Z
 project:
-  name: "Longevity Health OS (Health App MVP)"
+  name: "Longevity Health OS"
   summary: >
-    Preventive health navigation app that tells users what health action to take next, when to take it, and why it matters.
+    Longevity Health OS is the default product name for this preventive health navigation MVP for individuals and families.
 
 product:
-  type: "mobile_first_web_app"
+  type: "preventive_health_navigation_web_app"
 
 users:
-  - "Professionals aged 30–65 who want a fast view of relevant preventive actions."
-  - "Parents who manage health tasks for multiple family members in one account."
+  - "Professionals aged 30-65 who want a clear preventive health plan."
+  - "Parents who manage preventive health tasks for multiple family members."
 
 primary_goal: >
-  Preventive health navigation app that tells users what health action to take next, when to take it, and why it matters.
+  Longevity Health OS is the default product name for this preventive health navigation MVP for individuals and families.
 
 core_workflow:
-  - "onboard_profile"
-  - "review_dashboard"
-  - "act_on_item"
+  - "enter_age_and_gender"
+  - "generate_plan_and_dashboard"
+  - "mark_done_or_set_reminder"
 
 key_concepts:
-  - "profile"
+  - "health_profile"
+  - "health_plan"
   - "health_item"
-  - "reminder"
 
 scope:
   v1_priorities:
-    - "onboarding_to_generated_plan"
-    - "status_and_reminder_tracking"
+    - "onboarding_to_dashboard"
+    - "item_completion_and_reminders"
   explicitly_out_of_scope:
-    - "Doctor or provider integration."
-    - "External API integrations."
+    - "Doctor or clinic integration."
+    - "External APIs, provider systems, or ecosystem links."
 
 constraints:
   tech_preferences:
-    backend: "typescript_fastify"
-    frontend: "nextjs_react"
+    backend: "nodejs_express_typescript"
+    frontend: "nextjs_react_typescript"
     database: "postgresql"
     orm: "prisma"
   architecture_preference: "modular_monolith"
-  working_style: "vertical_slices"
+  working_style: "small_vertical_slices"
   editor: "vscode"
   non_functional:
+    - "sub_5s_plan_generation"
     - "privacy_by_default"
-    - "mobile_performance"
 
 customer_preferences:
   wants_product_review_gate: true
@@ -53,5 +53,5 @@ customer_preferences:
   escalation_mode: only_when_material_decisions_are_required
 
 success_criteria:
-  - "A new user reaches a generated health plan and prioritized dashboard within 60 seconds of tapping Start."
-  - "100% of completed onboardings with age and gender inputs produce a non-empty health plan."
+  - "A new user can complete onboarding and reach a populated dashboard in 60 seconds or less."
+  - "In moderated MVP validation, at least 8 of 10 target users can identify their next health step within 1 minute of first dashboard load."

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T10:46:04.408Z",
+  "slice_id": "SL-003",
+  "required_storybook_paths": [
+    "Product/AppShell",
+    "Product/HealthScoreCard",
+    "Product/PrioritySection",
+    "Product/HealthPlanItem",
+    "Product/StatusPill",
+    "Screens/reminder"
+  ],
+  "required_components": [
+    "AppShell",
+    "HealthScoreCard",
+    "PrioritySection",
+    "HealthPlanItem",
+    "StatusPill"
+  ],
+  "required_screens": [
+    "reminder"
+  ],
+  "required_states": [
+    "default",
+    "loading",
+    "empty",
+    "error",
+    "success"
+  ],
+  "required_statuses": [
+    "done",
+    "due",
+    "soon",
+    "planned",
+    "overdue"
+  ],
+  "required_priorities": [
+    "today",
+    "soon",
+    "later"
+  ],
+  "copy_contract_slots": [
+    "primary_heading",
+    "status_label",
+    "empty_state",
+    "confirmation",
+    "error"
+  ],
+  "required_files": [
+    "src/stories/slices/SL-003/fixtures.ts",
+    "src/stories/slices/SL-003/SL-003.stories.tsx",
+    "src/stories/slices/SL-003/README.md"
+  ],
+  "closeout_gate": {
+    "required": true,
+    "rule": "A slice cannot close until Storybook stories exist for required components, screens, and semantic states and the Storybook review status is pass."
+  }
+}

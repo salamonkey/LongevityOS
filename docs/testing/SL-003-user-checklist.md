@@ -2,10 +2,10 @@
 
 ## Slice
 - ID: SL-003
-- Title: Full Health Plan View
+- Title: Item Completion and Reminder Actions
 
 ## Goal
-Provide a complete per-profile plan view so users can review all generated preventive items and their current status beyond the prioritized dashboard.
+Turn guidance into follow-through by allowing users to mark items done or planned and see the plan update immediately.
 
 ## Preconditions
 - App is running locally.
@@ -13,43 +13,62 @@ Provide a complete per-profile plan view so users can review all generated preve
 - Required demo or seed data is available if needed.
 
 ## What to test
-1. Entry: From the active profile dashboard, the user selects the full-plan entry point and navigates to the full health plan route for that same active profile.
+1. Entry: User opens a health item detail view for the active profile from the dashboard or a plan list and sees the item title, why-it-matters content, recommendation cadence, current status, and available primary actions.
 2. Expected behavior:
-3. Render a page header that makes the active context clear: this is the full health plan for the currently active profile, not an account-wide or family-wide list.
-4. Show a compact totals summary near the top of the screen based on the same active-profile item set used by dashboard counts; totals must stay aligned with the dashboard for identical underlying data.
-5. Render one simple vertical list containing every generated health item for the active profile exactly once, with no grouped priority sections and no filtering controls.
-6. Each list row must expose the item name as the primary label, recommendation frequency as supporting text, and exactly one visible unified status value using only Due, Planned, or Done.
-7. Required row content must fit on narrow mobile screens without horizontal scrolling; name, frequency, and status remain visible within the row layout.
-8. Make the whole row the primary tap target so the user can open the existing item detail view from anywhere on that row.
+3. On detail load, show the current item status as one of due, planned, or done using the existing product status presentation; do not introduce any new labels or reminder-only status.
+4. If the item status is due or planned, show two actions in the detail action area: a primary 'Mark as done' action and a secondary 'Set reminder' action.
+5. When the user taps 'Mark as done', submit the action immediately without a secondary form, show a pending state on the action area, and prevent duplicate taps until the request resolves.
+6. On successful completion, update the item status to done on the detail view, remove any displayed reminder date for that item, and show the done state in the same rendered screen state.
+7. Immediately after a successful done action, refresh all same-session views for the active profile from the shared plan store so the same item reads as done on the dashboard and plan views without reload.
+8. Immediately after a successful done action, recompute and display the updated Health Score and recompute the dashboard highlighted next item using the Today-then-Soon rule.
 
 ## Expected results
 - App loads without blank screen or runtime error.
-- All generated health items for the active profile appear exactly once in the health plan view
-- Each plan item shows recommendation frequency and one unified status value: Due, Planned, or Done
-- Opening an item from the plan view shows the same detail content as opening that item from the dashboard
-- A status change made in detail view is reflected when the user returns to the plan view
-- Plan totals remain consistent with dashboard items for the same active profile
+- A user can mark an item as done from the detail view and see status change to done across all relevant views in the same session
+- A user can create a reminder with 1 month, 3 months, or chosen date timing and receive a confirmation state on completion
+- Setting a reminder changes the item status to planned across the applicable views in the same session
+- After a status change, the dashboard updates the highlighted next item based on the approved Today-then-Soon rule
+
+## Carry-forward capabilities to preserve (auto-inherited)
+- [SL-001] Self Onboarding to First Dashboard
+  - A new user can complete onboarding and reach a populated dashboard in 60 seconds or less in a standard moderated walkthrough
+  - The first health plan is generated within 5 seconds of onboarding completion
+  - Every generated item comes from the locked MVP preventive item set and is assigned to checkups or vaccinations
+  - The dashboard shows Today, Soon, and Later buckets, one highlighted next item, and one Health Score percentage for the self profile
+  - Entry: User opens the first-run onboarding screen for the self profile in an unauthenticated or pre-established current-user context; no family, settings, or alternate destinations are shown in this slice.
+  - Expected behavior:
+  - Onboarding screen purpose: collect the minimum required inputs and set expectation that a personalized preventive plan will be created immediately after submission.
+  - Onboarding layout is a single vertical form with two required fields and one primary action. Sections in order: brief value statement, age field, gender field, primary submit button.
+- [SL-002] Health Plan Browsing and Item Detail
+  - Every generated health item is visible in a plan view and opens into a detail view
+  - 100% of generated health items show a recommendation cadence, one current status, and a why-it-matters explanation
+  - A user can open any dashboard-highlighted item into detail and return to the prior view without losing context
+  - Item detail copy uses plain-language rationale rather than clinical detail
+  - Entry: User enters the current slice from the primary application flow.
+  - Expected behavior:
+  - Complete the slice objective in the smallest coherent flow.
+  - Handle one clear recovery path for invalid or incomplete user action.
 
 ## Fail conditions
 - Blank page or broken layout.
 - Required input cannot be completed.
 - Primary action does nothing or leads to an error.
 - App crashes during the flow.
-- Expected next state for Full Health Plan View does not appear.
+- Expected next state for Item Completion and Reminder Actions does not appear.
 
 ## Out of scope for this slice
-- Reminder creation or editing
-- Family profile management
-- Vaccination tracking
-- Advanced filtering, sorting, or analytics
+- Reminder delivery outside the app confirmation flow
+- Reminder preference management
+- Manual vaccination entry
+- Family-wide reminder actions
 
 ## Result
 Status: Pass
 
 Use one of:
-- Fail
-- Pass
 - Pending
+- Pass
+- Fail
 
 ## Manual QA Findings
 
@@ -61,38 +80,18 @@ None.
 ### Finding 1
 
 Classification:
-- [X] A. Bug / implementation defect — existing requirement is clear, implementation is wrong.
+- [ ] A. Bug / implementation defect — existing requirement is clear, implementation is wrong.
 - [ ] B. UX/content quality issue — behavior works, but copy/interaction is not good enough.
 - [ ] C. Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.
 
 Finding:
-- After entering the user age and gender we land on the page that shows the button 'view full health plan'. when we click on any of the boxes in the 'All recommended preventive care steps' section, we see the details of that step, but no button to get back to anywhere. the only button is the 'Mark as Done' button. THe only way to get back is to use the browser back button. 
+-
 
 Expected:
-- Button that allows us to go back from the step details to the full health plan view. 
+-
 
 Observed:
 -
 
 Required repair:
-- Include a button taking us back to the health plan view.
-
-
-### Finding 2
-
-Classification:
-- [ ] A. Bug / implementation defect — existing requirement is clear, implementation is wrong.
-- [X] B. UX/content quality issue — behavior works, but copy/interaction is not good enough.
-- [ ] C. Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.
-
-Finding:
-- from the main page, when we click on an item and get its detailed view, we do get the 'Back to dashboard' button. when we click on it, it takes us back to the dashboard, but then the Health Plan section is missing entirely. If we do a refresh of the browser page, the Health plan section appears again.
-
-Expected:
-- When we come back, the health plan section should be still available.
-
-Observed:
 -
-
-Required repair:
-- Review and fix the behavior.

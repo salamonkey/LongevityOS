@@ -1,4 +1,4 @@
-# Semantic UX repair work order: SL-003 Full Health Plan View
+# Semantic UX repair work order: SL-003 Item Completion and Reminder Actions
 
 You are acting as the Coder role for a targeted Fabric repair run.
 Repair the current implementation so the active slice passes semantic UX review.
@@ -23,40 +23,42 @@ Repair the current implementation so the active slice passes semantic UX review.
 ## Finding selection
 - Included blockers: 2
 - Included warnings: 0
-- Warning repair mode: not included unless needed to fix blockers
+- Warning repair mode: included by operator flag
 
 ## Findings to fix
 ```json
 [
   {
     "index": 1,
-    "issue_type": "scope_ambiguity",
+    "issue_type": "internal_factory_language_in_visible_copy",
     "severity": "blocker",
-    "source": "llm",
-    "confidence": "",
-    "visibility": "",
-    "file": "src/features/full-health-plan-view/FullHealthPlanViewPage.jsx",
-    "slot": "primary_heading",
-    "observed": "The visible heading stack ('Full health plan' / 'Your complete preventive care plan') never makes clear that this is the plan for the active profile. For a per-profile plan view in a product that supports multiple profiles, the screen reads as a generic plan screen rather than a clearly profile-scoped one.",
-    "required": "/"
+    "source": "deterministic",
+    "confidence": "high",
+    "visibility": "likely_visible",
+    "file": "src/App.jsx",
+    "slot": "jsx_text_node",
+    "observed": "Run the current slice workflow to generate product-specific screens and Storybook stories.",
+    "required": "Replace visible internal language 'slice' with user-facing wording."
   },
   {
     "index": 2,
-    "issue_type": "ambiguous_noncontract_status_language",
+    "issue_type": "internal_copy_exposed",
     "severity": "blocker",
     "source": "llm",
     "confidence": "",
     "visibility": "",
-    "file": "src/features/full-health-plan-view/FullHealthPlanViewPage.jsx",
-    "slot": "status_context",
-    "observed": "The totals helper says 'Open dashboard items: {count}. Completed items: {count}.' This introduces an extra 'Open dashboard items' concept tied to another surface instead of using the slice’s unified user-facing status model of Due, Planned, or Done. The wording is unclear to users and drifts into system/surface mechanics rather than meaningful plan status context.",
-    "required": "/"
+    "file": "src/App.jsx",
+    "slot": "primary_heading",
+    "observed": "The rendered screen shows 'Fabric app factory' and 'App shell ready', which are internal/generic labels and do not tell the user they can complete a health item or set a reminder.",
+    "required": "true"
   }
 ]
 ```
 
 ## Repair rules
 - Fix the implementation, not the review file.
+- Preserve previously working user actions from earlier slices unless the active slice explicitly redefines them.
+- Do not remove existing user-visible functionality as a side effect of semantic repair.
 - User-facing copy must be meaningful to the end user.
 - Do not expose internal process, slice, schema, test, route, payload, ranking, bucket, implementation, acceptance-criteria, or factory language in visible UI.
 - Do not mention excluded features as internal limitations.

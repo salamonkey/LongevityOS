@@ -66,17 +66,14 @@
   font-size: 0.9rem;
 }
 
-.sl002-back-link {
-  border: 0;
-  background: transparent;
+.sl002-back-button {
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  background: #ffffff;
   color: #0f172a;
   font-weight: 700;
-  padding: 0;
   cursor: pointer;
-}
-
-.sl002-detail-view h2 {
-  margin: var(--space-3) 0 var(--space-2);
 }
 
 .sl002-detail-topline {

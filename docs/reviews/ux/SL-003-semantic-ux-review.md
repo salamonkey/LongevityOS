@@ -1,8 +1,8 @@
 # Semantic UX Review - Current Slice
 
-- Status: `pass`
-- Slice: `SL-003` Full Health Plan View
-- Generated: `2026-05-02T19:32:49.489Z`
+- Status: `fail`
+- Slice: `SL-003` Item Completion and Reminder Actions
+- Generated: `2026-05-05T10:48:12.756Z`
 - Deterministic findings: 0
 - LLM status: `unavailable`
 - LLM reviewer: [not run]
@@ -13,7 +13,15 @@ LLM semantic review unavailable: fetch failed
 
 ## Findings
 
-- None
+### 1. llm_review_unavailable
+
+- Severity: `blocker`
+- Source: `llm`
+- File: `docs/ux/SL-003-semantic-ux-contract.json`
+- Slot: `semantic_review_gate`
+- Observed: LLM semantic review unavailable: fetch failed
+- Required: Configure the semantic UX LLM reviewer or set SEMANTIC_UX_LLM_REQUIRED=false intentionally.
+
 
 ## Reviewer rule
 

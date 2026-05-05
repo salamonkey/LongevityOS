@@ -1,0 +1,11 @@
+{
+  "task": "brief_clarity_semantic_validation",
+  "caller": "brief-clarity-gate.reviewGeneratedBriefClarityAllSemantic",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:42:50.181Z",
+  "failed_utc": "2026-05-05T07:44:20.187Z",
+  "elapsed_ms": 90006,
+  "ok": false,
+  "error": "Model call idle timeout after 90s during final brief generation (last activity 90s ago)"
+}

@@ -1,0 +1,25 @@
+/* generated_from: fabric/company/v1/runtime/commands/runtime.mjs
+ * target: tsconfig.json
+ * fabric_version: v1
+ * generated_at_utc: 2026-05-05T10:38:08.640Z
+ */
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src", ".storybook", "vite.config.js", "vitest.config.ts"]
+}

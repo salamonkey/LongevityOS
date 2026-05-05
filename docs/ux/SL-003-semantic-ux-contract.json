@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-05-02T18:49:29.716Z",
+  "generated_at_utc": "2026-05-05T10:37:28.475Z",
   "slice_id": "SL-003",
-  "slice_title": "Full Health Plan View",
+  "slice_title": "Item Completion and Reminder Actions",
   "surface_type": "user_facing",
   "global_rules": {
     "must": [
@@ -71,11 +71,10 @@
     }
   ],
   "acceptance_criteria": [
-    "All generated health items for the active profile appear exactly once in the health plan view",
-    "Each plan item shows recommendation frequency and one unified status value: Due, Planned, or Done",
-    "Opening an item from the plan view shows the same detail content as opening that item from the dashboard",
-    "A status change made in detail view is reflected when the user returns to the plan view",
-    "Plan totals remain consistent with dashboard items for the same active profile"
+    "A user can mark an item as done from the detail view and see status change to done across all relevant views in the same session",
+    "A user can create a reminder with 1 month, 3 months, or chosen date timing and receive a confirmation state on completion",
+    "Setting a reminder changes the item status to planned across the applicable views in the same session",
+    "After a status change, the dashboard updates the highlighted next item based on the approved Today-then-Soon rule"
   ],
   "deterministic_scan": {
     "forbidden_visible_fragments": [

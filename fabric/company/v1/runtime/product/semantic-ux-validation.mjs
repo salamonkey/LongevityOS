@@ -870,8 +870,7 @@ async function reviewCurrentSliceSemantics({ targetRoot, valuesPath, onProgress 
   console.log(`- wrote: ${mdRelPath}`);
   if (result.status !== 'pass') {
     console.log('- next: run coder:repair-semantic-ux-findings after reviewing the findings');
-    console.log('  ./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json');
-    console.log('  add --include-warnings when you want the repair work order to include warning findings as well');
+    console.log('  ./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json --include-warnings');
     const error = new Error(`semantic UX review failed with ${String(blockerCount)} blocker finding(s)`);
     error.alreadyLogged = true;
     error.code = 'SEMANTIC_UX_REVIEW_FAILED';

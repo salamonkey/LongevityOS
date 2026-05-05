@@ -2,10 +2,10 @@
 
 ## Slice
 - ID: SL-002
-- Title: Health Item Detail and Completion
+- Title: Health Plan Browsing and Item Detail
 
 ## Goal
-Let users open any prioritized item, understand what to do and why, and mark the item Done with immediate reflected progress.
+Let users understand each recommended preventive item by viewing complete plan lists and item detail with clear rationale.
 
 ## Preconditions
 - App is running locally.
@@ -13,36 +13,83 @@ Let users open any prioritized item, understand what to do and why, and mark the
 - Required demo or seed data is available if needed.
 
 ## What to test
-1. Entry: User is on the active profile dashboard after onboarding and taps any health item card shown in Today, Soon, or Later.
+1. Entry: User enters the current slice from the primary application flow.
 2. Expected behavior:
-3. Open a dedicated item detail view for the tapped dashboard item; preserve the active profile context and item identity.
-4. Show the item title/action as the page heading so the user can immediately confirm what task they opened.
-5. Present a compact status block near the top using the unified status model only: Due, Planned, or Done.
-6. Within the same top context area, show recommendation frequency in plain language and last-known status context as a short factual line.
-7. Show a 'Why it matters' section directly below the top context so the rationale is visible without requiring additional navigation.
-8. Keep the detail view content limited to: action, recommendation frequency, why it matters, current unified status, and last-known status context.
+3. Complete the slice objective in the smallest coherent flow.
+4. Handle one clear recovery path for invalid or incomplete user action.
+5. Keep interactions simple, direct, and aligned to current-slice scope.
+6. Avoid adding user-facing complexity outside the active slice.
 
 ## Expected results
 - App loads without blank screen or runtime error.
-- Every health item shown on the dashboard opens to a detail view
-- 100% of health item detail views show action, why it matters, and status context
-- A user can mark an eligible item as Done from detail view and see the updated Done status after returning to the item
-- After an item is marked Done, the dashboard refreshes without showing the item in more than one priority group
-- The displayed health score updates consistently after an item is marked Done
-- The onboarding entry screen is visible and clear.
+- Every generated health item is visible in a plan view and opens into a detail view
+- 100% of generated health items show a recommendation cadence, one current status, and a why-it-matters explanation
+- A user can open any dashboard-highlighted item into detail and return to the prior view without losing context
+- Item detail copy uses plain-language rationale rather than clinical detail
+
+## Carry-forward capabilities to preserve (auto-inherited)
+- [SL-001] Self Onboarding to First Dashboard
+  - A new user can complete onboarding and reach a populated dashboard in 60 seconds or less in a standard moderated walkthrough
+  - The first health plan is generated within 5 seconds of onboarding completion
+  - Every generated item comes from the locked MVP preventive item set and is assigned to checkups or vaccinations
+  - The dashboard shows Today, Soon, and Later buckets, one highlighted next item, and one Health Score percentage for the self profile
+  - Entry: User opens the first-run onboarding screen for the self profile in an unauthenticated or pre-established current-user context; no family, settings, or alternate destinations are shown in this slice.
+  - Expected behavior:
+  - Onboarding screen purpose: collect the minimum required inputs and set expectation that a personalized preventive plan will be created immediately after submission.
+  - Onboarding layout is a single vertical form with two required fields and one primary action. Sections in order: brief value statement, age field, gender field, primary submit button.
+
+## Semantic UX checks
+- All user-visible text speaks to the user, not about the system.
+- No visible copy exposes internal implementation, workflow, schema, routing, slice, test, ranking, bucket, or process language.
+- Labels, explanations, empty states, and status messages are meaningful in the product context.
+- Dates, times, counts, and statuses are valid and human-readable.
+- Unknown or missing data uses a safe fallback.
+- A section existing with bad, generic, or internal copy is marked Fail, not Pass.
 
 ## Fail conditions
 - Blank page or broken layout.
 - Required input cannot be completed.
 - Primary action does nothing or leads to an error.
 - App crashes during the flow.
-- Expected next state for Health Item Detail and Completion does not appear.
+- Expected next state for Health Plan Browsing and Item Detail does not appear.
 
 ## Out of scope for this slice
-- Full health plan list screen
-- Reminder scheduling
-- Family profile management
-- Vaccination tracking
+- Changing item status
+- Reminder creation
+- Manual vaccination entry
+- Family profile views
+- Profile editing and preferences
 
 ## Result
+Status: Pass
+
+Use one of:
+- Pending
 - Pass
+- Fail
+
+## Manual QA Findings
+
+Use this section when manual review finds something that should be repaired before closeout.
+If the checklist passes, leave this section as `None.`
+
+None.
+
+### Finding 1
+
+Classification:
+- [ ] A. Bug / implementation defect — existing requirement is clear, implementation is wrong.
+- [ ] B. UX/content quality issue — behavior works, but copy/interaction is not good enough.
+- [ ] C. Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.
+
+Finding:
+-
+
+Expected:
+-
+
+Observed:
+-
+
+Required repair:
+-

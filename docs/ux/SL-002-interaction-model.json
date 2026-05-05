@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T09:27:56.496Z",
+  "slice_id": "SL-002",
+  "user_goal": "Let users understand each recommended preventive item by viewing complete plan lists and item detail with clear rationale.",
+  "entry_points": [
+    "primary_app_flow"
+  ],
+  "screens": [
+    "health_plan"
+  ],
+  "states": [
+    "default",
+    "loading",
+    "empty",
+    "validation_error",
+    "success"
+  ],
+  "transitions": [
+    {
+      "from": "entry",
+      "action": "open",
+      "to": "health_plan"
+    },
+    {
+      "from": "health_plan",
+      "action": "primary_action",
+      "to": "success_or_next_state"
+    },
+    {
+      "from": "health_plan",
+      "action": "invalid_input",
+      "to": "validation_error"
+    }
+  ],
+  "primary_actions": [
+    "primary_action"
+  ],
+  "secondary_actions": [
+    "open_detail",
+    "set_reminder"
+  ],
+  "validation_rules": [
+    "Required user inputs must be validated before transition.",
+    "Errors must be specific and user-facing."
+  ],
+  "recovery_paths": [
+    "Let the user correct invalid or missing input without losing context."
+  ],
+  "trust_constraints": [
+    "Do not imply medical diagnosis.",
+    "Use calm, clear, trustworthy copy."
+  ]
+}

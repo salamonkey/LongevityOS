@@ -1,0 +1,51 @@
+{
+  "task": "architect_baseline_playbook",
+  "caller": "architect-baseline.generateArchitectureBaselinePlaybook",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:59:01.350Z",
+  "completed_utc": "2026-05-05T08:01:05.278Z",
+  "elapsed_ms": 123928,
+  "ok": true,
+  "response": {
+    "context": "Architecture baseline for slice SL-001, Self Onboarding to First Dashboard. Scope is limited to collecting age and gender for one self profile, generating one deterministic preventive plan from a locked MVP item set, and rendering one populated dashboard with Today, Soon, Later buckets, one highlighted next item, and one Health Score percentage in the same session.",
+    "decisions": [
+      "The slice operates on a single current-user context with exactly one self profile; account creation, authentication, and family profile relationships are outside this slice and must not be introduced into SL-001 behavior.",
+      "The core domain objects for SL-001 are SelfProfile, PreventiveCatalog, PersonalPlanSnapshot, PlanItemSnapshot, and DashboardProjection.",
+      "SelfProfile contains only the fields required by this slice: profileId, age, gender, createdAt, and onboardingCompletedAt. Age is an integer in the inclusive range 0-120. Gender is a required rule-input enum with values female or male for this slice.",
+      "PreventiveCatalog is a locked, versioned, in-code data set for MVP. Each catalog item has itemId, name, category, cadenceLabel, whyItMatters, and one or more rule bands. Category is fixed to checkup or vaccination.",
+      "Each rule band in PreventiveCatalog defines supported gender, age range, targetAge, dashboardBucket, and priorityOrder. Rule bands are the only source of inclusion, bucket assignment, and ordering for generated items in SL-001.",
+      "PersonalPlanSnapshot is created immediately after onboarding submission and persisted before dashboard render. It contains planId, profileId, catalogVersion, generatedAt, and generated PlanItemSnapshot records. The dashboard reads this persisted snapshot rather than recalculating rules on render.",
+      "PlanItemSnapshot is an immutable copy of the matched catalog output at generation time and contains catalogItemId, name, category, cadenceLabel, whyItMatters, dashboardBucket, targetAge, priorityOrder, and status. Initial status is due for Today items and planned for Soon or Later items. Done state is not part of this "
+    ],
+    "guardrails": [
+      "Do not collect, validate, or persist any onboarding inputs beyond age and gender for SL-001.",
+      "Do not introduce family profile collections, profile switching, or more than one dashboard context in this slice.",
+      "Do not fetch preventive items or rules from external APIs, CMS systems, or user-editable storage; the MVP catalog must be local, deterministic, and source-controlled.",
+      "Do not place rule logic, bucket logic, summary-card selection, or Health Score math inside route components or presentational UI code; those rules must live in domain/application modules.",
+      "Do not add item detail navigation, mark-as-done behavior, reminder behavior, manual vaccination entry, or profile editing hooks inside SL-001 modules.",
+      "Do not store medical-record style history, appointment dates, provider data, or broad demographic attributes; this slice persists only the minimum data needed to reproduce the first dashboard."
+    ],
+    "verification": [
+      "Automated validation tests cover onboarding input rules: age is required, age accepts only integers from 0 to 120, and gender accepts only female or male for SL-001.",
+      "Pure plan-generation tests for at least one female sample profile and one male sample profile verify that every generated item originates from the locked PreventiveCatalog, each item category is checkup or vaccination, and repeated generation with the same profile and catalogVersion yields identical output.",
+      "Dashboard projection tests verify grouping into Today, Soon, and Later, sorting by targetAge then priorityOrder, summary-card selection order Today then Soon then Later, and Health Score calculation using the defined bucket weights.",
+      "An end-to-end onboarding test verifies that a new user can enter only age and gender, submit once, trigger GenerateInitialPlan, and land on a populated dashboard that shows all three bucket sections, one highlighted next item, and one percentage Health Score for the self profile.",
+      "A timing check in automated or instrumented verification confirms that initial plan generation completes within 5 seconds from onboarding submission under normal local test conditions.",
+      "docs/testing/SL-001-user-checklist.md is completed with passing evidence for at least one supported female path and one supported male path, docs/implementation/SL-001-implementation-notes.md records the catalogVersion and changed files for SL-001, and fabric doctor passes without bootstrap semantic issues."
+    ],
+    "constraints": [
+      "SL-001 scope is limited to self onboarding, first profile creation, first rule-based plan generation, and first dashboard render in one session.",
+      "The only supported dashboard bucket labels for this slice are Today, Soon, and Later.",
+      "The only supported preventive item categories for this slice are checkup and vaccination.",
+      "The only supported rule-input gender values for this slice are female and male; broader profile identity modeling is outside SL-001.",
+      "Generated item status in this slice is limited to due or planned; done, skipped, reminded, and historical states are not part of the SL-001 baseline.",
+      "Health Score must remain a simple derived percentage from the current plan snapshot only and must not imply medical risk analysis, prediction, or external data enrichment.",
+      "No route, module, or test in SL-001 may depend on provider integrations, third-party health systems, or external APIs to generate the first plan or dashboard."
+    ],
+    "open_questions": [
+      "What exact named MVP preventive item list and per-item rule bands are approved for the locked catalog version used in SL-001?",
+      "Where will the catalogVersion and rule documentation live in-repo so product, design, QA, and tests all reference the same source of truth?"
+    ]
+  }
+}

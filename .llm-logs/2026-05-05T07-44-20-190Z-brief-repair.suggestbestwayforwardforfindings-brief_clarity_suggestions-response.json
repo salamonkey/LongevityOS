@@ -1,0 +1,77 @@
+{
+  "task": "brief_clarity_suggestions",
+  "caller": "brief-repair.suggestBestWayForwardForFindings",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:44:20.190Z",
+  "completed_utc": "2026-05-05T07:44:54.933Z",
+  "elapsed_ms": 34743,
+  "ok": true,
+  "response": {
+    "suggestions": [
+      {
+        "id": "issue-001",
+        "best_way_forward": "Rewrite the line to name one MVP platform default, e.g. state that the MVP will ship as a responsive web client for the 4–8 week target.",
+        "rationale": "The current wording leaves platform choice open. A single default makes the technical direction decision-ready and keeps the brief aligned to the lean MVP constraint.",
+        "confidence": "high",
+        "implementation_note": "Use one explicit platform in the sentence and remove 'responsive web or cross-platform' wording."
+      },
+      {
+        "id": "issue-002",
+        "best_way_forward": "Replace soft qualifiers with update conditions, e.g. define the Health Score as a single profile-level summary indicator that refreshes after plan generation and after each item-status change.",
+        "rationale": "This keeps the score lightweight while making 'simple' and 'up-to-date' testable without implying analytics.",
+        "confidence": "medium",
+        "implementation_note": "Keep the same line, but swap vague wording for specific refresh triggers."
+      },
+      {
+        "id": "issue-003",
+        "best_way_forward": "Make 'Health Score' the explicit MVP default label for the summary indicator and remove any wording that suggests an interchangeable alternative.",
+        "rationale": "The framing includes both 'Health Score' and 'summary indicator' language, but the brief should choose one default term for consistency and downstream execution.",
+        "confidence": "medium",
+        "implementation_note": "Use 'Health Score' as the feature name and describe it as the profile summary indicator, rather than presenting both as options."
+      },
+      {
+        "id": "issue-004",
+        "best_way_forward": "Rephrase reminders as default presets plus an optional custom path, e.g. users can set a reminder with default 1-month and 3-month presets, with custom date available as an additional option.",
+        "rationale": "This resolves the open-ended choice framing while preserving the intended MVP behavior from the product workflows.",
+        "confidence": "high",
+        "implementation_note": "Present preset options as the default interaction and custom date as secondary, not as an unresolved alternative set."
+      },
+      {
+        "id": "issue-005",
+        "best_way_forward": "Add explicit v1 boundaries: each health item appears in exactly one of the three dashboard priority buckets for the active profile, based only on internal timing rules, with no manual reordering or custom prioritization.",
+        "rationale": "This makes the dashboard prioritization scope testable and consistent with rule-based guidance and lean MVP boundaries.",
+        "confidence": "high",
+        "implementation_note": "Add one sentence covering bucket assignment, active-profile scope, and excluded manual prioritization behavior."
+      },
+      {
+        "id": "issue-006",
+        "best_way_forward": "Bound the detail view to a fixed v1 content set: show only description, why it matters, recommendation cadence, and current status for one health item, with no clinician advice or external guidance flows.",
+        "rationale": "A fixed field set keeps the MVP detail view clear, implementable, and aligned to the product promise of quick preventive guidance.",
+        "confidence": "high",
+        "implementation_note": "Use 'only' language to define the allowed detail content and keep exclusions in the same line."
+      },
+      {
+        "id": "issue-007",
+        "best_way_forward": "Specify that v1 supports a single 'mark as done' action from item detail for the active profile, and that the item status updates immediately in the plan and dashboard only.",
+        "rationale": "This adds enforceable scope around the action and resulting state change without expanding into undo, history, or bulk-edit behavior.",
+        "confidence": "high",
+        "implementation_note": "Add immediate-update behavior and limit the reflected change to the plan and dashboard views."
+      },
+      {
+        "id": "issue-008",
+        "best_way_forward": "Limit vaccination tracking to manual per-profile entries and rule-based status guidance shown in-product, and explicitly exclude provider verification, document upload, and external imports in v1.",
+        "rationale": "This preserves the MVP vaccination promise while clearly bounding the tracker away from medical-record behavior or integrations.",
+        "confidence": "high",
+        "implementation_note": "Use 'manual per-profile entries only' and list excluded verification/import behaviors in the same statement."
+      },
+      {
+        "id": "issue-009",
+        "best_way_forward": "Define profile switching as changing the active profile context within one account for dashboard, plan, and vaccination views only, with no cross-profile combined view or side-by-side comparison in v1.",
+        "rationale": "This makes family-mode switching behavior clear enough for implementation while avoiding unsupported assumptions about profile limits.",
+        "confidence": "high",
+        "implementation_note": "Anchor the wording to 'active profile' behavior and explicitly exclude merged or comparison views."
+      }
+    ]
+  }
+}

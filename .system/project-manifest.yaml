@@ -1,23 +1,23 @@
 # generated_from: templates/project-manifest.template.yaml
 # fabric_version: v1
-# generated_at: 2026-05-04T06:43:27.439Z
+# generated_at: 2026-05-05T07:57:43.384Z
 schema_version: 1
 manifest_version: 1
-generated_at_utc: '2026-04-25T05:35:21.246Z'
-last_updated_utc: "2026-05-04T07:43:03.564Z"
+generated_at_utc: '2026-05-05T07:57:05.639Z'
+last_updated_utc: "2026-05-05T10:38:08.361Z"
 project:
-  id: 'longevity-health-os-health-app-mvp'
-  name: 'Longevity Health OS (Health App MVP)'
-  summary: 'Preventive health navigation app that tells users what health action to take next, when to take it, and why it matters.
+  id: 'longevity-health-os'
+  name: 'Longevity Health OS'
+  summary: 'Longevity Health OS is the default product name for this preventive health navigation MVP for individuals and families.
 
     '
-  product_type: 'mobile_first_web_app'
+  product_type: 'preventive_health_navigation_web_app'
   source_description: .system/project-description.yaml
 operating_model:
   architecture_preference: 'modular_monolith'
   delivery_style: agile_slice_based
-  bootstrap_status: 'in_progress'
-  bootstrap_completed_at_utc: '2026-04-25T05:35:21.246Z'
+  bootstrap_status: "completed"
+  bootstrap_completed_at_utc: "2026-05-05T08:51:54.776Z"
   current_mode: "delivery"
 roles:
   enabled:
@@ -27,8 +27,8 @@ roles:
   - uiux
   - coder
 stack_direction:
-  backend: 'typescript_fastify'
-  frontend: 'nextjs_react'
+  backend: 'nodejs_express_typescript'
+  frontend: 'nextjs_react_typescript'
   database: 'postgresql'
   orm: 'prisma'
 governance:
@@ -37,28 +37,30 @@ governance:
   prefers_small_vertical_slices: true
 scope:
   v1_priorities:
-  - 'onboarding_to_generated_plan'
-  - 'status_and_reminder_tracking'
+  - 'onboarding_to_dashboard'
+  - 'item_completion_and_reminders'
   explicitly_out_of_scope:
-  - 'Doctor or provider integration.'
-  - 'External API integrations.'
+  - 'Doctor or clinic integration.'
+  - 'External APIs, provider systems, or ecosystem links.'
 status:
   initialized: true
   requires_customer_escalation: false
   blocking_decision: null
-  active_slice: "SL-004B"
+  active_slice: "SL-003"
   active_slice_state: "in_progress"
-  active_milestone: "SL-004B_implementation"
-  last_gate_result: "failed"
-  last_gate_stage: "doctor"
-  last_gate_checked_at_utc: "2026-05-04T07:43:03.499Z"
-  last_gate_message: "fabric doctor failed (1 issue(s))"
+  active_milestone: "SL-003_implementation"
+  last_gate_result: "passed"
+  last_gate_stage: "gate"
+  last_gate_checked_at_utc: "2026-05-05T10:38:08.115Z"
+  last_gate_message: "validate and doctor passed"
   last_flow_check_command: "gate"
   last_flow_check_step: "18|23|25"
-  last_flow_check_result: "failed"
-  last_flow_check_checked_at_utc: "2026-05-04T07:43:03.500Z"
-  last_flow_check_message: "fabric doctor failed (1 issue(s))"
-  approved_reviews: []
+  last_flow_check_result: "passed"
+  last_flow_check_checked_at_utc: "2026-05-05T10:38:08.116Z"
+  last_flow_check_message: "command completed successfully"
+  approved_reviews:
+    - "docs/reviews/product-manager/bootstrap-foundation-review.md"
+    - "docs/reviews/product-manager/bootstrap-backlog-slice-review.md"
   customer_checkpoint_summaries: []
 artifacts:
   registry: .system/artifact-registry.yaml

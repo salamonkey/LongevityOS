@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "{{generated_at_utc}}",
+  "slice_id": "{{slice_id}}",
+  "status": "pending",
+  "storybook_paths": [],
+  "required_states_covered": false,
+  "package_scripts_present": false,
+  "map_present": false,
+  "findings": []
+}

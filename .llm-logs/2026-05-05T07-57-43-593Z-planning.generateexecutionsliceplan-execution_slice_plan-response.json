@@ -1,0 +1,211 @@
+{
+  "task": "execution_slice_plan",
+  "caller": "planning.generateExecutionSlicePlan",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T07:57:43.593Z",
+  "completed_utc": "2026-05-05T07:59:01.089Z",
+  "elapsed_ms": 77496,
+  "ok": true,
+  "response": {
+    "slices": [
+      {
+        "title": "Self onboarding to first dashboard",
+        "objective": "Enable a new user to enter the minimum required profile inputs, generate a rule-based preventive plan, and land on a populated personal dashboard in one session.",
+        "in_scope": [
+          "Self profile onboarding with age and gender as the only required inputs",
+          "Locked named MVP preventive item set covering checkups and vaccinations for plan generation",
+          "Rule-based plan generation from age and gender only",
+          "Initial personal dashboard for one profile with Today, Soon, and Later buckets",
+          "Display one highest-priority item from Today, or the earliest Soon item when Today is empty, on the dashboard summary card\",\"Show one Health Score percentage for the self profile on the dashboard\",\"Generate the firstplan"
+        ],
+        "out_of_scope": [
+          "Family profile creation",
+          "Health item detail screens",
+          "Mark-as-done and reminder actions",
+          "Manual vaccination entry",
+          "Profile editing and preferences"
+        ],
+        "acceptance_criteria": [
+          "A new user can complete onboarding and reach a populated dashboard in 60 seconds or less in a standard moderated walkthrough",
+          "The first health plan is generated within 5 seconds of onboarding completion",
+          "Every generated item comes from the locked MVP preventive item set and is assigned to checkups or vaccinations",
+          "The dashboard shows Today, Soon, and Later buckets, one highlighted next item, and one Health Score percentage for the self profile"
+        ],
+        "dependencies": [
+          "data లేదా"
+        ],
+        "done_definition": [
+          "The MVP preventive item set and age/gender rules are documented for product, design, and QA use",
+          "The self onboarding path works end to end without requiring any inputs beyond age and gender",
+          "Dashboard outputs match the approved priority and summary rules for at least one sample profile per supported gender path"
+        ]
+      },
+      {
+        "title": "Health plan browsing and item detail",
+        "objective": "Let users understand each recommended preventive item by viewing complete plan lists and item detail with clear rationale.",
+        "in_scope": [
+          "Personal health plan views for the self profile separated into checkups and vaccinations",
+          "Display each health item with recommendation cadence and one current status",
+          "Health item detail view with recommendation text and why-it-matters explanation in plain language",
+          "Navigation from dashboard priority item and plan lists into item detail and back",
+          "Read-only display of due, planned, and done statuses across dashboard and plan views"
+        ],
+        "out_of_scope": [
+          "Changing item status",
+          "Reminder creation",
+          "Manual vaccination entry",
+          "Family profile views",
+          "Profile editing and preferences"
+        ],
+        "acceptance_criteria": [
+          "Every generated health item is visible in a plan view and opens into a detail view",
+          "100% of generated health items show a recommendation cadence, one current status, and a why-it-matters explanation",
+          "A user can open any dashboard-highlighted item into detail and return to the prior view without losing context",
+          "Item detail copy uses plain-language rationale rather than clinical detail"
+        ],
+        "dependencies": [
+          "Self onboarding to first dashboard"
+        ],
+        "done_definition": [
+          "Plan views cover both checkups and vaccinations for the self profile",
+          "Dashboard, plan list, and detail views show consistent item names and status labels",
+          "Content review is complete for all MVP preventive items included in the locked item set"
+        ]
+      },
+      {
+        "title": "Item completion and reminder actions",
+        "objective": "Turn guidance into follow-through by allowing users to mark items done or planned and see the plan update immediately.",
+        "in_scope": [
+          "Mark a health item as done from the detail view",
+          "Set a reminder from the detail view using 1 month, 3 months, or a chosen date",
+          "Show a confirmation state after reminder creation",
+          "Update item status across dashboard, plan views, and detail in the same session",
+          "Recalculate the highlighted next item and Health Score after status changes"
+        ],
+        "out_of_scope": [
+          "Reminder delivery outside the app confirmation flow",
+          "Reminder preference management",
+          "Manual vaccination entry",
+          "Family-wide reminder actions"
+        ],
+        "acceptance_criteria": [
+          "A user can mark an item as done from the detail view and see status change to done across all relevant views in the same session",
+          "A user can create a reminder with 1 month, 3 months, or chosen date timing and receive a confirmation state on completion",
+          "Setting a reminder changes the item status to planned across the applicable views in the same session",
+          "After a status change, the dashboard updates the highlighted next item based on the approved Today-then-Soon rule"
+        ],
+        "dependencies": [
+          "Self onboarding to first dashboard",
+          "Health plan browsing and item detail"
+        ],
+        "done_definition": [
+          "All three reminder timing options work from the same item detail flow",
+          "Status changes are visible without requiring the user to repeat onboarding or regenerate the profile",
+          "Health Score updates are consistent with the approved completed-versus-outstanding item rules"
+        ]
+      },
+      {
+        "title": "Vaccination tracking area and manual entries",
+        "objective": "Provide a dedicated vaccination experience that combines rule-based due guidance with manual tracking for the self profile.",
+        "in_scope": [
+          "Dedicated vaccination list for the self profile",
+          "Vaccination due guidance shown inside the vaccination area using the MVP rule set",
+          "Manual addition of vaccination entries with date and status context",
+          "Immediate display of newly added vaccination entries in the same session",
+          "Access from the vaccination area into the related vaccination item detail where applicable"
+        ],
+        "out_of_scope": [
+          "Provider sync",
+          "Document upload",
+          "Broad medical record storage",
+          "Non-vaccination manual records",
+          "Family profile vaccination management"
+        ],
+        "acceptance_criteria": [
+          "A user can add at least 1 manual vaccination entry to the self profile and see it appear in that profile's vaccination list in the same session",
+          "The vaccination area shows rule-based due guidance for the self profile without implying provider data sync",
+          "A vaccination entry captures both a date and status context",
+          "The vaccination list supports empty and populated states without breaking access to due guidance"
+        ],
+        "dependencies": [
+          "Self onboarding to first dashboard",
+          "Health plan browsing and item detail"
+        ],
+        "done_definition": [
+          "The vaccination area clearly separates manually added entries from rule-based due guidance",
+          "The self profile can navigate from main app entry points to vaccinations and back to the dashboard",
+          "QA scenarios cover both a profile with no manual entries and a profile with at least one manual vaccination entry"
+        ]
+      },
+      {
+        "title": "Family onboarding and family overview",
+        "objective": "Allow one account to manage multiple people with separate preventive plans, summaries, and navigation paths.",
+        "in_scope": [
+          "Optional family profile creation during onboarding in the same account",
+          "Create additional profiles after onboarding, up to a maximum of 5 total profiles per account",
+          "Generate a separate rule-based plan, dashboard, and vaccination list for each profile from age and gender",
+          "Family overview showing each profile's Health Score and due-item summary",
+          "Open each family member's dashboard, checkup plan, and vaccinations from the family overview"
+        ],
+        "out_of_scope": [
+          "Profile editing beyond initial creation",
+          "Archive and delete profile actions",
+          "Multi-user permissions or shared account roles",
+          "Cross-profile combined scoring"
+        ],
+        "acceptance_criteria": [
+          "A family account can create and view at least 2 profiles with separate Health Scores and priority lists",
+          "The account cannot exceed 5 profiles",
+          "Onboarding offers family profile creation without blocking the self-profile flow",
+          "A user can open any family member's dashboard, checkup plan, and vaccinations from the family overview and see person-specific content"
+        ],
+        "dependencies": [
+          "Self onboarding to first dashboard",
+          "Health plan browsing and item detail",
+          "Item completion and reminder actions",
+          "Vaccination tracking area and manual entries"
+        ],
+        "done_definition": [
+          "Profile switching preserves the correct person context across dashboard, plan, and vaccination screens",
+          "Family overview summaries match the underlying profile-level item statuses",
+          "End-to-end walkthroughs pass for one self profile plus at least one added family member"
+        ]
+      },
+      {
+        "title": "Profile area and household preferences",
+        "objective": "Let users maintain profile basics and limited household settings without expanding the MVP into full account customization.",
+        "in_scope": [
+          "Lightweight profile area to create, view, and edit profiles",
+          "Edit age and gender for an existing profile",
+          "Regenerate the edited profile's plan after age or gender changes",
+          "Household management surface that lists profiles and links into each person's dashboard, plan, and vaccinations",
+          "Preferences limited to reminder settings and household management"
+        ],
+        "out_of_scope": [
+          "Archive or delete profile actions",
+          "Broad account customization",
+          "Medical history capture beyond MVP inputs and vaccination entries",
+          "New reminder channels or external notification integrations"
+        ],
+        "acceptance_criteria": [
+          "A user can create, view, and edit profiles from the profile area",
+          "Editing a profile's age or gender updates that profile's generated plan and current dashboard in the same session",
+          "The preferences area contains reminder settings and household management only",
+          "No archive or delete controls are present anywhere in the MVP profile management flow"
+        ],
+        "dependencies": [
+          "Self onboarding to first dashboard",
+          "Health plan browsing and item detail",
+          "Item completion and reminder actions",
+          "Vaccination tracking area and manual entries\",\"Family onboarding and family overview"
+        ],
+        "done_definition": [
+          "Profile management paths work for both self and family members from the same account",
+          "Edited profiles retain separate Health Scores, priority lists, and vaccination areas after regeneration",
+          "Navigation labels and screens match the approved MVP scope and do not introduce non-MVP account features"
+        ]
+      }
+    ]
+  }
+}

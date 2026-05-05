@@ -1,0 +1,56 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T08:14:43.591Z",
+  "completed_utc": "2026-05-05T08:15:15.400Z",
+  "elapsed_ms": 31809,
+  "ok": true,
+  "response": {
+    "status": "fail",
+    "summary": "The current user-facing entry surface does not meet SL-001 semantic UX requirements. Instead of onboarding a new user into a first preventive plan and dashboard, the app renders internal factory placeholder content that exposes implementation workflow language and gives no clear user action.",
+    "findings": [
+      {
+        "severity": "blocker",
+        "file": "src/App.jsx",
+        "slot": "primary_heading",
+        "issue_type": "internal_placeholder_copy",
+        "observed": "The live app entry shows 'Fabric app factory' and 'App shell ready', which are generic internal labels and do not tell a user they can set up a preventive plan or reach a dashboard.",
+        "required": "no"
+      },
+      {
+        "severity": "blocker",
+        "file": "src/App.jsx",
+        "slot": "explanation_or_rationale",
+        "issue_type": "internal_workflow_exposure",
+        "observed": "Visible copy says 'Run the current slice workflow to generate product-specific screens and Storybook stories.', exposing internal workflow and test language that the contract explicitly forbids in user UI.",
+        "required": "no"
+      },
+      {
+        "severity": "blocker",
+        "file": "src/App.jsx",
+        "slot": "primary_action",
+        "issue_type": "missing_user_action",
+        "observed": "The rendered entry screen provides no user-facing primary action such as starting onboarding or generating a plan, so the next step is not clear for a new user.",
+        "required": "no"
+      },
+      {
+        "severity": "warning",
+        "file": "index.html",
+        "slot": "primary_heading",
+        "issue_type": "generic_internal_title",
+        "observed": "The document title is 'Fabric App', which is generic and internally framed rather than aligned to the preventive health onboarding experience.",
+        "required": "no"
+      },
+      {
+        "severity": "warning",
+        "file": "src/features/self-onboarding-to-first-dashboard/components.jsx",
+        "slot": "explanation_or_rationale",
+        "issue_type": "system_mechanics_copy",
+        "observed": "The Health Score card says 'Your score reflects how many upcoming items are already planned.' This explains internal scoring mechanics more than user value or practical meaning.",
+        "required": "no"
+      }
+    ]
+  }
+}

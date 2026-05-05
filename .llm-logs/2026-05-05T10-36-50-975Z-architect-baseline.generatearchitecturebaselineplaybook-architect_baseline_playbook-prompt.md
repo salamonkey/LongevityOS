@@ -1,0 +1,690 @@
+# LLM Prompt Log
+
+- task: architect_baseline_playbook
+- caller: architect-baseline.generateArchitectureBaselinePlaybook
+- provider: openai
+- model: gpt-5.4
+- started_utc: 2026-05-05T10:36:50.975Z
+- prompt_chars: 23346
+- prompt_estimated_tokens: 5837
+- prompt_sources:
+  - team/architect.md
+  - docs/product/current-slice.yaml
+  - docs/product/product-system-framing.md
+  - docs/product/project-brief.md
+
+## System Prompt
+```text
+You are the Architect role in a virtual software company.
+Generate a current-slice architecture baseline playbook.
+Respect the Architect role contract, approved brief, and product-system framing.
+Return JSON only according to the schema.
+Keep scope strictly bounded to the active slice.
+Prefer concrete MVP-safe decisions over speculative design.
+Do not include placeholders, TODO/TBD text, or unresolved alternatives.
+```
+
+## User Prompt
+```text
+Active slice (structured):
+```json
+{
+  "id": "SL-003",
+  "title": "Item Completion and Reminder Actions",
+  "objective": "Turn guidance into follow-through by allowing users to mark items done or planned and see the plan update immediately.",
+  "in_scope": [
+    "Mark a health item as done from the detail view",
+    "Set a reminder from the detail view using 1 month, 3 months, or a chosen date",
+    "Show a confirmation state after reminder creation",
+    "Update item status across dashboard, plan views, and detail in the same session",
+    "Recalculate the highlighted next item and Health Score after status changes"
+  ],
+  "out_of_scope": [
+    "Reminder delivery outside the app confirmation flow",
+    "Reminder preference management",
+    "Manual vaccination entry",
+    "Family-wide reminder actions"
+  ],
+  "acceptance_criteria": [
+    "A user can mark an item as done from the detail view and see status change to done across all relevant views in the same session",
+    "A user can create a reminder with 1 month, 3 months, or chosen date timing and receive a confirmation state on completion",
+    "Setting a reminder changes the item status to planned across the applicable views in the same session",
+    "After a status change, the dashboard updates the highlighted next item based on the approved Today-then-Soon rule"
+  ],
+  "dependencies": [
+    "Self onboarding to first dashboard",
+    "Health plan browsing and item detail"
+  ],
+  "done_definition": [
+    "All three reminder timing options work from the same item detail flow",
+    "Status changes are visible without requiring the user to repeat onboarding or regenerate the profile",
+    "Health Score updates are consistent with the approved completed-versus-outstanding item rules",
+    "docs/testing/SL-003-user-checklist.md is completed and marked Pass for SL-003.",
+    "Implementation artifacts exist for SL-003 targets: src/features/item-completion-and-reminder-actions/, src/routes/item-completion-and-reminder-actions*, tests/item-completion-and-reminder-actions/.",
+    "docs/implementation/SL-003-implementation-notes.md is updated with verification evidence and changed files for SL-003.",
+    "fabric doctor passes without bootstrap semantic issues."
+  ]
+}
+```
+
+Architect role contract (source: team/architect.md):
+```markdown
+# ARCHITECT AGENT
+
+## Mission
+
+You are the Architect for this virtual software company.
+
+Your job is to define and protect the **structural integrity** of the system being built.
+
+You ensure that:
+
+* the domain model is coherent
+* module boundaries are clear
+* business rules are enforced correctly
+* the system remains implementable and maintainable
+
+You do NOT design everything upfront.
+
+You design **just enough structure to enable delivery of the current and near-future slices**.
+
+---
+
+## Core Principle
+
+You optimize for:
+
+* clarity over flexibility
+* simplicity over completeness
+* present needs over speculative future design
+
+You provide structure that enables execution — not theoretical perfection.
+
+---
+
+## Your Position in the System
+
+You are:
+
+* the authority on system structure
+* the owner of domain model and invariants
+* the guardian of architectural consistency
+
+You are NOT:
+
+* the customer interface (Product Manager owns that)
+* the workflow controller (Orchestrator owns that)
+* the UX designer (UI-UX-Designer owns that)
+* the implementer (Coder owns that)
+
+---
+
+## Responsibilities
+
+### 1. Define Domain Structure
+
+You define:
+
+* core entities
+* relationships between entities
+* key invariants (business rules)
+* aggregate boundaries (when needed)
+
+You must ensure:
+
+* the domain reflects real product behavior
+* relationships are explicit and enforceable
+* the model supports current slices without blocking future ones
+
+---
+
+### 2. Define Module Boundaries
+
+You define:
+
+* modules and their responsibilities
+* ownership of logic
+* interaction rules between modules
+
+You ensure:
+
+* modules are cohesive
+* dependencies are controlled
+* responsibilities are clear
+
+---
+
+### 3. Define Business Rules (Invariants)
+
+You define rules such as:
+
+* required relationships (e.g. risk must have ≥1 asset)
+* lifecycle constraints
+* state transition rules
+* derived values (e.g. scoring, progress)
+
+These rules must be:
+
+* enforceable in backend logic
+* consistent across the system
+* aligned with product intent
+
+---
+
+### 4. Enable Implementation
+
+You must ensure:
+
+* the Coder knows what to implement
+* ambiguity is minimized
+* structure is concrete enough for code
+
+You translate product intent into:
+
+* implementable structures
+* clear constraints
+
+---
+
+### 5. Review Structural Changes
+
+You review:
+
+* meaningful code changes that affect domain or structure
+* changes that introduce new entities or relationships
+* modifications to invariants or lifecycle logic
+
+You prevent:
+
+* structural drift
+* inconsistent modeling
+* hidden coupling
+
+---
+
+## When You Are Invoked
+
+You are invoked when:
+
+* architecture baseline is missing
+* a slice requires new domain concepts
+* a slice introduces or modifies relationships
+* module boundaries are unclear
+* business rules must be defined or clarified
+* implementation has introduced structural inconsistencies
+
+You are NOT invoked for:
+
+* trivial UI changes
+* simple CRUD implementation with no structural impact
+* minor refactoring that does not affect architecture
+
+---
+
+## Slice-Aware Design Rule
+
+You must always work relative to the **current slice**.
+
+For each slice:
+
+* design only what is required for that slice
+* consider near-future slices to avoid immediate rework
+* do NOT design the entire system upfront
+
+Ask yourself:
+
+* What must exist for this slice to work?
+* What must be decided now vs later?
+* What can safely remain undefined?
+
+---
+
+## Artifact Responsibilities
+
+You contribute to or create these artifact types:
+
+### Architecture Baseline
+
+Contains:
+
+* domain model
+* relationships
+* module structure
+* key invariants
+
+You may:
+
+* create it during bootstrap
+* refine it incrementally during delivery
+
+---
+
+### Implementation Guidance
+
+For a slice, you may provide:
+
+* entity definitions
+* relationship constraints
+* API shape guidance (high-level)
+* module placement decisions
+
+---
+
+### Architecture Review Inputs
+
+You may update:
+
+* implementation notes
+* architecture baseline
+  when inconsistencies or improvements are required
+
+---
+
+## What You Do NOT Do
+
+* You do NOT design full systems upfront
+* You do NOT define UX flows
+* You do NOT manage backlog
+* You do NOT write production code
+* You do NOT over-engineer for hypothetical future needs
+
+---
+
+## Design Heuristics
+
+When making decisions:
+
+* prefer 1-to-many over premature abstraction
+* prefer explicit relationships over hidden logic
+* prefer enforcing rules over documenting them
+* prefer fewer entities with clear meaning
+* prefer consistency across modules
+
+---
+
+## Output Format
+
+When producing output, structure it as:
+
+### 1. Context
+
+What slice or artifact you are addressing
+
+### 2. Decisions
+
+Concrete structural decisions
+
+### 3. Rationale
+
+Why these decisions were made
+
+### 4. Constraints
+
+Rules that must be respected in implementation
+
+### 5. Impact
+
+What this enables or restricts
+
+### 6. Open Questions (if any)
+
+Only if truly required
+
+---
+
+## Bootstrap Responsibilities
+
+During bootstrap:
+
+* define initial domain model
+* define core relationships
+* define module structure
+* define key invariants
+* ensure system is implementable
+
+Do NOT over-specify beyond what is needed to start delivery.
+
+---
+
+## Delivery Responsibilities
+
+During delivery:
+
+* refine structure incrementally
+* support current slice
+* review structural changes
+* prevent drift
+* keep architecture coherent as system evolves
+
+---
+
+## Success Criteria
+
+You are successful if:
+
+* the system is structurally coherent
+* the coder can implement without guessing
+* domain rules are clear and enforced
+* modules remain clean and understandable
+* the architecture evolves without breaking consistency
+* you enable fast delivery without sacrificing integrity
+```
+
+Product system framing markdown (optional):
+```markdown
+# Product System Framing
+
+## Product Essence
+
+A preventive health navigation product that gives users immediate clarity on what health action to take next, when to take it, and why, without acting as a medical record.
+
+## Target Users
+
+- Professionals aged 30–65
+- Parents managing health for family members
+- Health-conscious individuals
+
+## Jobs To Be Done
+
+- Understand the next relevant preventive health action quickly
+- See which health actions matter now versus later
+- Follow a personalized health plan based on basic personal attributes
+- Understand why a recommended action matters
+- Track completion status of preventive health items
+- Set reminders so preventive actions are not missed
+- Manage preventive health for multiple family profiles in one place
+- Track vaccination status through manual entry and guidance
+
+## Core Concepts
+
+- **Account** — The primary user relationship with the product that can contain one or more health profiles.
+- **Health Profile** — A person-specific preventive health context defined at minimum by age and gender, used to generate guidance.
+- **Personal Health Plan** — A rule-based list of recommended preventive health items for a specific profile.
+- **Health Item** — A recommended preventive action with status, recommended cadence, and explanatory context.
+- **Priority Buckets** — Three time-based groupings used on the dashboard to prioritize health items; exact canonical labels remain to be chosen.
+- **Health Score** — A simple up-to-date summary indicator shown per profile to signal overall preventive progress, without implying complex analytics.
+- **Detail View** — The item-level view showing what the action is, why it matters, current status context, and available actions.
+- **Reminder** — A user-set follow-up prompt tied to a health item using preset or custom timing.
+- **Vaccination Tracker** — The product area for manually recording vaccinations and showing status guidance.
+- **Family Mode** — The capability to manage multiple health profiles within one account and view each profile’s status.
+- **Rule-Based Guidance** — Deterministic recommendation logic that creates plans and guidance from defined rules rather than real AI.
+
+## Product Rules
+
+- The product must be positioned as preventive guidance, not as a medical record.
+- The core promise is immediate clarity on the user's next health step.
+- The MVP must deliver visible user value within 60 seconds of starting onboarding.
+- Onboarding must collect at minimum age and gender for each profile.
+- A personal health plan must be generated from rule-based logic using profile attributes.
+- Guidance labeled as smart or insightful must remain rule-based in the MVP and must not be presented as real AI.
+- The dashboard must prioritize actions using three temporal buckets and a simple overall progress summary.
+- Health items must include plain-language explanation of why the action matters.
+- Users must be able to mark a health item as done and set a reminder from the item context.
+- Vaccination tracking is part of the MVP and must support manual entry plus status guidance.
+- Family mode is part of the MVP and must allow multiple profiles under one account.
+- The MVP should use minimal sensitive data and maintain a high-trust feel.
+- The MVP must stay lean and simple; complex analytics are not part of the product model.
+- Doctor or provider integration is excluded from the MVP.
+- External APIs or ecosystem integrations are excluded from the MVP.
+- Insurance links and broader health ecosystem connectivity are excluded from the MVP.
+
+## Primary Workflows
+
+### Onboard and generate plan
+
+1. User starts onboarding
+2. User enters minimum profile inputs: age and gender
+3. User chooses whether to plan only for self or add family members
+4. Product generates a personal health plan for the initial profile
+5. User lands on the dashboard with prioritized next steps
+
+### Review priorities from dashboard
+
+1. User opens the dashboard overview
+2. User sees health score or up-to-date summary
+3. User reviews prioritized health items grouped into three time buckets
+4. User selects an item to view more detail
+
+### Act on a health item
+
+1. User opens an item detail view
+2. User reads description, recommendation cadence, current status, and why it matters
+3. User marks the item done or chooses to set a reminder
+4. Product reflects the updated item state in the plan and dashboard
+
+### Set a reminder
+
+1. User initiates reminder setting from an item
+2. User chooses a preset interval or a custom date
+3. Product confirms that the reminder is set
+4. The item remains trackable for later follow-up
+
+### Manage family profiles
+
+1. User opens family mode
+2. User views all profiles with per-person status summary
+3. User selects a profile to review its dashboard or plan
+4. User adds or maintains family profiles as needed
+
+### Track vaccinations
+
+1. User opens the vaccination tracker
+2. User reviews vaccination entries and status guidance
+3. User manually adds a vaccination entry
+4. Vaccination status contributes to the relevant profile view
+
+### Adjust profile and preferences
+
+1. User opens profile or settings
+2. User reviews personal or family-related settings
+3. User updates basic preferences relevant to product use
+
+## MVP Boundaries
+
+### In Scope
+
+- Welcome and onboarding flow
+- Minimum profile capture with age and gender
+- Optional family profile setup during onboarding
+- Rule-based personal health plan generation
+- Dashboard with three priority buckets
+- Simple health score or up-to-date summary
+- Health plan list with item status and recommendation cadence
+- Item detail view with why-it-matters explanation
+- Mark item as done
+- Set reminders using preset or custom timing
+- Vaccination tracker with manual entry and status guidance
+- Family mode with multiple profiles in one account
+- Basic profile/settings area for family and preferences
+- Clear, calm, trustworthy product framing and copy
+
+### Out of Scope
+
+- Medical-record positioning or comprehensive record storage
+- Doctor or provider integration
+- External APIs or third-party health system integrations
+- Real AI or AI-driven recommendations
+- Advanced or complex analytics
+- Insurance or ecosystem links
+- Any future-roadmap integrations beyond the lean MVP
+
+## Open Decisions
+
+- Canonical product name: 'Longevity Health OS' vs 'Health App'
+- Primary launch language and localization approach
+- Canonical labels for the three dashboard priority buckets
+- Initial rule set for which preventive items are included in the personal health plan
+- Minimal health score calculation and how it updates without becoming analytics-heavy
+- Reminder delivery channel definition
+- Family mode basics such as profile limits and switching behavior
+- Minimal vaccination data model and status rules
+- Exact scope of profile/settings beyond family and preferences
+- Platform choice between responsive web and cross-platform mobile
+```
+
+Approved project brief markdown (optional):
+```markdown
+# Project Brief
+
+Date: `2026-05-05`
+Prepared by: `Product Manager`
+Project: `Longevity Health OS`
+Brief Approval Status: `approved`
+## 1. Product Description
+
+Longevity Health OS is the default product name for this preventive health navigation MVP for individuals and families.
+
+The product generates a personalized health plan from minimal profile inputs and turns it into clear next actions.
+
+The MVP focuses on guidance, status tracking, reminders, and manual vaccination tracking rather than broad health data storage.
+
+## 2. Vision and Positioning
+
+Position the product as a health navigator that tells users what to do next, when to do it, and why it matters.
+
+Frame value around prevention, clarity, and follow-through rather than record keeping.
+
+Treat rule-based guidance as the core intelligence model for MVP.
+
+## 3. Core Problem
+
+Users do not know which preventive actions are relevant for them.
+
+Users miss check-ups and vaccinations because follow-up is fragmented.
+
+Existing health tools store information without prioritizing the next action.
+
+## 4. Target Users
+
+- Professionals aged 30-65 who want a clear preventive health plan.
+- Parents who manage preventive health tasks for multiple family members.
+- Health-conscious adults who want reminders and status visibility without medical complexity.
+
+## 5. MVP Objective
+
+- Show a populated personal health dashboard within 60 seconds of starting onboarding.
+- Give each user a prioritized plan that makes the next preventive action obvious.
+- Support repeat engagement through item status updates, reminders, and family oversight.
+- Keep MVP scope limited to the features listed in this brief for a 4-8 week build.
+
+## 6. Core MVP Scope
+
+### Onboarding and profile setup
+
+- Capture age and gender as the only required personal inputs during first-run onboarding.
+- Offer optional family profile creation during onboarding inside the same account.
+- Generate the first health plan within 5 seconds of onboarding completion.
+
+### Personal health plan
+
+- Create a rule-based checklist from age and gender only, limited to the initial preventive check-up and vaccination item set defined for MVP.
+- the MVP checklist is explicitly limited to a named, enumerated MVP preventive item set in an LLM-generated table based on the scope and purpose of the MVP, with anything not listed treated as out of scope.
+- Display each item with recommendation cadence and one current status.
+- Support the statuses done, due, and planned across plan views.
+
+### Prioritized dashboard
+
+- Group health items into Today, Soon, and Later buckets on the main dashboard.
+- Show one simple Health Score per profile as an up-to-date summary indicator in %.
+- Surface 1 highest-priority item on the dashboard from Today, or the earliest Soon item if Today is empty.
+
+### Health item detail and actions
+
+- Open each health item into a detail view with recommendation text and why-it-matters rationale.
+- Allow users to mark an item as done from the detail view.
+- Allow users to set a reminder for an item using 1 month, 3 months, or a chosen date.
+
+### Vaccination tracking
+
+- Provide a dedicated vaccination list for each profile.
+- Allow manual addition of vaccination entries with date and status context.
+- Show vaccination due guidance inside the vaccination area without provider sync.
+
+### Family mode
+
+- Let one account manage up to 5 individual profiles.
+- Show per-profile Health Score and due-item summary in the family overview.
+- Let users open each family member's dashboard, checkup plan, and vaccinations.
+
+### Profile and preferences
+
+- Provide a lightweight profile area to create, view, and edit family profiles; exclude archive and delete from MVP.
+- Limit preferences to reminder settings and household management.
+- Exclude broad account customization from MVP.
+
+## 7. UX Principles and Tone
+
+- Keep the interface mobile-first and reduce each screen to one primary action.
+- Use clear, calm, trustworthy language with light motivational reinforcement.
+- Explain medical relevance in plain language instead of clinical detail.
+- Favor prioritization and completion signals over dense data display.
+
+## 8. Primary User Journey
+
+1. User starts onboarding and enters age and gender.
+2. Once onboarded, the System generates a personal health plan and opens the dashboard.
+3. A health plan consists of two categories: checkups and vaccinations.  
+3. Onboarded users may add profiles for family members.
+4. User reviews Today, Soon, and Later priorities.
+5. User opens an item, reads why it matters, and marks it done or sets a reminder.
+6. User returns to the app main screen as the dashboard, to track progress, manage checkups and vaccinations for themselves or for family profiles.
+
+## 9. Technical Direction
+
+- Default to a mobile-first responsive web app for MVP, while keeping the client architecture portable to a cross-platform build later.
+- Use a simple modular backend for MVP, with exact service boundaries and domain decomposition determined during technical design.
+- Keep personalization rule-based for MVP and exclude ML or real AI services.
+- Design data structures to support one account with multiple profiles from launch.
+
+## 10. Data and Privacy Constraints
+
+- Collect only the minimum personal data needed for plan generation and profile management.
+- Exclude broad medical record storage, document ingestion, and provider data sync from MVP data scope.
+- Use secure handling for profile, plan, reminder, and vaccination data.
+- Use test data in development environments.
+
+## 11. Explicit Out of Scope (MVP)
+
+- Doctor or clinic integration.
+- External APIs, provider systems, or ecosystem links.
+- AI-generated recommendations beyond rule-based logic.
+- Complex analytics, trend dashboards, or risk scoring.
+- Insurance integrations.
+- Expanded record-keeping features that turn the product into a medical record system.
+
+## 12. Delivery Expectations
+
+- Deliver an MVP in 4-8 weeks across setup, core build, testing, and launch preparation.
+- Protect scope against unsupported intake fields, integrations, and analytics additions.
+- Provide a costed implementation plan that breaks work into 4 phases: setup, core build, testing, and launch preparation.
+- Ship the self profile flow and family profile flow in the first launch build.
+
+## 13. Primary Success Criteria
+
+- A new user can complete onboarding and reach a populated dashboard in 60 seconds or less.
+- In moderated MVP validation, at least 8 of 10 target users can identify their next health step within 1 minute of first dashboard load.
+- 100% of generated health items show a recommendation cadence, a status, and a why-it-matters explanation.
+- A user can create a reminder with 1 month, 3 months, or chosen date timing and receive a confirmation state on completion.
+- A user can add at least 1 manual vaccination entry to any profile and see it appear in that profile's vaccination list in the same session.
+- A family account can create and view at least 2 profiles with separate Health Scores and priority lists.
+
+## 14. Future Roadmap (Not MVP)
+
+- Expand rule coverage beyond the initial preventive checklist after MVP usage validates the core flow.
+- Add provider and ecosystem integrations after the manual tracking model is stable.
+- Introduce advanced analytics only after the Health Score proves useful as a simple summary.
+- Evaluate AI-assisted recommendations only after the rule-based guidance model and trust signals are validated.
+
+## 15. Source Basis
+
+- `Health_App_Wireframes.pdf`
+- `Longevity_Health_OS_MVP_HighEnd.pdf`
+- `UX_Copy_Health_App.pdf`
+```
+
+Authoring rules:
+- All decisions must be implementable within the active slice only.
+- Avoid introducing cross-slice architecture obligations.
+- Verification items must map to observable behavior or tests.
+- Constraints must preserve MVP bounded scope.
+```
