@@ -274,21 +274,43 @@ function deriveScreenId(slice = {}) {
 }
 
 function componentsForSlice(slice = {}) {
-  const text = `${slice.id || ''} ${slice.title || ''} ${slice.objective || ''} ${listFromMaybe(slice.in_scope).join(' ')}`.toLowerCase();
+  const titleAndObjective = `${slice.id || ''} ${slice.title || ''} ${slice.objective || ''}`.toLowerCase();
+  const inScope = listFromMaybe(slice.in_scope).map((entry) => entry.toLowerCase());
+  const outOfScope = listFromMaybe(slice.out_of_scope).map((entry) => entry.toLowerCase());
+  const inScopeText = inScope.join(' ');
+  const outOfScopeText = outOfScope.join(' ');
+  const text = `${titleAndObjective} ${inScopeText}`;
   const components = new Set(['AppShell']);
-  if (includesAny(text, [/dashboard|overview|today|soon|later|heute|bald/])) {
+  const mentionsDashboardSurface = includesAny(text, [/dashboard|overview|today|soon|later|heute|bald/]);
+  const dashboardMentionIsNavigationOnly = includesAny(
+    text,
+    [/from (the )?dashboard/, /dashboard[- ]highlighted/, /navigation from dashboard/, /dashboard priority item/],
+  );
+  if (mentionsDashboardSurface && !dashboardMentionIsNavigationOnly) {
     components.add('HealthScoreCard');
     components.add('PrioritySection');
     components.add('HealthPlanItem');
     components.add('StatusPill');
   }
-  if (includesAny(text, [/health plan|checklist|item|detail|vorsorge/])) {
+  if (includesAny(text, [/health plan|checklist|item|detail|vorsorge|checkup|vaccin/])) {
     components.add('HealthPlanItem');
     components.add('StatusPill');
   }
-  if (includesAny(text, [/reminder|erinner/])) components.add('ReminderSelector');
-  if (includesAny(text, [/family|familie|profile/])) components.add('FamilyProfileCard');
-  if (includesAny(text, [/vaccin|impf/])) {
+  if (includesAny(text, [/reminder|erinner/]) && !includesAny(outOfScopeText, [/reminder|erinner/])) {
+    components.add('ReminderSelector');
+  }
+  if (
+    includesAny(text, [/family|familie/])
+    && !includesAny(text, [/self[- ]profile only|self profile only|self profile/])
+    && !includesAny(outOfScopeText, [/family|familie/])
+  ) {
+    components.add('FamilyProfileCard');
+  }
+  if (
+    includesAny(text, [/vaccin|impf/])
+    && includesAny(text, [/status row|status list|record|table|last date|history|manual entry|add/])
+    && !includesAny(outOfScopeText, [/manual vaccination entry|add vaccination|manual entry/])
+  ) {
     components.add('VaccinationStatusRow');
     components.add('StatusPill');
   }

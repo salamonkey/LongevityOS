@@ -14,6 +14,7 @@ import {
   semanticUxContractRelPathForSlice,
   semanticUxReviewJsonRelPathForSlice,
 } from './semantic-ux-validation.mjs';
+import { screenContractRelPathForSlice } from './design-system.mjs';
 
 const TESTER_REVIEW_SCHEMA = {
   type: 'object',
@@ -225,6 +226,64 @@ function validateCarryForwardRegressionEvidence({ targetRoot, slice, invariants 
   return { issues: [], testRelPath };
 }
 
+function safeReadJson(absPath, fallback = null) {
+  if (!fs.existsSync(absPath)) return fallback;
+  try {
+    return JSON.parse(readText(absPath));
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function validateDependencyHandoffEvidence({ targetRoot, slice }) {
+  const dependencies = Array.isArray(slice?.dependencies)
+    ? slice.dependencies.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+  if (dependencies.length === 0) return { issues: [] };
+
+  const screenContractPath = path.join(targetRoot, screenContractRelPathForSlice(slice?.id));
+  const screenContract = safeReadJson(screenContractPath, {});
+  const screenIds = Array.isArray(screenContract?.screens)
+    ? screenContract.screens.map((entry) => String(entry?.screen_id || entry?.id || '').trim().toLowerCase()).filter(Boolean)
+    : [];
+  const dependencyText = dependencies.join(' ').toLowerCase();
+  const requiresOnboardingDashboardHandoff = screenIds.includes('health_plan')
+    && /(onboard|dashboard)/.test(dependencyText);
+  if (!requiresOnboardingDashboardHandoff) return { issues: [] };
+
+  const appRelPath = fs.existsSync(path.join(targetRoot, 'src/App.jsx')) ? 'src/App.jsx' : 'src/App.tsx';
+  const appPath = path.join(targetRoot, appRelPath);
+  const appText = fs.existsSync(appPath) ? readText(appPath) : '';
+  const onboardingFeatureRelPath = 'src/features/self-onboarding-to-first-dashboard/SelfOnboardingToFirstDashboard.jsx';
+  const onboardingFeaturePath = path.join(targetRoot, onboardingFeatureRelPath);
+  const onboardingFeatureText = fs.existsSync(onboardingFeaturePath) ? readText(onboardingFeaturePath) : '';
+  const onboardingRouteRelPath = 'src/routes/self-onboarding-to-first-dashboard.jsx';
+  const onboardingRoutePath = path.join(targetRoot, onboardingRouteRelPath);
+  const onboardingRouteText = fs.existsSync(onboardingRoutePath) ? readText(onboardingRoutePath) : '';
+
+  const hasPlanRouteSwitch = /setActiveView\(['"]plan['"]\)/.test(appText) || /view\s*===\s*['"]plan['"]/.test(appText);
+  const hasDashboardHandoffProp = /onOpenHealthPlan=/.test(appText);
+  const hasDashboardHandoffTrigger = /onOpenHealthPlan/.test(onboardingFeatureText)
+    && /(Browse full plan|View full plan)/.test(onboardingFeatureText);
+  const routeForwardsProps = /SelfOnboardingToFirstDashboardRoute\s*\(\s*props/.test(onboardingRouteText)
+    && /<SelfOnboardingToFirstDashboard\s+\{\.\.\.props\}\s*\/>/.test(onboardingRouteText);
+
+  const issues = [];
+  if (!hasPlanRouteSwitch) {
+    issues.push(`missing App-level route state switch into the health plan surface in ${appRelPath}`);
+  }
+  if (!hasDashboardHandoffProp) {
+    issues.push(`missing handoff callback wiring from onboarding/dashboard into health plan route in ${appRelPath}`);
+  }
+  if (!hasDashboardHandoffTrigger) {
+    issues.push(`missing dashboard trigger that opens full health plan in ${onboardingFeatureRelPath}`);
+  }
+  if (!routeForwardsProps) {
+    issues.push(`missing prop forwarding in ${onboardingRouteRelPath}; dashboard handoff callback cannot reach the SL-001 feature surface`);
+  }
+  return { issues };
+}
+
 function extractChangedFilesFromImplementationNotes(notesText) {
   const lines = String(notesText || '').split('\n');
   const out = [];
@@ -249,10 +308,81 @@ function extractChangedFilesFromImplementationNotes(notesText) {
   return [...new Set(out)];
 }
 
+function resolveRelativeImport(fromRelPath, importSpec) {
+  const fromDir = path.posix.dirname(fromRelPath.replace(/\\/g, '/'));
+  const resolvedNoExt = path.posix.normalize(path.posix.join(fromDir, importSpec));
+  const candidates = [
+    `${resolvedNoExt}.jsx`,
+    `${resolvedNoExt}.tsx`,
+    `${resolvedNoExt}.js`,
+    `${resolvedNoExt}.ts`,
+    `${resolvedNoExt}/index.jsx`,
+    `${resolvedNoExt}/index.tsx`,
+    `${resolvedNoExt}/index.js`,
+    `${resolvedNoExt}/index.ts`,
+  ];
+  return candidates.map((candidate) => candidate.replace(/^\.\/+/, ''));
+}
+
+function detectMountedMainModules(targetRoot) {
+  const entries = ['src/main.jsx', 'src/main.tsx'];
+  for (const entryRelPath of entries) {
+    const entryAbsPath = path.join(targetRoot, entryRelPath);
+    if (!fs.existsSync(entryAbsPath)) continue;
+    let text = '';
+    try {
+      text = readText(entryAbsPath);
+    } catch (_) {
+      continue;
+    }
+    const importsByAlias = new Map();
+    const importPattern = /^\s*import\s+([A-Za-z0-9_]+)\s+from\s+['"]([^'"]+)['"];?/gm;
+    let importMatch = importPattern.exec(text);
+    while (importMatch) {
+      const alias = String(importMatch[1] || '').trim();
+      const spec = String(importMatch[2] || '').trim();
+      if (spec.startsWith('.')) importsByAlias.set(alias, spec);
+      importMatch = importPattern.exec(text);
+    }
+    const mountedAliases = new Set();
+    const jsxTagPattern = /<([A-Z][A-Za-z0-9_]*)\b/g;
+    let tagMatch = jsxTagPattern.exec(text);
+    while (tagMatch) {
+      mountedAliases.add(String(tagMatch[1] || '').trim());
+      tagMatch = jsxTagPattern.exec(text);
+    }
+    const mountedRelPaths = [];
+    for (const alias of mountedAliases) {
+      const spec = importsByAlias.get(alias);
+      if (!spec) continue;
+      const candidates = resolveRelativeImport(entryRelPath, spec);
+      const existing = candidates.find((relPath) => fs.existsSync(path.join(targetRoot, relPath)));
+      if (existing) mountedRelPaths.push(existing);
+    }
+    return {
+      mainEntryRelPath: entryRelPath,
+      mountedRelPaths: [...new Set(mountedRelPaths)],
+      importsApp: /from\s+['"]\.\/App(?:\.[a-z]+)?['"]/.test(text),
+    };
+  }
+  return { mainEntryRelPath: '', mountedRelPaths: [], importsApp: false };
+}
+
 function loadSourceContexts(targetRoot, implementationNotesText) {
   const changedFiles = extractChangedFilesFromImplementationNotes(implementationNotesText);
-  const preferred = [...changedFiles];
-  if (!preferred.includes('src/App.jsx')) preferred.push('src/App.jsx');
+  const { mainEntryRelPath, mountedRelPaths, importsApp } = detectMountedMainModules(targetRoot);
+  const preferred = [];
+  const addPreferred = (relPath) => {
+    if (!relPath || preferred.includes(relPath)) return;
+    preferred.push(relPath);
+  };
+  changedFiles.forEach(addPreferred);
+  if (mainEntryRelPath) addPreferred(mainEntryRelPath);
+  mountedRelPaths.forEach(addPreferred);
+  if (importsApp || changedFiles.includes('src/App.jsx') || changedFiles.includes('src/App.tsx')) {
+    if (fs.existsSync(path.join(targetRoot, 'src/App.jsx'))) addPreferred('src/App.jsx');
+    if (fs.existsSync(path.join(targetRoot, 'src/App.tsx'))) addPreferred('src/App.tsx');
+  }
   const contexts = [];
   for (const relPath of preferred.slice(0, 10)) {
     const absPath = path.join(targetRoot, relPath);
@@ -559,6 +689,10 @@ async function testerValidateCurrentSlice({ targetRoot, valuesPath, onProgress }
     slice,
     invariants: carryForwardInvariants,
   });
+  const dependencyHandoffEvidence = validateDependencyHandoffEvidence({
+    targetRoot,
+    slice,
+  });
 
   if (String(semanticReviewJson?.status || '').toLowerCase() !== 'pass') {
     throw new Error(`Cannot run tester:validate-current-slice: semantic UX review is not pass in ${semanticReviewRelPath}; resolve Step 21b/21c first`);
@@ -597,7 +731,19 @@ async function testerValidateCurrentSlice({ targetRoot, valuesPath, onProgress }
       : 'Add carry-forward regression evidence and repair missing preserved behavior from prior slices.',
     auto_repairable: true,
   }));
-  const combinedFindings = [...llmResult.findings, ...deterministicCarryForwardFindings].slice(0, 20);
+  const deterministicDependencyHandoffFindings = (dependencyHandoffEvidence.issues || []).map((issue) => ({
+    classification: 'A',
+    finding: String(issue),
+    expected: 'Dependent slices must expose a reachable in-app handoff from prior dependency surfaces into the current slice.',
+    observed: String(issue),
+    required_repair: 'Wire a concrete runtime transition (callback/action + route handoff) and keep it covered by slice tests/checklist.',
+    auto_repairable: true,
+  }));
+  const combinedFindings = [
+    ...llmResult.findings,
+    ...deterministicCarryForwardFindings,
+    ...deterministicDependencyHandoffFindings,
+  ].slice(0, 20);
   const status = combinedFindings.length > 0 || llmResult.llmStatus !== 'pass' ? 'fail' : 'pass';
   const review = {
     schema_version: 1,

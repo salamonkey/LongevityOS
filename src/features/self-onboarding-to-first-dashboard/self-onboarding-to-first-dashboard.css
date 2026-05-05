@@ -1,0 +1,305 @@
+:root {
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f8fafc;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+
+  --color-status-done: #0f766e;
+  --color-status-due: #c2410c;
+  --color-status-soon: #0c4a6e;
+  --color-status-planned: #4338ca;
+  --color-status-overdue: #9a3412;
+
+  --color-priority-today: #fff7ed;
+  --color-priority-soon: #eff6ff;
+  --color-priority-later: #f8fafc;
+
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+}
+
+.sl001-shell {
+  background: var(--color-surface-card);
+}
+
+.sl001-header h1 {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.sl001-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.sl001-header-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sl001-kicker {
+  margin: 0 0 var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.sl001-support-copy {
+  color: var(--color-text-secondary);
+  margin: var(--space-3) 0 var(--space-6);
+}
+
+.sl001-dashboard-plan-cta {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.sl001-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl001-form label,
+.sl001-form legend {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.sl001-form input[type='text'] {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+}
+
+.sl001-helper {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.sl001-gender-field {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl001-gender-field label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 500;
+}
+
+.sl001-primary-action {
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: var(--space-3) var(--space-6);
+  font-weight: 700;
+  background: #0f172a;
+  color: #ffffff;
+  cursor: pointer;
+  margin-top: var(--space-3);
+}
+
+.sl001-primary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sl001-field-error,
+.sl001-error-banner {
+  margin: 0;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.sl001-error-banner {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.sl001-blocking-error {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-card);
+  padding: var(--space-6);
+}
+
+.sl001-summary-card,
+.sl001-priority-section {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.sl001-summary-card {
+  margin-top: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl001-dashboard-summary-cards {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.sl001-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sl001-summary-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 2rem;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.sl001-summary-meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.sl001-dashboard-sections {
+  margin-top: var(--space-4);
+}
+
+.sl001-priority-section h2 {
+  margin-top: 0;
+}
+
+.priority-today {
+  background: var(--color-priority-today);
+}
+
+.priority-soon {
+  background: var(--color-priority-soon);
+}
+
+.priority-later {
+  background: var(--color-priority-later);
+}
+
+.sl001-priority-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sl001-plan-item {
+  background: var(--color-surface-card);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+}
+
+.sl001-plan-item-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  text-align: left;
+}
+
+.sl001-plan-item-button:focus-visible {
+  outline: 2px solid #0f172a;
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
+.sl001-plan-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.sl001-plan-topline h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sl001-plan-meta {
+  margin: var(--space-2) 0;
+  color: var(--color-text-muted);
+}
+
+.sl001-plan-why {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.sl001-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.6rem;
+  border: 1px solid currentColor;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #ffffff;
+}
+
+.status-done { color: var(--color-status-done); }
+.status-due { color: var(--color-status-due); }
+.status-soon { color: var(--color-status-soon); }
+.status-planned { color: var(--color-status-planned); }
+.status-overdue { color: var(--color-status-overdue); }
+
+.sl001-vaccine-row {
+  margin-top: var(--space-3);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.sl001-vaccine-date {
+  margin-left: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+.sl001-empty {
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .sl001-dashboard-summary-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .sl001-score-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+  }
+}

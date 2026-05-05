@@ -1,0 +1,135 @@
+.sl002-back-to-dashboard {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sl002-category-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.sl002-tab {
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  background: #ffffff;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sl002-tab.is-active {
+  border-color: #0f172a;
+  color: #0f172a;
+}
+
+.sl002-plan-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sl002-plan-row {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  color: var(--color-text-primary);
+  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sl002-plan-row-copy {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.sl002-plan-row-title {
+  font-weight: 700;
+}
+
+.sl002-plan-row-cadence {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.sl002-back-link {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sl002-detail-view h2 {
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.sl002-detail-topline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl002-detail-category {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.sl002-detail-cadence {
+  color: var(--color-text-secondary);
+}
+
+.sl002-detail-section {
+  border-top: 1px solid #e2e8f0;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.sl002-detail-section h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.sl002-detail-section p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.sl002-empty-state,
+.sl002-not-found {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  background: #ffffff;
+}
+
+.sl002-empty-state h3,
+.sl002-not-found h2 {
+  margin-top: 0;
+}
+
+.sl002-empty-state p,
+.sl002-not-found p {
+  color: var(--color-text-secondary);
+}
+
+.sl002-loading-block {
+  height: 4.5rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface-subtle);
+  margin-top: var(--space-3);
+}
