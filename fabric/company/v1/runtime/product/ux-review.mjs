@@ -256,8 +256,104 @@ function deriveOutOfScope(slice, implementationNotesText) {
   return ["Items not explicitly covered by this slice's acceptance criteria."];
 }
 
+function sectionBodyByHeading(markdownText, headingPattern) {
+  const lines = String(markdownText || '').replace(/\r\n?/g, '\n').split('\n');
+  const startIndex = lines.findIndex((line) => headingPattern.test(line));
+  if (startIndex < 0) return '';
+  const out = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (/^\s*##\s+/.test(line)) break;
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
 
-function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNotesText }) {
+function parseChecklistResultState(checklistText) {
+  const hasResultSection = /^\s*##\s+Result\s*$/im.test(String(checklistText || ''));
+  const resultBody = sectionBodyByHeading(checklistText, /^\s*##\s+Result\s*$/i);
+  if (!hasResultSection) return 'missing_result_section';
+  if (!resultBody) return 'unresolved';
+  const explicitStatus = resultBody.match(/^\s*Status\s*:\s*(Pass|Fail|Pending)\s*$/im);
+  if (explicitStatus) {
+    const value = explicitStatus[1].toLowerCase();
+    return value === 'pending' ? 'unresolved' : value;
+  }
+  if (/^\s*-\s*Pass\s*\/\s*Fail\b/im.test(resultBody)) return 'unresolved';
+  if (/^\s*-\s*Fail\b/im.test(resultBody)) return 'fail';
+  if (/^\s*-\s*Pass\b/im.test(resultBody)) return 'pass';
+  return 'unresolved';
+}
+
+function parseChecklistSliceMetadata(checklistText) {
+  const body = sectionBodyByHeading(checklistText, /^\s*##\s+Slice\s*$/i);
+  const idMatch = body.match(/^\s*-\s*ID\s*:\s*([^\n]+)\s*$/im);
+  const titleMatch = body.match(/^\s*-\s*Title\s*:\s*([^\n]+)\s*$/im);
+  return {
+    id: idMatch ? String(idMatch[1] || '').trim() : '',
+    title: titleMatch ? String(titleMatch[1] || '').trim() : '',
+  };
+}
+
+function parseExpectedResultLines(checklistText) {
+  const body = sectionBodyByHeading(checklistText, /^\s*##\s+Expected results\s*$/i);
+  if (!body) return [];
+  const lines = String(body || '').replace(/\r\n?/g, '\n').split('\n');
+  return lines
+    .map((line) => line.match(/^\s*-\s+(.*)\s*$/)?.[1] || '')
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+}
+
+function parseWhatToTestLines(checklistText) {
+  const body = sectionBodyByHeading(checklistText, /^\s*##\s+What to test\s*$/i);
+  if (!body) return [];
+  const lines = String(body || '').replace(/\r\n?/g, '\n').split('\n');
+  return lines
+    .map((line) => line.match(/^\s*\d+[.)]\s+(.*)\s*$/)?.[1] || '')
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+}
+
+function isGenericInvariantLine(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return true;
+  return (
+    /^app loads without blank screen or runtime error\b/.test(normalized)
+    || /^the onboarding entry screen is visible and clear\b/.test(normalized)
+  );
+}
+
+function collectCarryForwardInvariants({ targetRoot, activeSliceId }) {
+  const testingDir = path.join(targetRoot, 'docs/testing');
+  if (!fs.existsSync(testingDir)) return [];
+  const files = fs.readdirSync(testingDir)
+    .filter((name) => /^SL-[A-Za-z0-9_-]+-user-checklist\.md$/i.test(name))
+    .sort();
+
+  const invariants = [];
+  for (const file of files) {
+    const absPath = path.join(testingDir, file);
+    const text = readText(absPath);
+    const resultState = parseChecklistResultState(text);
+    if (resultState !== 'pass') continue;
+    const meta = parseChecklistSliceMetadata(text);
+    const sliceId = String(meta.id || '').trim();
+    if (!sliceId || sliceId === String(activeSliceId || '').trim()) continue;
+    const expected = parseExpectedResultLines(text).filter((line) => !isGenericInvariantLine(line));
+    const whatToTest = parseWhatToTestLines(text).filter((line) => !isGenericInvariantLine(line));
+    const assertions = [...new Set([...expected, ...whatToTest])].slice(0, 8);
+    if (assertions.length === 0) continue;
+    invariants.push({
+      sliceId,
+      title: meta.title || sliceId,
+      assertions,
+    });
+  }
+  return invariants;
+}
+
+
+function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNotesText, carryForwardInvariants = [] }) {
   const steps = deriveChecklistSteps(slice, uxFlowText);
   const expectedResults = deriveExpectedResults(slice, uxFlowText);
   const failConditions = deriveFailConditions(slice);
@@ -282,6 +378,14 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
     '',
     '## Expected results',
     ...expectedResults.map((item) => `- ${item}`),
+    '',
+    '## Carry-forward capabilities to preserve (auto-inherited)',
+    ...(carryForwardInvariants.length > 0
+      ? carryForwardInvariants.flatMap((entry) => [
+        `- [${entry.sliceId}] ${entry.title}`,
+        ...entry.assertions.map((assertion) => `  - ${assertion}`),
+      ])
+      : ['- None yet (no prior passed slices detected).']),
     '',
     '## Semantic UX checks',
     '- All user-visible text speaks to the user, not about the system.',
@@ -338,7 +442,16 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
 function writeCurrentSliceUserChecklist({ targetRoot, slice, uxFlowText, implementationNotesText = '' }) {
   const normalizedSliceId = String(slice?.id || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
   const outPath = path.join(targetRoot, `docs/testing/${normalizedSliceId}-user-checklist.md`);
-  writeTextAtomic(outPath, `${renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNotesText }).trimEnd()}\n`);
+  const carryForwardInvariants = collectCarryForwardInvariants({
+    targetRoot,
+    activeSliceId: slice?.id,
+  });
+  writeTextAtomic(outPath, `${renderCurrentSliceUserChecklist({
+    slice,
+    uxFlowText,
+    implementationNotesText,
+    carryForwardInvariants,
+  }).trimEnd()}\n`);
   return outPath;
 }
 

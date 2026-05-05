@@ -29,6 +29,10 @@ import {
   uiuxGenerateCurrentSliceFlow,
   uiuxGenerateDesignSystem,
   uiuxReviewCurrentSliceSemantics,
+  uiuxGenerateStorybookMap,
+  coderGenerateCurrentSliceStories,
+  uiuxReviewCurrentSliceStorybook,
+  testerValidateCurrentSlice,
 } from './commands/product.mjs';
 import {
   initFactory,
@@ -46,6 +50,7 @@ import {
   coderRepairSemanticUxFindings,
   coderRepairImplementationFindings,
   coderCloseCurrentSlice,
+  orchestratorRunUntilBlocked,
   orchestratorAdvanceSlice,
 } from './commands/runtime.mjs';
 import { createRunContext } from './lib/ledger/run-context.mjs';
@@ -56,6 +61,7 @@ const FABRIC_FACTORY_ENV_PATH = path.join(FABRIC_FACTORY_ROOT, '.factory.env');
 const FLOW_CHECK_STEP_BY_COMMAND = Object.freeze({
   'pm:brief-readiness': '4',
   'format-from-brief': '8',
+  scaffold: '9',
   'pm:bootstrap-signoff': '12',
   gate: '18|23|25',
 });
@@ -151,6 +157,18 @@ function semanticUxReviewRelPathForSlice(sliceId) {
   return `docs/reviews/ux/${normalizedSliceIdForPath(sliceId)}-semantic-ux-review.json`;
 }
 
+function storybookRequirementsRelPathForSlice(sliceId) {
+  return `docs/storybook/${normalizedSliceIdForPath(sliceId)}-story-requirements.json`;
+}
+
+function storybookReviewRelPathForSlice(sliceId) {
+  return `docs/reviews/storybook/${normalizedSliceIdForPath(sliceId)}-storybook-review.json`;
+}
+
+function checklistRelPathForSlice(sliceId) {
+  return `docs/testing/${normalizedSliceIdForPath(sliceId)}-user-checklist.md`;
+}
+
 function readCurrentSliceFromTarget(targetRoot) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   if (!fs.existsSync(currentSlicePath)) {
@@ -187,14 +205,96 @@ function readSemanticUxReviewStatusForCurrentSlice(targetRoot) {
   }
 }
 
+function readStorybookReviewStatusForCurrentSlice(targetRoot) {
+  const slice = readCurrentSliceFromTarget(targetRoot);
+  const sliceId = String(slice?.id || '').trim();
+  if (!sliceId) {
+    return { status: 'missing', slice: null, reviewRelPath: '' };
+  }
+  const reviewRelPath = storybookReviewRelPathForSlice(sliceId);
+  const reviewPath = path.join(targetRoot, reviewRelPath);
+  if (!fs.existsSync(reviewPath)) {
+    return { status: 'missing', slice, reviewRelPath };
+  }
+  try {
+    const review = JSON.parse(readText(reviewPath));
+    return {
+      status: String(review?.status || 'unknown').trim().toLowerCase(),
+      slice,
+      reviewRelPath,
+      review,
+    };
+  } catch (_) {
+    return { status: 'invalid', slice, reviewRelPath };
+  }
+}
+
+function parseChecklistResultState(checklistText) {
+  const hasResultSection = /^\s*##\s+Result\s*$/im.test(String(checklistText || ''));
+  const resultBody = sectionBodyByHeading(checklistText, /^\s*##\s+Result\s*$/i);
+  if (!hasResultSection) return 'missing_result_section';
+  if (!resultBody) return 'unresolved';
+  const explicitStatus = resultBody.match(/^\s*Status\s*:\s*(Pass|Fail|Pending)\s*$/im);
+  if (explicitStatus) {
+    const value = explicitStatus[1].toLowerCase();
+    return value === 'pending' ? 'unresolved' : value;
+  }
+  if (/^\s*-\s*Pass\s*\/\s*Fail\b/im.test(resultBody)) return 'unresolved';
+  if (/^\s*-\s*Fail\b/im.test(resultBody)) return 'fail';
+  if (/^\s*-\s*Pass\b/im.test(resultBody)) return 'pass';
+  return 'unresolved';
+}
+
+function sectionBodyByHeading(markdownText, headingPattern) {
+  const lines = String(markdownText || '').replace(/\r\n?/g, '\n').split('\n');
+  const startIndex = lines.findIndex((line) => headingPattern.test(line));
+  if (startIndex < 0) return '';
+  const out = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (/^\s*##\s+/.test(line)) break;
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
+function readChecklistResultStateForCurrentSlice(targetRoot) {
+  const slice = readCurrentSliceFromTarget(targetRoot);
+  const sliceId = String(slice?.id || '').trim();
+  if (!sliceId) {
+    return { status: 'missing', slice: null, checklistRelPath: '' };
+  }
+  const checklistRelPath = checklistRelPathForSlice(sliceId);
+  const checklistPath = path.join(targetRoot, checklistRelPath);
+  if (!fs.existsSync(checklistPath)) {
+    return { status: 'missing', slice, checklistRelPath };
+  }
+  const status = parseChecklistResultState(readText(checklistPath));
+  return { status, slice, checklistRelPath };
+}
+
 function semanticUxReviewNextSteps({ cmd, targetRoot }) {
   const reviewStatus = readSemanticUxReviewStatusForCurrentSlice(targetRoot);
   if (reviewStatus.status === 'pass') {
-    return [cmd('coder:close-current-slice')];
+    const checklist = readChecklistResultStateForCurrentSlice(targetRoot);
+    if (checklist.status === 'pass') {
+      return [
+        cmd('coder:close-current-slice'),
+      ];
+    }
+    if (checklist.status === 'fail') {
+      return [
+        cmd('coder:repair-implementation-findings'),
+        cmd('tester:validate-current-slice'),
+      ];
+    }
+    return [
+      cmd('tester:validate-current-slice'),
+      cmd('coder:close-current-slice'),
+    ];
   }
   return [
     cmd('coder:repair-semantic-ux-findings'),
-    cmd('coder:close-current-slice'),
+    cmd('uiux:review-current-slice-semantics'),
   ];
 }
 
@@ -217,6 +317,8 @@ function resolveGateNextSteps({ cmd, targetRoot }) {
     if (sliceStatus === 'planned') {
       const baselineExists = fs.existsSync(path.join(targetRoot, baselineRelPathForSlice(sliceId)));
       const uxExists = fs.existsSync(path.join(targetRoot, uxFlowRelPathForSlice(sliceId)));
+      const storybookMapExists = fs.existsSync(path.join(targetRoot, 'docs/design-system/storybook-map.md'));
+      const storybookRequirementsExists = fs.existsSync(path.join(targetRoot, storybookRequirementsRelPathForSlice(sliceId)));
       if (!baselineExists) {
         return [
           cmd('architect:generate-current-slice-baseline'),
@@ -226,7 +328,13 @@ function resolveGateNextSteps({ cmd, targetRoot }) {
       if (!uxExists) {
         return [
           cmd('uiux:generate-current-slice-flow'),
-          cmd('coder:prepare-current-slice'),
+          cmd('uiux:generate-storybook-map'),
+        ];
+      }
+      if (!storybookMapExists || !storybookRequirementsExists) {
+        return [
+          cmd('uiux:generate-storybook-map'),
+          cmd('gate'),
         ];
       }
       return [
@@ -235,21 +343,49 @@ function resolveGateNextSteps({ cmd, targetRoot }) {
       ];
     }
     if (sliceStatus === 'in_progress') {
-      const reviewStatus = readSemanticUxReviewStatusForCurrentSlice(targetRoot);
-      if (reviewStatus.status === 'pass') {
-        return [cmd('coder:close-current-slice')];
-      }
-      if (reviewStatus.status === 'fail') {
+      const storybookMapExists = fs.existsSync(path.join(targetRoot, 'docs/design-system/storybook-map.md'));
+      const storybookRequirementsExists = fs.existsSync(path.join(targetRoot, storybookRequirementsRelPathForSlice(sliceId)));
+      if (!storybookMapExists || !storybookRequirementsExists) {
         return [
-          cmd('coder:repair-semantic-ux-findings'),
-          cmd('uiux:review-current-slice-semantics'),
+          cmd('uiux:generate-storybook-map'),
+          cmd('coder:generate-current-slice-stories'),
+        ];
+      }
+      const storybookReviewStatus = readStorybookReviewStatusForCurrentSlice(targetRoot);
+      if (storybookReviewStatus.status !== 'pass') {
+        return [
+          cmd('coder:generate-current-slice-stories'),
+          cmd('uiux:review-current-slice-storybook'),
+        ];
+      }
+      const semanticReviewStatus = readSemanticUxReviewStatusForCurrentSlice(targetRoot);
+      if (semanticReviewStatus.status === 'pass') {
+        const checklist = readChecklistResultStateForCurrentSlice(targetRoot);
+        if (checklist.status === 'pass') {
+          return [
+            cmd('coder:close-current-slice'),
+          ];
+        }
+        if (checklist.status === 'fail') {
+          return [
+            cmd('coder:repair-implementation-findings'),
+            cmd('tester:validate-current-slice'),
+          ];
+        }
+        return [
+          cmd('tester:validate-current-slice'),
           cmd('coder:close-current-slice'),
         ];
       }
+      if (semanticReviewStatus.status === 'fail') {
+        return [
+          cmd('coder:repair-semantic-ux-findings'),
+          cmd('uiux:review-current-slice-semantics'),
+        ];
+      }
       return [
-        cmd('coder:implement-current-slice'),
         cmd('uiux:review-current-slice-semantics'),
-        cmd('coder:close-current-slice'),
+        cmd('tester:validate-current-slice'),
       ];
     }
     if (sliceStatus === 'completed') {
@@ -319,24 +455,50 @@ const NEXT_STEP_BUILDERS = {
     cmd('coder:prepare-current-slice'),
   ],
   'uiux:generate-current-slice-flow': ({ cmd }) => [
+    cmd('uiux:generate-storybook-map'),
     cmd('coder:prepare-current-slice'),
-    cmd('coder:implement-current-slice'),
   ],
   'coder:prepare-current-slice': ({ cmd }) => [
     cmd('coder:implement-current-slice'),
     cmd('coder:close-current-slice'),
   ],
   'coder:implement-current-slice': ({ cmd }) => [
+    cmd('coder:generate-current-slice-stories'),
+    cmd('uiux:review-current-slice-storybook'),
     cmd('uiux:review-current-slice-semantics'),
-    cmd('coder:close-current-slice'),
+  ],
+  'uiux:generate-storybook-map': ({ cmd }) => [
+    cmd('coder:generate-current-slice-stories'),
+    cmd('uiux:review-current-slice-storybook'),
+  ],
+  'coder:generate-current-slice-stories': ({ cmd }) => [
+    cmd('uiux:review-current-slice-storybook'),
+    cmd('uiux:review-current-slice-semantics'),
+  ],
+  'uiux:review-current-slice-storybook': ({ cmd }) => [
+    cmd('uiux:review-current-slice-semantics'),
+    cmd('tester:validate-current-slice'),
   ],
   'uiux:review-current-slice-semantics': ({ cmd, targetRoot }) => semanticUxReviewNextSteps({ cmd, targetRoot }),
+  'tester:validate-current-slice': ({ cmd, targetRoot }) => {
+    const checklist = readChecklistResultStateForCurrentSlice(targetRoot);
+    if (checklist.status === 'fail') {
+      return [cmd('coder:repair-implementation-findings')];
+    }
+    if (checklist.status === 'pass') {
+      return [cmd('coder:close-current-slice')];
+    }
+    return [
+      cmd('coder:repair-implementation-findings'),
+      cmd('coder:close-current-slice'),
+    ];
+  },
   'coder:repair-semantic-ux-findings': ({ cmd }) => [
     cmd('uiux:review-current-slice-semantics'),
-    cmd('coder:close-current-slice'),
+    cmd('tester:validate-current-slice'),
   ],
   'coder:repair-implementation-findings': ({ cmd }) => [
-    cmd('uiux:review-current-slice-semantics'),
+    cmd('tester:validate-current-slice'),
     cmd('coder:close-current-slice'),
   ],
   'coder:close-current-slice': ({ cmd }) => [
@@ -400,10 +562,15 @@ const CANONICAL_STEP_BY_COMMAND = Object.freeze({
   'db:check': '15',
   'architect:generate-current-slice-baseline': '16',
   'uiux:generate-current-slice-flow': '17',
+  'uiux:generate-storybook-map': '17b',
   'coder:prepare-current-slice': '19',
   'coder:implement-current-slice': '20',
-  'uiux:review-current-slice-semantics': '21',
-  'coder:repair-semantic-ux-findings': '21b',
+  'coder:generate-current-slice-stories': '20a',
+  'uiux:review-current-slice-storybook': '21',
+  'uiux:review-current-slice-semantics': '21b',
+  'coder:repair-semantic-ux-findings': '21c',
+  'tester:validate-current-slice': '21d',
+  'coder:repair-implementation-findings': '21e',
   'coder:close-current-slice': '22',
   'orchestrator:advance-slice': '24',
 });
@@ -428,10 +595,15 @@ const CANONICAL_STEP_OVERRIDE_BY_FROM_COMMAND = Object.freeze({
     'orchestrator:advance-slice': '24',
     'architect:generate-current-slice-baseline': '16',
     'uiux:generate-current-slice-flow': '17',
+    'uiux:generate-storybook-map': '17b',
     'coder:prepare-current-slice': '19',
     'coder:implement-current-slice': '20',
-    'uiux:review-current-slice-semantics': '21',
-    'coder:repair-semantic-ux-findings': '21b',
+    'coder:generate-current-slice-stories': '20a',
+    'uiux:review-current-slice-storybook': '21',
+    'uiux:review-current-slice-semantics': '21b',
+    'coder:repair-semantic-ux-findings': '21c',
+    'tester:validate-current-slice': '21d',
+    'coder:repair-implementation-findings': '21e',
     'coder:close-current-slice': '22',
   }),
 });
@@ -479,7 +651,7 @@ function printNextSteps({ command, targetRoot, valuesPath }) {
 
 function usage() {
   console.log(
-    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-design-system|uiux:generate-current-slice-flow|uiux:review-current-slice-semantics|coder:repair-semantic-ux-findings|coder:repair-implementation-findings|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
+    'Usage: fabric <init-factory|llm:check|pm:intake|pm:brief-readiness|pm:brief-draft|pm:brief-approve|pm:derive-values|pm:brief-semantic-check|pm:approve-brief|pm:status|pm:finalize-bootstrap-reviews|pm:bootstrap-signoff|pm:plan-slices|architect:generate-current-slice-baseline|uiux:generate-design-system|uiux:generate-current-slice-flow|uiux:generate-storybook-map|coder:generate-current-slice-stories|uiux:review-current-slice-storybook|uiux:review-current-slice-semantics|tester:validate-current-slice|coder:repair-semantic-ux-findings|coder:repair-implementation-findings|coder:prepare-current-slice|coder:implement-current-slice|coder:close-current-slice|orchestrator:run-until-blocked|orchestrator:advance-slice|format-from-brief|scaffold|instantiate|validate|doctor|gate|db:init|db:check|db:reset> [options]',
   );
   console.log(
     '  init-factory --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force] [--init-values] [--force-values]',
@@ -497,12 +669,17 @@ function usage() {
   console.log('  architect:generate-current-slice-baseline --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  uiux:generate-design-system --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
   console.log('  uiux:generate-current-slice-flow --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  uiux:generate-storybook-map --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  coder:generate-current-slice-stories --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  uiux:review-current-slice-storybook --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  uiux:review-current-slice-semantics --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  tester:validate-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:repair-semantic-ux-findings --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--include-warnings]');
   console.log('  coder:repair-implementation-findings --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:prepare-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:implement-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
   console.log('  coder:close-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  orchestrator:run-until-blocked --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--max-steps <n>]');
   console.log('  orchestrator:advance-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:bootstrap-signoff --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:plan-slices --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--model-driven] [--heuristic]');
@@ -709,8 +886,28 @@ async function main() {
     await runWithGuidance(() => uiuxGenerateCurrentSliceFlow({ targetRoot, valuesPath }));
     return;
   }
+  if (command === 'uiux:generate-storybook-map') {
+    await runWithGuidance(() => uiuxGenerateStorybookMap({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'coder:generate-current-slice-stories') {
+    await runWithGuidance(() => coderGenerateCurrentSliceStories({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'uiux:review-current-slice-storybook') {
+    await runWithGuidance(() => uiuxReviewCurrentSliceStorybook({ targetRoot, valuesPath }));
+    return;
+  }
   if (command === 'uiux:review-current-slice-semantics') {
     await runWithGuidance(() => uiuxReviewCurrentSliceSemantics({
+      targetRoot,
+      valuesPath,
+      onProgress: (message) => console.log(`  - ${String(message)}`),
+    }));
+    return;
+  }
+  if (command === 'tester:validate-current-slice') {
+    await runWithGuidance(() => testerValidateCurrentSlice({
       targetRoot,
       valuesPath,
       onProgress: (message) => console.log(`  - ${String(message)}`),
@@ -742,6 +939,14 @@ async function main() {
   }
   if (command === 'coder:close-current-slice') {
     await runWithGuidance(() => coderCloseCurrentSlice({ targetRoot, valuesPath }));
+    return;
+  }
+  if (command === 'orchestrator:run-until-blocked') {
+    await runWithGuidance(() => orchestratorRunUntilBlocked({
+      targetRoot,
+      valuesPath,
+      maxSteps: args['max-steps'],
+    }));
     return;
   }
   if (command === 'orchestrator:advance-slice') {

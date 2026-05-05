@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   SLICE_LIST_FIELDS,
   readText,
@@ -54,6 +54,28 @@ import {
   requiredDesignSystemRelPaths,
   requiredSliceUxContractRelPaths,
 } from '../product/design-system.mjs';
+import {
+  storybookMapRelPath,
+  storybookReviewJsonRelPathForSlice,
+  readStorybookReviewStatus,
+} from '../product/storybook.mjs';
+
+const FORMAT_FROM_BRIEF_STAMP_REL_PATH = 'docs/pm/brief/format-from-brief.stamp.json';
+const SCAFFOLD_STAMP_REL_PATH = 'docs/pm/brief/scaffold.stamp.json';
+
+function writeBootstrapStamp({ targetRoot, relPath, command, status = 'passed' }) {
+  const stampPath = path.join(targetRoot, relPath);
+  ensureDir(path.dirname(stampPath));
+  const checkedAtUtc = new Date().toISOString();
+  writeTextAtomic(
+    stampPath,
+    `${JSON.stringify({
+      command,
+      status,
+      checked_at_utc: checkedAtUtc,
+    }, null, 2)}\n`,
+  );
+}
 
 function initFactory({ targetRoot, valuesPath, force, initValues, forceValues }) {
   if (initValues) {
@@ -87,7 +109,13 @@ function initFactory({ targetRoot, valuesPath, force, initValues, forceValues })
 function formatFromBrief({ targetRoot }) {
   assertApprovedBrief(targetRoot);
   assertMinimumCustomerInput(targetRoot);
+  writeBootstrapStamp({
+    targetRoot,
+    relPath: FORMAT_FROM_BRIEF_STAMP_REL_PATH,
+    command: 'format-from-brief',
+  });
   console.log('fabric format-from-brief: brief is approved, execution can proceed');
+  console.log(`- updated: ${FORMAT_FROM_BRIEF_STAMP_REL_PATH}`);
 }
 
 function instantiate({ targetRoot, valuesPath, force }) {
@@ -136,8 +164,19 @@ function scaffold({ targetRoot, valuesPath, force }) {
     checkBriefApproval: isBootstrapInitialization(targetRoot),
   });
 
+  const frontendOutputs = ensureReactViteStorybookScaffold(targetRoot, valuesPath, { force });
+  writeBootstrapStamp({
+    targetRoot,
+    relPath: SCAFFOLD_STAMP_REL_PATH,
+    command: 'scaffold',
+  });
+
   console.log(`fabric scaffold: generated ${outputs.length} files`);
   outputs.forEach((item) => console.log(`- ${item}`));
+  if (frontendOutputs.length > 0) {
+    console.log('fabric scaffold: ensured React/Vite + Storybook baseline');
+    frontendOutputs.forEach((item) => console.log(`- ${item}`));
+  }
 }
 
 function hasSupabaseCli() {
@@ -701,7 +740,7 @@ function deriveOutOfScope(slice, implementationNotesText) {
   return ["Items not explicitly covered by this slice's acceptance criteria."];
 }
 
-function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNotesText }) {
+function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNotesText, carryForwardInvariants = [] }) {
   const steps = deriveChecklistSteps(slice, uxFlowText);
   const expectedResults = deriveExpectedResults(slice, uxFlowText);
   const failConditions = deriveFailConditions(slice);
@@ -726,6 +765,14 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
     '',
     '## Expected results',
     ...expectedResults.map((item) => `- ${item}`),
+    '',
+    '## Carry-forward capabilities to preserve (auto-inherited)',
+    ...(carryForwardInvariants.length > 0
+      ? carryForwardInvariants.flatMap((entry) => [
+        `- [${entry.sliceId}] ${entry.title}`,
+        ...entry.assertions.map((assertion) => `  - ${assertion}`),
+      ])
+      : ['- None yet (no prior passed slices detected).']),
     '',
     '## Fail conditions',
     ...failConditions.map((item) => `- ${item}`),
@@ -773,7 +820,16 @@ function renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNote
 function writeCurrentSliceUserChecklist({ targetRoot, slice, uxFlowText, implementationNotesText = '' }) {
   const normalizedSliceId = String(slice?.id || 'UNKNOWN').replace(/[^A-Za-z0-9_-]/g, '-');
   const outPath = path.join(targetRoot, `docs/testing/${normalizedSliceId}-user-checklist.md`);
-  writeTextAtomic(outPath, `${renderCurrentSliceUserChecklist({ slice, uxFlowText, implementationNotesText }).trimEnd()}\n`);
+  const carryForwardInvariants = collectCarryForwardInvariants({
+    targetRoot,
+    activeSliceId: slice?.id,
+  });
+  writeTextAtomic(outPath, `${renderCurrentSliceUserChecklist({
+    slice,
+    uxFlowText,
+    implementationNotesText,
+    carryForwardInvariants,
+  }).trimEnd()}\n`);
   return outPath;
 }
 
@@ -874,16 +930,9 @@ function deriveImplementationTargets(slice) {
   const slug = slugifySliceTitle(slice.title);
   const scopeHints = String([slice.title, slice.objective, ...(slice.in_scope || [])].join(' ')).toLowerCase();
   const targets = [];
-  if (scopeHints.includes('onboarding')) {
-    targets.push('src/features/onboarding/');
-    targets.push('src/features/profile/');
-    targets.push('src/routes/onboarding*');
-    targets.push('tests/onboarding/');
-  } else {
-    targets.push(`src/features/${slug}/`);
-    targets.push(`src/routes/${slug}*`);
-    targets.push(`tests/${slug}/`);
-  }
+  targets.push(`src/features/${slug}/`);
+  targets.push(`src/routes/${slug}*`);
+  targets.push(`tests/${slug}/`);
   if (scopeHints.includes('persist') || scopeHints.includes('profile') || scopeHints.includes('data')) {
     targets.push('supabase/migrations/ (if schema change is required)');
   }
@@ -1011,6 +1060,7 @@ function coderPrepareCurrentSlice({ targetRoot, valuesPath }) {
     nextSteps: [
       'Implement the slice against the file/module targets above.',
       'Record any scope deviations before closeout.',
+      'Generate and review Storybook stories before semantic UX review and closeout.',
       'Run validate/doctor/gate before closing the slice.',
     ],
     generatedAt,
@@ -1055,32 +1105,7 @@ function writeManagedFile(outPath, content, { force = false } = {}) {
 }
 
 function ensurePackageJsonWithAppScripts(targetRoot, valuesPath) {
-  const values = loadValuesIfPresent(valuesPath) || {};
-  const packageJsonPath = path.join(targetRoot, 'package.json');
-  const createdPackageJson = ensurePackageJson(packageJsonPath, values);
-  const pkg = JSON.parse(readText(packageJsonPath));
-  pkg.private = true;
-  pkg.type = 'module';
-  pkg.scripts = pkg.scripts || {};
-  Object.assign(pkg.scripts, {
-    dev: 'vite',
-    build: 'vite build',
-    preview: 'vite preview',
-    test: 'node --test tests/**/*.test.mjs',
-  });
-  pkg.dependencies = pkg.dependencies || {};
-  if (!pkg.dependencies.react) {
-    pkg.dependencies.react = '^18.3.1';
-  }
-  if (!pkg.dependencies['react-dom']) {
-    pkg.dependencies['react-dom'] = '^18.3.1';
-  }
-  pkg.devDependencies = pkg.devDependencies || {};
-  if (!pkg.devDependencies.vite) {
-    pkg.devDependencies.vite = '^5.4.10';
-  }
-  fs.writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
-  return { createdPackageJson, packageJsonPath };
+  return ensureReactViteStorybookPackageJson(targetRoot, valuesPath);
 }
 
 function implementationNotesContainsChangedFiles(notesText) {
@@ -1237,6 +1262,109 @@ function parseChecklistResultState(checklistText) {
   return 'unresolved';
 }
 
+function parseChecklistSliceMetadata(checklistText) {
+  const body = sectionBodyByHeading(checklistText, /^\s*##\s+Slice\s*$/i);
+  const idMatch = body.match(/^\s*-\s*ID\s*:\s*([^\n]+)\s*$/im);
+  const titleMatch = body.match(/^\s*-\s*Title\s*:\s*([^\n]+)\s*$/im);
+  return {
+    id: idMatch ? String(idMatch[1] || '').trim() : '',
+    title: titleMatch ? String(titleMatch[1] || '').trim() : '',
+  };
+}
+
+function parseExpectedResultLines(checklistText) {
+  const body = sectionBodyByHeading(checklistText, /^\s*##\s+Expected results\s*$/i);
+  if (!body) return [];
+  const lines = String(body || '').replace(/\r\n?/g, '\n').split('\n');
+  return lines
+    .map((line) => line.match(/^\s*-\s+(.*)\s*$/)?.[1] || '')
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+}
+
+function parseWhatToTestLines(checklistText) {
+  const body = sectionBodyByHeading(checklistText, /^\s*##\s+What to test\s*$/i);
+  if (!body) return [];
+  const lines = String(body || '').replace(/\r\n?/g, '\n').split('\n');
+  return lines
+    .map((line) => line.match(/^\s*\d+[.)]\s+(.*)\s*$/)?.[1] || '')
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+}
+
+function isGenericExpectedResultLine(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return true;
+  const genericPatterns = [
+    /^app loads without blank screen or runtime error\b/,
+    /^the onboarding entry screen is visible and clear\b/,
+  ];
+  return genericPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function isGenericInvariantLine(value) {
+  return isGenericExpectedResultLine(value);
+}
+
+function collectCarryForwardInvariants({ targetRoot, activeSliceId }) {
+  const testingDir = path.join(targetRoot, 'docs/testing');
+  if (!fs.existsSync(testingDir)) return [];
+  const files = fs.readdirSync(testingDir)
+    .filter((name) => /^SL-[A-Za-z0-9_-]+-user-checklist\.md$/i.test(name))
+    .sort();
+
+  const invariants = [];
+  for (const file of files) {
+    const absPath = path.join(testingDir, file);
+    const text = readText(absPath);
+    const resultState = parseChecklistResultState(text);
+    if (resultState !== 'pass') continue;
+    const meta = parseChecklistSliceMetadata(text);
+    const sliceId = String(meta.id || '').trim();
+    if (!sliceId || sliceId === String(activeSliceId || '').trim()) continue;
+    const expected = parseExpectedResultLines(text)
+      .filter((line) => !isGenericInvariantLine(line));
+    const whatToTest = parseWhatToTestLines(text)
+      .filter((line) => !isGenericInvariantLine(line));
+    const assertions = [...new Set([...expected, ...whatToTest])].slice(0, 8);
+    if (assertions.length === 0) continue;
+    invariants.push({
+      sliceId,
+      title: meta.title || sliceId,
+      assertions,
+    });
+  }
+  return invariants;
+}
+
+function validateCarryForwardRegressionEvidence({ targetRoot, currentSlice, invariants }) {
+  if (!Array.isArray(invariants) || invariants.length === 0) {
+    return { issues: [], testRelPath: '' };
+  }
+  const testRelPath = `tests/${slugifySliceTitle(currentSlice?.title || '')}/carry-forward-invariants.test.mjs`;
+  const testAbsPath = path.join(targetRoot, testRelPath);
+  if (!fs.existsSync(testAbsPath)) {
+    return {
+      testRelPath,
+      issues: [`missing carry-forward regression evidence file: ${testRelPath}`],
+    };
+  }
+  const text = readText(testAbsPath);
+  const missingSlices = invariants
+    .map((entry) => String(entry.sliceId || '').trim())
+    .filter(Boolean)
+    .filter((sliceId) => !text.includes(sliceId));
+  if (missingSlices.length > 0) {
+    return {
+      testRelPath,
+      issues: [
+        `carry-forward regression file ${testRelPath} does not reference prior passed slices: ${missingSlices.join(', ')}`,
+      ],
+    };
+  }
+  return { issues: [], testRelPath };
+}
+
 function parseManualQaFindings(checklistText) {
   const findingsBody = sectionBodyByHeading(checklistText, /^\s*##\s+Manual QA Findings\s*$/i);
   if (!findingsBody) return [];
@@ -1315,6 +1443,199 @@ function renderManagedHtmlHeader(relPath) {
   const manifest = loadManifest();
   const generatedAt = new Date().toISOString();
   return `<!-- generated_from: fabric/company/v1/runtime/commands/runtime.mjs | target: ${relPath} | fabric_version: ${manifest.fabric_version} | generated_at_utc: ${generatedAt} -->\n`;
+}
+
+
+function addIfMissing(object, key, value) {
+  if (!object[key]) {
+    object[key] = value;
+    return true;
+  }
+  return false;
+}
+
+function ensureReactViteStorybookPackageJson(targetRoot, valuesPath) {
+  const values = loadValuesIfPresent(valuesPath) || {};
+  const packageJsonPath = path.join(targetRoot, 'package.json');
+  const createdPackageJson = ensurePackageJson(packageJsonPath, values);
+  const pkg = JSON.parse(readText(packageJsonPath));
+  pkg.private = true;
+  pkg.type = 'module';
+  pkg.scripts = pkg.scripts || {};
+  const desiredScripts = {
+    dev: 'vite',
+    build: 'vite build',
+    preview: 'vite preview',
+    test: pkg.scripts.test || 'node --test tests/**/*.test.mjs',
+    storybook: 'storybook dev -p 6006',
+    'build-storybook': 'storybook build',
+    'test:storybook': 'vitest --config vitest.config.ts',
+  };
+  for (const [name, command] of Object.entries(desiredScripts)) {
+    if (!pkg.scripts[name]) pkg.scripts[name] = command;
+  }
+  pkg.dependencies = pkg.dependencies || {};
+  addIfMissing(pkg.dependencies, 'react', '^18.3.1');
+  addIfMissing(pkg.dependencies, 'react-dom', '^18.3.1');
+  pkg.devDependencies = pkg.devDependencies || {};
+  addIfMissing(pkg.devDependencies, '@vitejs/plugin-react', '^4.3.4');
+  addIfMissing(pkg.devDependencies, 'vite', '^5.4.10');
+  addIfMissing(pkg.devDependencies, 'typescript', '^5.6.3');
+  addIfMissing(pkg.devDependencies, 'vitest', '^2.1.8');
+  addIfMissing(pkg.devDependencies, 'storybook', '^10.3.6');
+  addIfMissing(pkg.devDependencies, '@storybook/react-vite', '^10.3.6');
+  addIfMissing(pkg.devDependencies, '@storybook/addon-docs', '^10.3.6');
+  fs.writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
+  return { createdPackageJson, packageJsonPath };
+}
+
+function ensureReactViteStorybookScaffold(targetRoot, valuesPath, { force = false } = {}) {
+  ensureReactViteStorybookPackageJson(targetRoot, valuesPath);
+  const files = new Map();
+  files.set('index.html', `${renderManagedHtmlHeader('index.html')}<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fabric App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+`);
+  files.set('src/main.jsx', `${renderManagedSourceHeader('src/main.jsx')}import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './styles.css';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);
+`);
+  files.set('src/App.jsx', `${renderManagedSourceHeader('src/App.jsx')}export default function App() {
+  return (
+    <main className="app-shell">
+      <section className="app-panel hero">
+        <p className="eyebrow">Fabric app factory</p>
+        <h1>App shell ready</h1>
+        <p className="lede">Run the current slice workflow to generate product-specific screens and Storybook stories.</p>
+      </section>
+    </main>
+  );
+}
+`);
+  files.set('src/styles.css', `${renderManagedSourceHeader('src/styles.css')}:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select { font: inherit; }
+
+.app-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.hero { background: linear-gradient(135deg, #ecfeff, #eff6ff); }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: #0f766e; margin: 0 0 8px; }
+.lede { color: #334155; margin-top: 8px; }
+`);
+  files.set('vite.config.js', `${renderManagedSourceHeader('vite.config.js')}import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+});
+`);
+  files.set('vitest.config.ts', `${renderManagedSourceHeader('vitest.config.ts')}import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
+});
+`);
+  files.set('tsconfig.json', `${renderManagedSourceHeader('tsconfig.json')}{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src", ".storybook", "vite.config.js", "vitest.config.ts"]
+}
+`);
+  files.set('.storybook/main.ts', `${renderManagedSourceHeader('.storybook/main.ts')}import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
+  addons: ['@storybook/addon-docs'],
+  framework: {
+    name: '@storybook/react-vite',
+    options: {},
+  },
+};
+
+export default config;
+`);
+  files.set('.storybook/preview.ts', `${renderManagedSourceHeader('.storybook/preview.ts')}import type { Preview } from '@storybook/react-vite';
+import '../src/styles.css';
+
+const preview: Preview = {
+  parameters: {
+    controls: {
+      matchers: {
+        color: /(background|color)$/i,
+        date: /Date$/i,
+      },
+    },
+  },
+};
+
+export default preview;
+`);
+
+  const changed = ['package.json'];
+  for (const [relPath, content] of files.entries()) {
+    const outPath = path.join(targetRoot, relPath);
+    if (relPath === 'src/styles.css' && fs.existsSync(outPath) && readText(outPath) !== content) {
+      continue;
+    }
+    if (fs.existsSync(outPath) && readText(outPath) === content) continue;
+    writeManagedFile(outPath, content, { force });
+    changed.push(relPath);
+  }
+  return changed;
 }
 
 const DEMO_HEALTH_PLAN_DEFAULTS = Object.freeze({
@@ -1503,8 +1824,9 @@ function summarizeSemanticUxFindings(findings = []) {
   }));
 }
 
-function semanticRepairAllowedPatterns({ slice, findings = [] }) {
-  const allowed = deriveCodexAllowedPaths(slice);
+function semanticRepairAllowedPatterns({ slice, findings = [], values = {} }) {
+  const allowAppShellMutation = resolveAllowAppShellMutation(values);
+  const allowed = deriveCodexAllowedPaths(slice, { allowAppShellMutation });
   const referencedFiles = summarizeSemanticUxFindings(findings)
     .map((finding) => finding.file)
     .filter((relPath) => /^(src|tests)\//.test(String(relPath || '')));
@@ -1519,8 +1841,8 @@ function semanticRepairAllowedPatterns({ slice, findings = [] }) {
   };
 }
 
-function validateSemanticRepairChangedFiles({ changedFiles, slice, findings }) {
-  const allowed = semanticRepairAllowedPatterns({ slice, findings });
+function validateSemanticRepairChangedFiles({ changedFiles, slice, findings, values = {} }) {
+  const allowed = semanticRepairAllowedPatterns({ slice, findings, values });
   const allowedPatterns = [...allowed.create, ...allowed.modify];
   const ignoredGeneratedArtifacts = [];
   const violations = [];
@@ -1543,8 +1865,9 @@ function validateSemanticRepairChangedFiles({ changedFiles, slice, findings }) {
   return { allowed, violations, ignoredGeneratedArtifacts };
 }
 
-function implementationRepairAllowedPatterns({ slice }) {
-  const allowed = deriveCodexAllowedPaths(slice);
+function implementationRepairAllowedPatterns({ slice, values = {} }) {
+  const allowAppShellMutation = resolveAllowAppShellMutation(values);
+  const allowed = deriveCodexAllowedPaths(slice, { allowAppShellMutation });
   const normalizedSliceId = normalizeSliceIdForWorkOrder(slice.id);
   return {
     create: [...allowed.create],
@@ -1562,8 +1885,8 @@ function implementationRepairAllowedPatterns({ slice }) {
   };
 }
 
-function validateImplementationRepairChangedFiles({ changedFiles, slice }) {
-  const allowed = implementationRepairAllowedPatterns({ slice });
+function validateImplementationRepairChangedFiles({ changedFiles, slice, values = {} }) {
+  const allowed = implementationRepairAllowedPatterns({ slice, values });
   const allowedPatterns = [...allowed.create, ...allowed.modify];
   const ignoredGeneratedArtifacts = [];
   const violations = [];
@@ -1641,6 +1964,8 @@ function renderImplementationRepairWorkOrder({ slice, checklistRelPath, uxFlowRe
     '- Fix the implementation, not the checklist result.',
     '- Do not mark the checklist Pass; the human reviewer owns checklist acceptance.',
     '- Preserve all previously passing acceptance criteria.',
+    '- Preserve previously working user actions from earlier slices unless the active slice explicitly redefines them.',
+    '- Do not remove existing user-visible functionality as a side effect of repair.',
     '- If tests encode rejected behavior, update them narrowly to match the repaired behavior.',
     '- If the finding is a requirement gap, update the relevant product/UX/checklist artifact first or clearly document the requirement clarification.',
     '- Keep user-facing copy meaningful, clear, and free of internal process/factory language.',
@@ -1703,6 +2028,8 @@ function renderSemanticUxRepairWorkOrder({ slice, reviewJsonRelPath, reviewMdRel
     '',
     '## Repair rules',
     '- Fix the implementation, not the review file.',
+    '- Preserve previously working user actions from earlier slices unless the active slice explicitly redefines them.',
+    '- Do not remove existing user-visible functionality as a side effect of semantic repair.',
     '- User-facing copy must be meaningful to the end user.',
     '- Do not expose internal process, slice, schema, test, route, payload, ranking, bucket, implementation, acceptance-criteria, or factory language in visible UI.',
     '- Do not mention excluded features as internal limitations.',
@@ -1805,8 +2132,33 @@ function isCodexGeneratedArtifact(relPath) {
   return pathMatchesAllowed(relPath, codexGeneratedArtifactPatterns());
 }
 
-function deriveCodexAllowedPaths(slice) {
+function isTruthyFlag(value, fallback = false) {
+  if (value === undefined || value === null || String(value).trim() === '') return fallback;
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
+function resolveAllowAppShellMutation(values = {}, env = process.env) {
+  return isTruthyFlag(
+    values.coder_allow_app_shell_mutation
+      ?? env.CODER_ALLOW_APP_SHELL_MUTATION
+      ?? false,
+    false,
+  );
+}
+
+function deriveCodexAllowedPaths(slice, { allowAppShellMutation = false } = {}) {
   const slug = slugifySliceTitle(slice.title);
+  const modify = ['package.json', 'package-lock.json'];
+  if (allowAppShellMutation) {
+    modify.unshift('src/App.jsx');
+  }
+  const protectedPaths = ['index.html', 'src/main.jsx', 'src/styles.css'];
+  if (!allowAppShellMutation) {
+    protectedPaths.push('src/App.jsx');
+  }
   return {
     create: [
       `src/features/${slug}/**`,
@@ -1814,13 +2166,25 @@ function deriveCodexAllowedPaths(slice) {
       `src/routes/${slug}.js`,
       `tests/${slug}/**`,
     ],
-    modify: ['src/App.jsx', 'src/styles.css', 'package.json', 'package-lock.json'],
-    protected: ['index.html', 'src/main.jsx'],
+    modify,
+    protected: protectedPaths,
   };
 }
 
-function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, semanticContractRelPath, implementationNotesRelPath, valuesPath }) {
-  const allowed = deriveCodexAllowedPaths(slice);
+function buildCodexWorkOrder({
+  slice,
+  fileTargets,
+  baselineRelPath,
+  uxRelPath,
+  semanticContractRelPath,
+  implementationNotesRelPath,
+  valuesPath,
+  values = {},
+  carryForwardInvariants = [],
+  carryForwardTestRelPath = '',
+}) {
+  const allowAppShellMutation = resolveAllowAppShellMutation(values);
+  const allowed = deriveCodexAllowedPaths(slice, { allowAppShellMutation });
   const sliceContext = {
     id: String(slice?.id || '').trim(),
     title: String(slice?.title || '').trim(),
@@ -1846,7 +2210,7 @@ function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, s
     `- \`${implementationNotesRelPath}\``,
     '- `docs/product/project-brief.md` if present',
     '- `docs/product/product-system-framing.md` if present',
-    '- Existing `src/` and `tests/` files needed to understand the current app. Follow imports from `src/App.jsx` before editing.',
+    '- Existing `src/` and `tests/` files needed to understand the current app and integration points.',
     '',
     '## Active slice',
     '```json',
@@ -1857,10 +2221,36 @@ function buildCodexWorkOrder({ slice, fileTargets, baselineRelPath, uxRelPath, s
     '- Behave like an incremental developer, not a full-app generator.',
     '- Do not rewrite the application from scratch.',
     '- Preserve existing behavior unless the current slice explicitly requires a change.',
+    '- Maintain previously working user-visible actions and flows from earlier slices unless the active slice explicitly redefines them.',
+    '- Never remove existing functionality as an unintended side effect of implementation.',
     '- Prefer small, focused edits and new slice-local files.',
     '- Read relevant existing files before editing them.',
     '- Do not modify unrelated onboarding/profile code unless strictly necessary for integration.',
+    '- Do not restyle the global app shell, shared visual language, or design-system tokens during slice implementation.',
+    '- Reuse existing shared UI shell conventions (`app-shell`, `app-panel`, existing card/action classes) instead of introducing alternate global wrapper conventions.',
+    '- Treat global styling (`src/styles.css`) as protected; any cross-slice design refresh belongs in the design-system workflow, not in slice implementation.',
+    allowAppShellMutation
+      ? '- App-shell mutation is enabled for this run. Keep any src/App.jsx edits minimal and integration-only (wiring/imports), never visual rewrites.'
+      : '- src/App.jsx is protected by default. Integrate new slice behavior through slice-local routes/features and minimal shared integration points instead.',
     '- Do not use `--force` or destructive git commands.',
+    '',
+    '## Carry-forward invariants',
+    carryForwardInvariants.length > 0
+      ? 'These are already approved behaviors from prior passed slices. Preserve them unless the active slice explicitly redefines them.'
+      : 'No prior passed-slice invariants were detected.',
+    ...(carryForwardInvariants.length > 0
+      ? carryForwardInvariants.flatMap((entry) => [
+        `- [${entry.sliceId}] ${entry.title}`,
+        ...entry.assertions.map((assertion) => `  - ${assertion}`),
+      ])
+      : []),
+    ...(carryForwardInvariants.length > 0 && carryForwardTestRelPath
+      ? [
+        '',
+        `Required regression evidence file: \`${carryForwardTestRelPath}\``,
+        '- Add or update tests in that file so prior-slice invariant behavior is explicitly covered.',
+      ]
+      : []),
     '',
     '## Preferred implementation targets from Fabric',
     ...fileTargets.map((target) => `- ${target}`),
@@ -1905,30 +2295,71 @@ function resolveCodexCommand(values = {}) {
   return String(values.codex_command || values.coder_codex_command || process.env.FABRIC_CODEX_COMMAND || 'codex').trim() || 'codex';
 }
 
-function runCodexExec({ targetRoot, values, workOrderText, onProgress }) {
+async function runCodexExec({ targetRoot, values, workOrderText, onProgress }) {
   const command = resolveCodexCommand(values);
   const extraArgs = Array.isArray(values.coder_codex_exec_args) ? values.coder_codex_exec_args.map(String) : [];
   const args = ['exec', ...extraArgs, workOrderText];
   if (onProgress) onProgress(`running Codex CLI: ${command} exec ...`);
-  const result = spawnSync(command, args, {
-    cwd: targetRoot,
-    env: process.env,
-    encoding: 'utf8',
-    maxBuffer: 50 * 1024 * 1024,
+
+  const heartbeatSecondsRaw = Number(values?.coder_codex_heartbeat_seconds ?? 10);
+  const heartbeatSeconds = Number.isFinite(heartbeatSecondsRaw) ? Math.max(5, Math.floor(heartbeatSecondsRaw)) : 10;
+  const startedAtMs = Date.now();
+
+  return await new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd: targetRoot,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    let spawnError = '';
+    let heartbeatTimer = null;
+
+    if (child.stdout) {
+      child.stdout.on('data', (chunk) => {
+        stdoutChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'));
+      });
+    }
+
+    if (child.stderr) {
+      child.stderr.on('data', (chunk) => {
+        stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'));
+      });
+    }
+
+    child.on('error', (error) => {
+      spawnError = String(error?.message || error || '');
+    });
+
+    if (onProgress) {
+      heartbeatTimer = setInterval(() => {
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
+        onProgress(`codex exec heartbeat: still running (${elapsedSeconds}s elapsed)`);
+      }, heartbeatSeconds * 1000);
+    }
+
+    child.on('close', (status, signal) => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+      }
+      resolve({
+        command,
+        argsPreview: ['exec', ...extraArgs, '<work-order>'],
+        status,
+        signal,
+        error: spawnError,
+        stdout: Buffer.concat(stdoutChunks).toString('utf8'),
+        stderr: Buffer.concat(stderrChunks).toString('utf8'),
+      });
+    });
   });
-  return {
-    command,
-    argsPreview: ['exec', ...extraArgs, '<work-order>'],
-    status: result.status,
-    signal: result.signal,
-    error: result.error ? String(result.error.message || result.error) : '',
-    stdout: String(result.stdout || ''),
-    stderr: String(result.stderr || ''),
-  };
 }
 
-function validateCodexChangedFiles({ changedFiles, slice }) {
-  const allowed = deriveCodexAllowedPaths(slice);
+function validateCodexChangedFiles({ changedFiles, slice, values = {} }) {
+  const allowAppShellMutation = resolveAllowAppShellMutation(values);
+  const allowed = deriveCodexAllowedPaths(slice, { allowAppShellMutation });
   const allowedPatterns = [...allowed.create, ...allowed.modify];
   const ignoredGeneratedArtifacts = [];
   const violations = [];
@@ -1950,14 +2381,49 @@ function validateCodexChangedFiles({ changedFiles, slice }) {
   return { allowed, violations, ignoredGeneratedArtifacts };
 }
 
-async function runCodexImplementationForCurrentSlice({ targetRoot, valuesPath, values, currentSlice, fileTargets, baselineRelPath, uxRelPath, semanticContractRelPath, implementationNotesRelPath, implementationNotesPath }) {
+async function runCodexImplementationForCurrentSlice({
+  targetRoot,
+  valuesPath,
+  values,
+  currentSlice,
+  fileTargets,
+  baselineRelPath,
+  uxRelPath,
+  semanticContractRelPath,
+  implementationNotesRelPath,
+  implementationNotesPath,
+  force = false,
+}) {
   console.log('fabric coder:implement-current-slice: starting Codex-backed implementation...');
   const workOrderRelPath = workOrderRelPathForSlice(currentSlice.id);
   const workOrderPath = path.join(targetRoot, workOrderRelPath);
-  const workOrderText = buildCodexWorkOrder({ slice: currentSlice, fileTargets, baselineRelPath, uxRelPath, semanticContractRelPath, implementationNotesRelPath, valuesPath });
+  const carryForwardInvariants = collectCarryForwardInvariants({
+    targetRoot,
+    activeSliceId: currentSlice.id,
+  });
+  const carryForwardTestRelPath = `tests/${slugifySliceTitle(currentSlice.title)}/carry-forward-invariants.test.mjs`;
+  const workOrderText = buildCodexWorkOrder({
+    slice: currentSlice,
+    fileTargets,
+    baselineRelPath,
+    uxRelPath,
+    semanticContractRelPath,
+    implementationNotesRelPath,
+    valuesPath,
+    values,
+    carryForwardInvariants,
+    carryForwardTestRelPath,
+  });
   writeTextAtomic(workOrderPath, workOrderText);
 
-  const allowed = deriveCodexAllowedPaths(currentSlice);
+  const frontendOutputs = ensureReactViteStorybookScaffold(targetRoot, valuesPath, { force });
+  if (frontendOutputs.length > 0) {
+    console.log(`  - ensured React/Vite + Storybook baseline: ${String(frontendOutputs.length)} file(s)`);
+  }
+
+  const allowed = deriveCodexAllowedPaths(currentSlice, {
+    allowAppShellMutation: resolveAllowAppShellMutation(values),
+  });
   console.log(`  - work order: ${workOrderRelPath}`);
   console.log('  - implementation backend: codex_exec');
   console.log(`  - allowed create paths: ${allowed.create.join(', ')}`);
@@ -1970,13 +2436,13 @@ async function runCodexImplementationForCurrentSlice({ targetRoot, valuesPath, v
   }
 
   const startedAt = new Date().toISOString();
-  const codexResult = runCodexExec({ targetRoot, values, workOrderText, onProgress: (message) => console.log(`  - ${String(message)}`) });
+  const codexResult = await runCodexExec({ targetRoot, values, workOrderText, onProgress: (message) => console.log(`  - ${String(message)}`) });
   if (codexResult.stdout.trim()) console.log(codexResult.stdout.trim());
   if (codexResult.stderr.trim()) console.warn(codexResult.stderr.trim());
 
   const afterStatus = gitStatusMap(targetRoot);
   const changedFiles = changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot });
-  const validation = validateCodexChangedFiles({ changedFiles, slice: currentSlice });
+  const validation = validateCodexChangedFiles({ changedFiles, slice: currentSlice, values });
 
   if (validation.ignoredGeneratedArtifacts.length > 0) {
     console.log(
@@ -2193,6 +2659,7 @@ ${designSystemContext}`;
       semanticContractRelPath,
       implementationNotesRelPath,
       implementationNotesPath,
+      force,
     });
     return;
   }
@@ -2255,8 +2722,13 @@ ${designSystemContext}`;
     ? sourceFilesOverride
     : buildGeneratedAppFiles(currentSlice, playbookOverride);
   const changedFiles = [];
+  let preservedGlobalStyles = false;
   for (const [relPath, content] of files.entries()) {
     const outPath = path.join(targetRoot, relPath);
+    if (relPath === 'src/styles.css' && fs.existsSync(outPath) && readText(outPath) !== content) {
+      preservedGlobalStyles = true;
+      continue;
+    }
     if (fs.existsSync(outPath) && readText(outPath) === content) {
       changedFiles.push(relPath);
       continue;
@@ -2292,12 +2764,12 @@ ${designSystemContext}`;
         : (implementationMode === 'model_playbook'
           ? 'This command wrote deterministic source templates populated from a model-generated implementation playbook.'
           : 'This command wrote deterministic starter code into src/ and tests/ so the slice becomes customer-testable locally.'),
-      'Run npm install after generation to fetch any newly-added React/Vite dependencies.',
+      'Run npm install after generation to fetch React/Vite and Storybook dependencies.',
       'Use --force only when you want fabric to replace non-generated implementation files.',
     ],
     nextSteps: [
       'Run npm install to sync dependencies if package.json changed.',
-      'Run npm run dev to open the customer-testable surface.',
+      'Run npm run dev to open the customer-testable surface and npm run storybook to review component states.',
       'Run uiux:review-current-slice-semantics after verifying the slice locally.',
       'Run coder:close-current-slice only after semantic UX review passes.',
     ],
@@ -2311,7 +2783,10 @@ ${designSystemContext}`;
   console.log('- app scaffold: React + Vite');
   console.log(`- implementation mode: ${implementationMode}`);
   console.log(`- llm output mode: ${llmOutputMode}`);
-  console.log('- package scripts: dev, build, preview, test');
+  if (preservedGlobalStyles) {
+    console.log('- preserved existing global styles: src/styles.css');
+  }
+  console.log('- package scripts: dev, build, preview, test, storybook, build-storybook, test:storybook');
 }
 
 async function coderRepairImplementationFindings({ targetRoot, valuesPath }) {
@@ -2375,7 +2850,7 @@ async function coderRepairImplementationFindings({ targetRoot, valuesPath }) {
   });
   writeTextAtomic(workOrderPath, workOrderText);
 
-  const allowed = implementationRepairAllowedPatterns({ slice: currentSlice });
+  const allowed = implementationRepairAllowedPatterns({ slice: currentSlice, values });
   console.log('fabric coder:repair-implementation-findings: starting Codex-backed implementation repair...');
   console.log(`- slice: ${currentSlice.id} ${currentSlice.title}`);
   console.log(`- checklist: ${checklistRelPath}`);
@@ -2402,7 +2877,7 @@ async function coderRepairImplementationFindings({ targetRoot, valuesPath }) {
     selected_findings: summarizeManualQaFindings(findings),
   });
 
-  const codexResult = runCodexExec({
+  const codexResult = await runCodexExec({
     targetRoot,
     values,
     workOrderText,
@@ -2413,7 +2888,7 @@ async function coderRepairImplementationFindings({ targetRoot, valuesPath }) {
 
   const afterStatus = gitStatusMap(targetRoot);
   const changedFiles = changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot });
-  const validation = validateImplementationRepairChangedFiles({ changedFiles, slice: currentSlice });
+  const validation = validateImplementationRepairChangedFiles({ changedFiles, slice: currentSlice, values });
   const completedAt = new Date().toISOString();
 
   appendExecutionLedgerEntry(targetRoot, {
@@ -2547,7 +3022,7 @@ async function coderRepairSemanticUxFindings({ targetRoot, valuesPath, includeWa
   });
   writeTextAtomic(workOrderPath, workOrderText);
 
-  const allowed = semanticRepairAllowedPatterns({ slice: currentSlice, findings });
+  const allowed = semanticRepairAllowedPatterns({ slice: currentSlice, findings, values });
   console.log('fabric coder:repair-semantic-ux-findings: starting Codex-backed semantic UX repair...');
   console.log(`- slice: ${currentSlice.id} ${currentSlice.title}`);
   console.log(`- work order: ${workOrderRelPath}`);
@@ -2575,7 +3050,7 @@ async function coderRepairSemanticUxFindings({ targetRoot, valuesPath, includeWa
     include_warnings: Boolean(includeWarnings),
   });
 
-  const codexResult = runCodexExec({
+  const codexResult = await runCodexExec({
     targetRoot,
     values,
     workOrderText,
@@ -2586,7 +3061,7 @@ async function coderRepairSemanticUxFindings({ targetRoot, valuesPath, includeWa
 
   const afterStatus = gitStatusMap(targetRoot);
   const changedFiles = changedFilesAfterRun({ beforeStatus, afterStatus, targetRoot });
-  const validation = validateSemanticRepairChangedFiles({ changedFiles, slice: currentSlice, findings });
+  const validation = validateSemanticRepairChangedFiles({ changedFiles, slice: currentSlice, findings, values });
   const completedAt = new Date().toISOString();
 
   appendExecutionLedgerEntry(targetRoot, {
@@ -2715,6 +3190,18 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   if (!fs.existsSync(semanticContractAbsPath)) {
     issues.push(`missing ${semanticContractRelPath}; run uiux:generate-current-slice-flow first`);
   }
+  const storybookMapPath = path.join(targetRoot, storybookMapRelPath());
+  if (!fs.existsSync(storybookMapPath)) {
+    issues.push(`missing ${storybookMapRelPath()}; run uiux:generate-storybook-map before closeout`);
+  }
+  const storybookReviewRelPath = storybookReviewJsonRelPathForSlice(currentSlice.id);
+  const storybookReview = readStorybookReviewStatus({ targetRoot, sliceId: currentSlice.id });
+  if (!storybookReview.exists) {
+    issues.push(`missing ${storybookReviewRelPath}; run uiux:review-current-slice-storybook before closeout`);
+  } else if (storybookReview.status !== 'pass') {
+    issues.push(`${storybookReviewRelPath} status is ${storybookReview.status}; resolve Storybook coverage findings before closeout`);
+  }
+
   const semanticReviewRelPath = semanticUxReviewJsonRelPathForSlice(currentSlice.id);
   const semanticReview = readSemanticUxReviewStatus({ targetRoot, sliceId: currentSlice.id });
   if (!semanticReview.exists) {
@@ -2742,6 +3229,18 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   }
   const fileTargets = deriveImplementationTargets(currentSlice);
   const requiredTargets = requiredImplementationTargets(fileTargets);
+  const carryForwardInvariants = collectCarryForwardInvariants({
+    targetRoot,
+    activeSliceId: currentSlice.id,
+  });
+  const carryForwardEvidence = validateCarryForwardRegressionEvidence({
+    targetRoot,
+    currentSlice,
+    invariants: carryForwardInvariants,
+  });
+  for (const issue of carryForwardEvidence.issues) {
+    issues.push(issue);
+  }
   const artifactEvidence = implementationArtifactEvidence(targetRoot, requiredTargets);
   const missingTargets = artifactEvidence
     .filter((entry) => entry.artifacts.length === 0)
@@ -2770,6 +3269,11 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
     if (!pkg?.scripts?.dev) {
       issues.push('package.json is missing a dev script; run coder:implement-current-slice first');
     }
+    for (const scriptName of ['storybook', 'build-storybook', 'test:storybook']) {
+      if (!pkg?.scripts?.[scriptName]) {
+        issues.push(`package.json is missing Storybook script: ${scriptName}; run coder:generate-current-slice-stories first`);
+      }
+    }
   }
   if (issues.length > 0) {
     console.error('fabric coder:close-current-slice: FAILED');
@@ -2792,13 +3296,17 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
     verificationSummary: [
       `Implementation artifacts recorded for closeout: ${implementedArtifacts.length}.`,
       missingTargets.length === 0 ? 'Required implementation artifacts exist on disk for every required target path.' : 'Required implementation artifacts are missing; closeout should not have proceeded.',
+      carryForwardInvariants.length > 0
+        ? `Carry-forward regression evidence verified: ${carryForwardEvidence.testRelPath || 'present'}.`
+        : 'No prior passed-slice carry-forward invariants required additional regression evidence.',
       implementationNotesNeedArtifactReconciliation ? 'Implementation notes artifact evidence was reconciled from the filesystem during closeout.' : 'Implementation notes artifact evidence already aligned with required target paths or was refreshed during closeout.',
       'Architecture baseline, UX flow, semantic UX contract, and implementation notes are all placeholder-free.',
+      `Storybook review passed: ${storybookReviewRelPath}.`,
       `Semantic UX review passed: ${semanticReviewRelPath}.`,
       'package.json includes a local dev command so the slice can be customer-tested.',
     ],
     executionNotes: [
-      'Closeout validates concrete implementation artifacts on disk before relying on implementation-note evidence.',
+      'Closeout validates concrete implementation artifacts and Storybook coverage before relying on implementation-note evidence.',
       implementationNotesNeedArtifactReconciliation ? 'Closeout auto-reconciled stale implementation-note changed-file evidence from the filesystem.' : 'Closeout refreshed implementation notes with the verified implementation artifact list.',
       'Run fabric gate after closeout to verify overall coherence.',
     ],
@@ -2825,6 +3333,285 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
     console.log('- reconciled implementation artifact evidence from filesystem');
   }
   console.log('- current slice status: completed');
+}
+
+function resolveValuesArgForStatus({ targetRoot, valuesPath }) {
+  const rel = path.relative(targetRoot, valuesPath);
+  const normalized = rel && rel.length > 0 ? rel : path.basename(valuesPath);
+  return normalized.startsWith('.') ? normalized : `./${normalized}`;
+}
+
+function inferNextCommandFromPmStatus({ targetRoot, valuesPath }) {
+  const fabricBin = path.join(targetRoot, 'fabric/company/v1/fabric');
+  const valuesArg = resolveValuesArgForStatus({ targetRoot, valuesPath });
+  const result = spawnSync(
+    fabricBin,
+    ['pm:status', '--target', '.', '--values', valuesArg, '--format', 'markdown'],
+    {
+      cwd: targetRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  if (result.status !== 0) {
+    const stderr = String(result.stderr || '').trim();
+    const stdout = String(result.stdout || '').trim();
+    throw new Error(`Cannot run orchestrator:run-until-blocked: pm:status failed.\n${stderr || stdout || '(no output)'}`);
+  }
+  const output = String(result.stdout || '');
+  const commandMatch = output.match(/^- next command:\s*`?([^`\n]+)`?\s*$/im)
+    || output.match(/^Next Command:\s*(.+)\s*$/im);
+  const stepMatch = output.match(/^- next step:\s*`?([^\n`]+)`?\s*$/im)
+    || output.match(/^- next canonical step:\s*`?([^\n`]+)`?\s*$/im)
+    || output.match(/^Next Step:\s*([^\n]+)$/im)
+    || output.match(/^Next Canonical Step:\s*([^\n]+)$/im);
+  const activeSliceMatch = output.match(/^- active slice:\s*`?([^\n`]+)`?\s*$/im)
+    || output.match(/^Active Slice:\s*([^\n]+)\s*$/im);
+  const activeSliceStateMatch = output.match(/^- active slice state:\s*`?([^\n`]+)`?\s*$/im)
+    || output.match(/^Active Slice State:\s*([^\n]+)\s*$/im);
+  return {
+    commandText: commandMatch ? String(commandMatch[1] || '').trim() : '',
+    canonicalStep: stepMatch ? String(stepMatch[1] || '').trim() : '',
+    activeSliceId: activeSliceMatch ? String(activeSliceMatch[1] || '').trim() : '',
+    activeSliceState: activeSliceStateMatch ? String(activeSliceStateMatch[1] || '').trim() : '',
+    rawStatusOutput: output,
+  };
+}
+
+function printOrchestratorStateSnapshot(progress) {
+  console.log('Orchestrator State:');
+  console.log(`  Active Slice: ${progress?.activeSliceId || '(not set)'}`);
+  console.log(`  Active Slice State: ${progress?.activeSliceState || '(not set)'}`);
+  console.log(`  Next Step: ${progress?.canonicalStep || '(none)'}`);
+  console.log(`  Next Command: ${progress?.commandText || '(none)'}`);
+}
+
+function parseFabricCommandNameFromText(commandText) {
+  const match = String(commandText || '').match(/^\s*\.\/fabric\/company\/v1\/fabric\s+([^\s]+)/);
+  return match ? String(match[1] || '').trim() : '';
+}
+
+function fallbackCanonicalStepForCommand(commandName) {
+  const byCommand = {
+    'pm:intake': '3',
+    'pm:brief-readiness': '4',
+    'pm:brief-draft': '5',
+    'pm:brief-approve': '6',
+    'pm:derive-values': '7',
+    'format-from-brief': '8',
+    scaffold: '9',
+    'pm:plan-slices': '10',
+    'pm:finalize-bootstrap-reviews': '11',
+    'pm:bootstrap-signoff': '12',
+    'uiux:generate-design-system': '13',
+    'db:init': '14',
+    'db:check': '15',
+    'architect:generate-current-slice-baseline': '16',
+    'uiux:generate-current-slice-flow': '17',
+    'uiux:generate-storybook-map': '17b',
+    gate: '18',
+    'coder:prepare-current-slice': '19',
+    'coder:implement-current-slice': '20',
+    'coder:generate-current-slice-stories': '20a',
+    'uiux:review-current-slice-storybook': '21',
+    'uiux:review-current-slice-semantics': '21b',
+    'coder:repair-semantic-ux-findings': '21c',
+    'tester:validate-current-slice': '21d',
+    'coder:repair-implementation-findings': '21e',
+    'coder:close-current-slice': '22',
+    'orchestrator:advance-slice': '24',
+  };
+  return byCommand[String(commandName || '')] || '';
+}
+
+function manualBlockReason({ targetRoot, commandName }) {
+  if (commandName !== 'coder:close-current-slice') {
+    return '';
+  }
+  const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
+  if (!fs.existsSync(currentSlicePath)) {
+    return 'current slice artifact is missing; human recovery is required';
+  }
+  const currentSlice = parseSliceBlockWithLists(readText(currentSlicePath));
+  const checklistRelPath = checklistPathForSlice(currentSlice.id);
+  const checklistAbsPath = path.join(targetRoot, checklistRelPath);
+  if (!fs.existsSync(checklistAbsPath)) {
+    return `tester gate Step 21d is unresolved: missing ${checklistRelPath}`;
+  }
+  const checklistState = parseChecklistResultState(readText(checklistAbsPath));
+  if (checklistState === 'pass') return '';
+  if (checklistState === 'fail') {
+    return `tester gate Step 21d is Fail in ${checklistRelPath}; run Step 21e repair before closeout`;
+  }
+  if (checklistState === 'missing_result_section' || checklistState === 'unresolved') {
+    return `tester gate Step 21d is unresolved in ${checklistRelPath}; run tester:validate-current-slice first`;
+  }
+  return `tester gate Step 21d requires attention in ${checklistRelPath}`;
+}
+
+async function runFabricSubcommand({ targetRoot, valuesPath, commandName, force = false }) {
+  const fabricBin = path.join(targetRoot, 'fabric/company/v1/fabric');
+  const valuesArg = resolveValuesArgForStatus({ targetRoot, valuesPath });
+  const args = [commandName, '--target', '.', '--values', valuesArg, '--no-next-steps'];
+  if (force) {
+    args.push('--force');
+  }
+  return await new Promise((resolve) => {
+    const child = spawn(fabricBin, args, {
+      cwd: targetRoot,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    let spawnError = '';
+
+    if (child.stdout) {
+      child.stdout.on('data', (chunk) => {
+        const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+        stdoutChunks.push(data);
+        process.stdout.write(data);
+      });
+    }
+    if (child.stderr) {
+      child.stderr.on('data', (chunk) => {
+        const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+        stderrChunks.push(data);
+        process.stderr.write(data);
+      });
+    }
+    child.on('error', (error) => {
+      spawnError = String(error?.message || error || '');
+    });
+    child.on('close', (status, signal) => {
+      resolve({
+        status,
+        signal,
+        error: spawnError,
+        stdout: Buffer.concat(stdoutChunks).toString('utf8'),
+        stderr: Buffer.concat(stderrChunks).toString('utf8'),
+      });
+    });
+  });
+}
+
+function runPostImplementationVerification({ targetRoot }) {
+  const checks = [
+    { label: 'npm test', cmd: 'npm', args: ['test'] },
+    { label: 'npm run build', cmd: 'npm', args: ['run', 'build'] },
+  ];
+  for (const check of checks) {
+    console.log(`  - post-implementation verification: ${check.label}`);
+    const result = spawnSync(check.cmd, check.args, {
+      cwd: targetRoot,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    });
+    if (result.status !== 0) {
+      return {
+        ok: false,
+        failedCheck: check.label,
+        status: result.status,
+      };
+    }
+  }
+  return { ok: true, failedCheck: '', status: 0 };
+}
+
+async function orchestratorRunUntilBlocked({ targetRoot, valuesPath, maxSteps = 40 }) {
+  const safeMaxSteps = Number.isFinite(Number(maxSteps)) ? Math.max(1, Number(maxSteps)) : 40;
+  const seen = new Set();
+  let executed = 0;
+
+  console.log('fabric orchestrator:run-until-blocked: starting');
+  console.log(`- max steps: ${safeMaxSteps}`);
+
+  while (executed < safeMaxSteps) {
+    const next = inferNextCommandFromPmStatus({ targetRoot, valuesPath });
+    if (!next.commandText) {
+      console.log('fabric orchestrator:run-until-blocked: OK');
+      console.log('- no next command inferred by pm:status');
+      console.log(`- executed commands: ${executed}`);
+      return;
+    }
+
+    const commandName = parseFabricCommandNameFromText(next.commandText);
+    if (!commandName) {
+      console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+      console.log(`- reason: next step is not a fabric command (${next.commandText})`);
+      console.log(`- executed commands: ${executed}`);
+      return;
+    }
+    if (commandName === 'orchestrator:run-until-blocked') {
+      console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+      console.log('- reason: recursive next-step resolution');
+      console.log(`- executed commands: ${executed}`);
+      return;
+    }
+
+    const signature = `${next.activeSliceId || '(unknown-slice)'}|${next.activeSliceState || '(unknown-state)'}|${next.canonicalStep}|${commandName}|${next.commandText}`;
+    if (seen.has(signature)) {
+      console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+      console.log(`- reason: no forward progress (repeated next step ${next.canonicalStep || '(unknown)'})`);
+      console.log(`- next command: ${next.commandText}`);
+      console.log(`- executed commands: ${executed}`);
+      return;
+    }
+    seen.add(signature);
+
+    const manualReason = manualBlockReason({ targetRoot, commandName });
+    if (manualReason) {
+      console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+      console.log(`- reason: ${manualReason}`);
+      console.log(`- next command: ${next.commandText}`);
+      console.log(`- executed commands: ${executed}`);
+      return;
+    }
+
+    const stepLabel = next.canonicalStep || fallbackCanonicalStepForCommand(commandName) || '?';
+    console.log('');
+    console.log(`-> running step ${stepLabel}: ${commandName}`);
+    let result = await runFabricSubcommand({ targetRoot, valuesPath, commandName, force: false });
+    if (commandName === 'coder:implement-current-slice' && result.status !== 0) {
+      const refusalPattern = /Refusing to overwrite non-generated file without --force:/i;
+      const output = `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
+      if (refusalPattern.test(output)) {
+        console.log('  - retrying coder:implement-current-slice with --force (non-generated file overwrite refusal detected)');
+        result = await runFabricSubcommand({ targetRoot, valuesPath, commandName, force: true });
+      }
+    }
+    if (result.status !== 0) {
+      console.log('');
+      printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
+      console.log('');
+      console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+      console.log(`- reason: command failed (exit ${result.status ?? 'unknown'})`);
+      console.log(`- failed command: ${next.commandText}`);
+      console.log(`- executed commands: ${executed}`);
+      return;
+    }
+
+    executed += 1;
+    if (commandName === 'coder:implement-current-slice') {
+      const verification = runPostImplementationVerification({ targetRoot });
+      if (!verification.ok) {
+        console.log('');
+        printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
+        console.log('');
+        console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+        console.log(`- reason: post-implementation verification failed (${verification.failedCheck}, exit ${verification.status ?? 'unknown'})`);
+        console.log(`- failed command: ${verification.failedCheck}`);
+        console.log(`- executed commands: ${executed}`);
+        return;
+      }
+    }
+    console.log('');
+    printOrchestratorStateSnapshot(inferNextCommandFromPmStatus({ targetRoot, valuesPath }));
+  }
+
+  console.log('fabric orchestrator:run-until-blocked: BLOCKED');
+  console.log(`- reason: reached max-steps (${safeMaxSteps}) before a manual/failure block`);
+  console.log(`- executed commands: ${executed}`);
 }
 
 function orchestratorAdvanceSlice({ targetRoot, valuesPath }) {
@@ -2881,5 +3668,6 @@ export {
   coderRepairSemanticUxFindings,
   coderRepairImplementationFindings,
   coderCloseCurrentSlice,
+  orchestratorRunUntilBlocked,
   orchestratorAdvanceSlice,
 };

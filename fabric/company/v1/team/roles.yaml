@@ -104,3 +104,21 @@ roles:
   - docs/implementation/{slice_id}-implementation-notes.md
   - src/**
   - tests/**
+- id: tester
+  spec_path: team/tester.md
+  purpose: Validates slice behavior against acceptance checklists, detects regressions, and drives bounded repair verification before closeout.
+  invoke_when:
+  - slice implementation is complete and checklist validation is required
+  - regressions are suspected in customer-visible workflows
+  - pre-closeout quality verification is required
+  required_inputs:
+  - docs/product/current-slice.yaml
+  - docs/testing/{slice_id}-user-checklist.md
+  - docs/implementation/{slice_id}-implementation-notes.md
+  - docs/ux/{slice_id}-semantic-ux-contract.json
+  - docs/reviews/ux/{slice_id}-semantic-ux-review.json
+  - src/**
+  - tests/**
+  produces_artifacts:
+  - docs/testing/{slice_id}-user-checklist.md
+  - docs/reviews/testing/{slice_id}-validation-report.md

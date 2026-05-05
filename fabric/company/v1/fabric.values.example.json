@@ -59,9 +59,13 @@
   "brief_draft_llm_verbosity": "medium",
   "semantic_ux_llm_enabled": true,
   "semantic_ux_llm_required": true,
+  "tester_llm_enabled": true,
+  "tester_llm_provider": "openai",
+  "tester_llm_model": "gpt-5.4",
   "uiux_llm_enabled": true,
   "coder_llm_output_mode": "source_files",
   "coder_execution_mode": "codex",
   "coder_codex_command": "codex",
-  "coder_codex_exec_args": []
+  "coder_codex_exec_args": [],
+  "coder_allow_app_shell_mutation": false
 }

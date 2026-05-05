@@ -126,6 +126,16 @@ artifacts:
     review_rules:
       - product_manager_review_at_slice_completion
 
+  - artifact_type: tester_validation_report
+    owner_role: tester
+    canonical_path: "docs/reviews/testing/{slice_id}-validation-report.md"
+    format: markdown
+    required: false
+    create_trigger: semantic_ux_review_passed_for_current_slice
+    update_trigger: checklist_validation_or_repair_cycle_rerun
+    review_rules:
+      - product_manager_review_at_slice_completion
+
   - artifact_type: customer_checkpoint_summary
     owner_role: product_manager
     canonical_path: "docs/customer-checkpoints/{checkpoint_id}.md"
@@ -236,3 +246,42 @@ artifacts:
   required: false
   create_trigger: slice_has_meaningful_visible_copy
   update_trigger: tone_copy_slots_forbidden_language_or_recovery_copy_changes
+
+- artifact_type: storybook_map
+  owner_role: uiux
+  canonical_path: docs/design-system/storybook-map.md
+  format: markdown
+  required: false
+  create_trigger: after_design_system_and_current_slice_ux_contracts_exist
+  update_trigger: component_screen_state_or_copy_contract_changes
+  review_rules:
+    - uiux_owns_mapping_from_fabric_contracts_to_storybook_paths
+    - do_not_treat_storybook_as_source_of_truth
+- artifact_type: storybook_story_requirements
+  owner_role: uiux
+  canonical_path: docs/storybook/{slice_id}-story-requirements.json
+  format: json
+  required: false
+  create_trigger: current_slice_storybook_map_generated
+  update_trigger: component_screen_state_status_or_priority_contract_changes
+  review_rules:
+    - required_before_generating_current_slice_stories
+- artifact_type: current_slice_storybook_stories
+  owner_role: coder
+  canonical_path: src/stories/slices/{slice_id}/
+  format: tsx
+  required: false
+  create_trigger: current_slice_implementation_started_or_updated
+  update_trigger: user_facing_component_screen_or_state_changes
+  review_rules:
+    - must_cover_required_components_screens_and_semantic_states
+    - generated_contract_harness_must_be_replaced_or_kept_aligned_with_real_components_as_implementation_matures
+- artifact_type: storybook_review
+  owner_role: uiux
+  canonical_path: docs/reviews/storybook/{slice_id}-storybook-review.json
+  format: json
+  required: false
+  create_trigger: before_semantic_ux_review_and_slice_closeout
+  update_trigger: storybook_stories_or_fabric_contracts_change
+  review_rules:
+    - closeout_requires_status_pass

@@ -115,6 +115,12 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Gate rule: `coder:close-current-slice` refuses to close when this review is missing or failed.
   - On failure, the command prints the next repair command.
 
+- `tester:validate-current-slice --target <project-root> [--values fabric.values.json]`
+  - What it does: runs an LLM-based tester against the active slice checklist and implementation evidence, writes `docs/reviews/testing/<SLICE_ID>-validation-report.json` and `.md`, and updates `docs/testing/<SLICE_ID>-user-checklist.md` result/findings.
+  - Carry-forward behavior: automatically inherits prior passed-slice capabilities and fails when regression evidence is missing or inherited capabilities appear broken.
+  - When to use: after semantic UX review passes and before `coder:close-current-slice`.
+  - Gate behavior: exits non-zero on fail findings and points to `coder:repair-implementation-findings`.
+
 - `coder:repair-semantic-ux-findings --target <project-root> [--values fabric.values.json] [--include-warnings]`
   - What it does: reads the active slice's semantic UX review, generates a structured Codex repair work order, and asks Codex to repair selected findings without restarting the slice.
   - Default behavior: selects blocker findings only. Pass `--include-warnings` to include warning findings in the repair work order.
@@ -126,7 +132,7 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
 
 - `coder:repair-implementation-findings --target <project-root> [--values fabric.values.json]`
   - What it does: reads the active slice's user checklist, extracts manual QA findings from `## Manual QA Findings`, generates a structured Codex repair work order, and asks Codex to repair the implementation without restarting the slice.
-  - When to use: after manual review marks `docs/testing/<SLICE_ID>-user-checklist.md` as `Status: Fail` and documents one or more manual QA findings.
+  - When to use: after tester/manual review marks `docs/testing/<SLICE_ID>-user-checklist.md` as `Status: Fail` and documents one or more manual QA findings.
   - Inputs: `docs/testing/<SLICE_ID>-user-checklist.md`, `docs/product/current-slice.yaml`, `docs/implementation/<SLICE_ID>-implementation-notes.md`, `docs/ux/<SLICE_ID>-current-slice-flow.md`, and `docs/ux/<SLICE_ID>-semantic-ux-contract.json`.
   - Output artifact: `docs/implementation/<SLICE_ID>-implementation-repair-work-order.md`.
   - Ledger: records `implementation_repair` start/completion events in `.system/factory/execution-ledger.jsonl`.
@@ -170,6 +176,13 @@ LLM transparency and logging:
   - What it does: runs `validate` then `doctor` as one strict gate command.
   - When to use: before CI merge/release checks or as a single local readiness command.
   - Benefit: one deterministic readiness check for both drift and governance semantics.
+
+- `orchestrator:run-until-blocked --target <project-root> [--values fabric.values.json] [--max-steps <n>]`
+  - What it does: repeatedly computes and executes the next canonical Fabric command until a manual checkpoint or failed gate requires human attention.
+  - Auto-verification: after Step 20 (`coder:implement-current-slice`), it runs `npm test` and `npm run build` immediately and blocks on failure.
+  - Stop conditions: unresolved manual checklist gate, failed command/gate/review, no inferred next command, repeated non-progressing next step, or `--max-steps` reached.
+  - When to use: reduce command-by-command execution overhead while preserving canonical gate discipline.
+  - Safety behavior: does not auto-complete manual QA checklist decisions; it blocks and tells you what needs human action.
 
 - `db:init --target <project-root> [--values fabric.values.json] [--force]`
   - What it does: provisions DB baseline artifacts (`supabase/config.toml`, `supabase/seed.sql`, `.env.example`) and ensures required DB scripts exist in `package.json`.
@@ -258,8 +271,9 @@ STAGE 1
 8. Gate before scaffold:
    - `./fabric/company/v1/fabric format-from-brief --target .`
 STAGE 2
-9. Generate bootstrap/governance artifacts scaffold:
+9. Generate bootstrap/governance artifacts scaffold and frontend runtime baseline:
    - `./fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json`
+   - This also creates the React/Vite + Storybook baseline files (`package.json`, `index.html`, `src/`, `.storybook/`, `vite.config.js`) so `npm install`, `npm run dev`, and `npm run storybook` work later without manual Storybook initialization.
 10. Generate initial backlog of slices:
    - `./fabric/company/v1/fabric pm:plan-slices --target . --values ./fabric.values.json`
 11. Finalize bootstrap reviews:
@@ -278,6 +292,9 @@ STAGE 3
 17. Generate UX flow and slice UI/UX contracts for active slice:
     - `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ./fabric.values.json`
     - This also creates missing global design-system artifacts as a safety net, but Step 13 is the intended explicit workflow step.
+17b. Refresh the Storybook contract map for this active slice:
+    - `./fabric/company/v1/fabric uiux:generate-storybook-map --target . --values ./fabric.values.json`
+    - This is the canonical handoff from Fabric contracts into required Storybook stories.
 18. Run readiness gate (recommended):
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
 STAGE 4
@@ -285,22 +302,32 @@ STAGE 4
     - `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json`
 20. Generate implementation artifacts:
     - `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json`
-20b. Validate in app manually:
+20a. Generate or update Storybook stories for the implemented slice:
+    - `./fabric/company/v1/fabric coder:generate-current-slice-stories --target . --values ./fabric.values.json`
+    - This writes `src/stories/slices/<SLICE_ID>/` and ensures Storybook package scripts, dependencies, and `.storybook/` config exist when `package.json` is present.
+20b. Validate in app and Storybook manually:
     - `npm install`
     - `npm run dev`
-21. Run semantic UX review:
+    - `npm run storybook`
+    - Review the slice stories under `src/stories/slices/<SLICE_ID>/` against the screen, component, copy, and visual-state contracts.
+20c. Build Storybook before review/closeout:
+    - `npm run build-storybook`
+21. Run Storybook contract review:
+    - `./fabric/company/v1/fabric uiux:review-current-slice-storybook --target . --values ./fabric.values.json`
+    - This must pass before semantic UX review and slice closeout.
+21a. If Storybook review fails, repair stories/components/contracts and rerun Steps 20a, 20c, and 21.
+21b. Run semantic UX review:
     - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
-21b. If semantic UX review fails, generate and run the Codex repair work order:
+21c. If semantic UX review fails, generate and run the Codex repair work order:
     - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
     - Add `--include-warnings` when you want warning findings included in the repair work order.
-    - Then rerun Step 21 until the review passes.
-21c. Complete the manual user checklist:
-    - Edit `docs/testing/<SLICE_ID>-user-checklist.md`.
-    - Use `Status: Pass` only when the slice is accepted.
-    - Use `Status: Fail` and fill `## Manual QA Findings` when implementation changes are needed.
-21d. If manual review fails, generate and run the implementation repair work order:
+    - Then rerun Step 21b until the review passes.
+21d. Run tester checklist validation:
+    - `./fabric/company/v1/fabric tester:validate-current-slice --target . --values ./fabric.values.json`
+    - This updates `docs/testing/<SLICE_ID>-user-checklist.md` and writes tester review artifacts under `docs/reviews/testing/`.
+21e. If manual review fails, generate and run the implementation repair work order:
     - `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ./fabric.values.json`
-    - Then rerun tests/build/doctor, semantic UX review, and manual checklist review.
+    - Then rerun tests/build/doctor, Storybook build/review, semantic UX review, and manual checklist review.
 22. Close current slice:
     - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
 23. Run readiness gate:
@@ -530,7 +557,20 @@ STAGE 4
   - Prints UX mode (`model_driven|heuristic_fallback`) and written paths.
   - Does not mutate backlog/current-slice/manifest.
 
-#### Step 18: `gate` (recommended before implementation)
+#### Step 17b: `uiux:generate-storybook-map`
+
+- Command:
+  - `./fabric/company/v1/fabric uiux:generate-storybook-map --target . --values ./fabric.values.json`
+- What it does:
+  - Requires the global design-system artifacts from Step 13 and the active-slice UX contracts from Step 17.
+  - Writes `docs/design-system/storybook-map.md`.
+  - Writes `docs/storybook/<SLICE_ID>-story-requirements.json`.
+  - Converts Fabric screen, component, copy, and visual-state contracts into required Storybook paths/states.
+- Why it is in the canonical flow:
+  - This is the formal handoff from Fabric contracts into executable Storybook validation.
+  - Run it after every slice UX-contract change and before story generation.
+
+#### Step 18: `gate` (required before implementation)
 
 - Command:
   - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
@@ -540,8 +580,8 @@ STAGE 4
   - `doctor` checks governance coherence (manifest/backlog/current-slice alignment), placeholder integrity, delivery review state, and DB readiness requirements.
   - Fails on drift, placeholder/governance inconsistencies, or DB readiness issues.
 - Next-step guidance behavior:
-  - CLI suggestions after `gate` are now context-aware (active slice status + artifact presence).
-  - In the Step 18 state (slice `planned` and baseline/UX present), the first suggested next step is `coder:prepare-current-slice`.
+  - CLI suggestions after `gate` are context-aware (active slice status + artifact presence).
+  - For a planned slice, once baseline/UX/Storybook prerequisites are present, `gate` must pass before `coder:prepare-current-slice` is suggested.
 
 ### Stage 4: Per-slice implementation loop
 
@@ -572,23 +612,65 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
     - default is `source_files` (Codex-compatible authoring path).
     - set `coder_llm_output_mode: playbook` only when you explicitly want template-fill behavior.
   - You can override with `coder_llm_output_mode` (`source_files|playbook`) in `fabric.values.json`.
+  - App-shell overwrite guard is strict by default: `src/App.jsx` is protected unless you intentionally set `coder_allow_app_shell_mutation: true` (or `CODER_ALLOW_APP_SHELL_MUTATION=true`) for a specific run.
   - On model failure, uses deterministic fallback.
   - Writes app artifacts under `index.html`, `src/*`, and `tests/*` (including slug bridge files for non-onboarding slices in deterministic fallback mode).
-  - Ensures package scripts/deps baseline.
+  - Ensures React/Vite and Storybook package scripts/dependencies/config baseline.
+  - Enforces incremental behavior: implementation should extend the existing app and preserve previously working user-visible actions unless the active slice explicitly redefines them.
+  - Preserves existing shared global styling during scaffold reinforcement; slice implementation must reuse existing shell/class conventions rather than replace them.
+  - Injects carry-forward invariants from previously passed slice checklists into the implementation work order.
+  - Requires a slice-local carry-forward regression test file under `tests/<slice-slug>/carry-forward-invariants.test.mjs` when prior passed-slice invariants exist.
   - Rewrites implementation notes with changed files and execution summary.
 - What it does not do:
   - Does not transition slice status to completed.
   - Does not run `npm install`, `npm run dev`, or tests automatically.
 
-#### Step 20b: Test in UI manually
+#### Step 20a: `coder:generate-current-slice-stories`
+
+- Command:
+  - `./fabric/company/v1/fabric coder:generate-current-slice-stories --target . --values ./fabric.values.json`
+- What it does:
+  - Requires `docs/storybook/<SLICE_ID>-story-requirements.json`; run Step 17b first.
+  - Writes/updates `src/stories/slices/<SLICE_ID>/fixtures.ts`.
+  - Writes/updates `src/stories/slices/<SLICE_ID>/<SLICE_ID>.stories.tsx`.
+  - Writes/updates `src/stories/slices/<SLICE_ID>/README.md`.
+  - Ensures Storybook package scripts, dependencies, and `.storybook/` config exist when `package.json` is present.
+- Why it is in the canonical flow:
+  - Every user-facing slice must have executable Storybook coverage before UX review and closeout.
+
+#### Step 20b: Test in UI and Storybook manually
 
 - Commands:
   - `npm install`
   - `npm run dev`
+  - `npm run storybook`
 - Goal:
-  - Validate active slice behavior from a customer perspective before semantic review and closeout.
+  - Validate active slice behavior from a customer perspective in the app and validate component/screen states against Fabric contracts in Storybook.
+  - You should not need to run `npx storybook init`; Fabric creates the Storybook framework config and dependencies.
 
-#### Step 21: `uiux:review-current-slice-semantics`
+#### Step 20c: Build Storybook
+
+- Command:
+  - `npm run build-storybook`
+- Goal:
+  - Ensure Storybook compiles before the Fabric Storybook review and closeout gates.
+
+#### Step 21: `uiux:review-current-slice-storybook`
+
+- Command:
+  - `./fabric/company/v1/fabric uiux:review-current-slice-storybook --target . --values ./fabric.values.json`
+- What it does:
+  - Requires `docs/design-system/storybook-map.md`.
+  - Requires `docs/storybook/<SLICE_ID>-story-requirements.json`.
+  - Checks required Storybook files, package scripts, required states, statuses, priorities, components, and screens.
+  - Fails if component stories collapse into one identical render mapping (for example, every `Product/*` story rendering the same route surface).
+  - Writes `docs/reviews/storybook/<SLICE_ID>-storybook-review.json`.
+  - Writes `docs/reviews/storybook/<SLICE_ID>-storybook-review.md`.
+- Gate behavior:
+  - Exits non-zero on blocker findings.
+  - `coder:close-current-slice` refuses to close if this review is missing or failed.
+
+#### Step 21b: `uiux:review-current-slice-semantics`
 
 - Command:
   - `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json`
@@ -611,7 +693,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - `coder:close-current-slice` refuses to close if this review is missing or failed.
   - On failure, print `coder:repair-semantic-ux-findings` as the next repair command.
 
-#### Step 21b: `coder:repair-semantic-ux-findings`
+#### Step 21c: `coder:repair-semantic-ux-findings`
 
 - Command:
   - `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ./fabric.values.json`
@@ -633,23 +715,25 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
   - Rerun `uiux:review-current-slice-semantics`.
   - Repeat repair/review until semantic UX review passes.
 
-#### Step 21c: Manual user checklist review
+#### Step 21d: `tester:validate-current-slice`
 
-- Artifact:
-  - `docs/testing/<SLICE_ID>-user-checklist.md`
-- Result states:
-  - `Status: Pending` means review has not been completed.
-  - `Status: Pass` means the human reviewer accepts the slice.
-  - `Status: Fail` means the slice needs implementation repair before closeout.
-- Manual QA finding template:
-  - Classification A: Bug / implementation defect — existing requirement is clear, implementation is wrong.
-  - Classification B: UX/content quality issue — behavior works, but copy/interaction is not good enough.
-  - Classification C: Requirement gap — expectation is valid, but current slice artifacts do not state it clearly.
-  - Finding / Expected / Observed / Required repair.
+- Command:
+  - `./fabric/company/v1/fabric tester:validate-current-slice --target . --values ./fabric.values.json`
+- What it does:
+  - Requires active `current-slice`, semantic UX review `pass`, checklist, semantic contract, and implementation notes.
+  - Runs an LLM tester over checklist expectations and implementation evidence.
+  - Inherits prior passed-slice capabilities from earlier checklists and enforces preservation.
+  - Requires carry-forward regression evidence in `tests/<current-slice-slug>/carry-forward-invariants.test.mjs` when prior passed slices exist.
+  - Writes `docs/reviews/testing/<SLICE_ID>-validation-report.json`.
+  - Writes `docs/reviews/testing/<SLICE_ID>-validation-report.md`.
+  - Updates `docs/testing/<SLICE_ID>-user-checklist.md`:
+    - `Status: Pass` when no findings remain.
+    - `Status: Fail` plus structured `## Manual QA Findings` when repair is needed.
 - Gate behavior:
-  - `coder:close-current-slice` refuses to close unless the checklist result is Pass.
+  - Exits non-zero on findings and prints `coder:repair-implementation-findings` as next step.
+  - `coder:close-current-slice` still requires checklist `Pass`.
 
-#### Step 21d: `coder:repair-implementation-findings`
+#### Step 21e: `coder:repair-implementation-findings`
 
 - Command:
   - `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ./fabric.values.json`
@@ -677,12 +761,14 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Command:
   - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
 - What it checks:
-  - Required artifacts exist (slice/backlog/baseline/UX/semantic UX contract/semantic UX review/notes/checklist/package scripts).
+  - Required artifacts exist (slice/backlog/baseline/UX/semantic UX contract/Storybook review/semantic UX review/notes/checklist/package scripts).
   - Current slice contains acceptance criteria.
   - Checklist exists for current slice and reports pass.
+  - Storybook review exists and reports pass.
   - Semantic UX review exists and reports pass.
   - Placeholder-free closeout docs.
   - Implementation artifacts exist under expected source/test locations for every required target path.
+  - Carry-forward regression evidence exists for prior passed-slice invariants (`tests/<slice-slug>/carry-forward-invariants.test.mjs`) and references the relevant prior slice IDs.
   - If implementation notes have stale or incomplete changed-file evidence but required artifacts exist on disk, closeout reconciles the notes automatically instead of failing on documentation drift.
 - On success:
   - Marks implementation notes `Completed` and refreshes changed-file evidence from the verified filesystem artifacts.
@@ -733,8 +819,10 @@ This bundle supports provider-agnostic model invocation for intake, planning, ar
 2. Enable the desired model profile(s) in `fabric.values.json`:
    - global toggle: `llm_enabled: true`
    - per-purpose toggles (optional override): `brief_draft_llm_enabled`, `pm_llm_enabled`, `planning_llm_enabled`, `architect_llm_enabled`, `uiux_llm_enabled`, `coder_llm_enabled`
+   - tester profile toggles (optional override): `tester_llm_enabled`, `tester_llm_provider`, `tester_llm_model`, `tester_llm_api_key_env`
    - semantic UX gate controls (optional): `semantic_ux_llm_enabled`, `semantic_ux_llm_required`
    - coder output mode (optional override): `coder_llm_output_mode: source_files|playbook`
+   - coder app-shell mutation guard (optional): `coder_allow_app_shell_mutation: false` (recommended default)
 3. (Optional) configure quality gates/retries:
    - `brief_draft_llm_brief_quality_gate: true`
    - `brief_draft_llm_brief_retry_count: 1`
@@ -831,4 +919,67 @@ Recommended user-facing slice sequence:
 ./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric coder:implement-current-slice --target . --values ./fabric.values.json
 ./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json
+./fabric/company/v1/fabric tester:validate-current-slice --target . --values ./fabric.values.json
 ```
+
+## Storybook integration for UI/UX contract validation
+
+Storybook is now integrated as the executable validation surface for Fabric design-system and slice UX contracts. Fabric remains the source of truth; Storybook stories make the contracts visible, reviewable, and testable.
+
+### New commands
+
+- `uiux:generate-storybook-map --target <project-root> [--values fabric.values.json]`
+  - Generates `docs/design-system/storybook-map.md` and `docs/storybook/{slice_id}-story-requirements.json` from the current slice design-system, screen, component, and copy contracts.
+- `coder:generate-current-slice-stories --target <project-root> [--values fabric.values.json]`
+  - Generates or refreshes `src/stories/slices/{slice_id}/fixtures.ts`, `{slice_id}.stories.tsx`, and `README.md`.
+  - Uses real component modules when discovered; otherwise generates distinct per-component fallback visuals instead of mapping all component stories to the same route.
+  - Adds `dev`, `storybook`, `build-storybook`, and `test:storybook` scripts plus React/Vite/Storybook dependencies and `.storybook/` config when `package.json` exists.
+- `uiux:review-current-slice-storybook --target <project-root> [--values fabric.values.json]`
+  - Writes `docs/reviews/storybook/{slice_id}-storybook-review.json` and `.md`.
+  - Fails when stories, map, scripts, required components, screens, states, statuses, or priorities are missing.
+
+### Updated slice workflow
+
+After implementation, run:
+
+```bash
+./fabric/company/v1/fabric coder:generate-current-slice-stories --target . --values ./fabric.values.json
+./fabric/company/v1/fabric uiux:review-current-slice-storybook --target . --values ./fabric.values.json
+./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ./fabric.values.json
+./fabric/company/v1/fabric tester:validate-current-slice --target . --values ./fabric.values.json
+./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json
+```
+
+`coder:close-current-slice` now requires the Storybook review artifact to exist and have `status: pass` before the slice can close.
+
+### CI expectation
+
+At minimum, app repos should run:
+
+```bash
+npm run build
+npm run build-storybook
+npm run test
+npm run test:storybook
+```
+
+The deterministic Fabric review checks contract coverage. It does not replace visual review or a real Storybook build.
+
+
+## Troubleshooting
+
+
+### Brief generation timeout tuning
+
+`product:format-from-brief` uses an LLM call to normalize customer input into `docs/product/project-brief.md`.
+The default idle timeout is 300 seconds. For slower local providers or larger inputs, override it in `fabric.values.json`:
+
+```json
+{
+  "brief_draft_llm_timeout_ms": 300000,
+  "brief_draft_llm_max_context_chars": 30000,
+  "brief_draft_llm_max_sources": 6
+}
+```
+
+You can also set `BRIEF_DRAFT_LLM_TIMEOUT_MS` in the shell. If a timeout happens, inspect `.llm-logs/*-project_brief-*.md` and `.llm-logs/*-project_brief-*.json`, then rerun `product:format-from-brief`.

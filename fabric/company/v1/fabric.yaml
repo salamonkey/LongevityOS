@@ -13,6 +13,8 @@ factory_init_source_of_truth:
   target: .agents/uiux.md
 - source: team/coder.md
   target: .agents/coder.md
+- source: team/tester.md
+  target: .agents/tester.md
 - source: method/bootstrap-runbook.md
   target: docs/factory/bootstrap-runbook.md
   render: false
@@ -33,6 +35,8 @@ source_of_truth:
   target: .agents/uiux.md
 - source: team/coder.md
   target: .agents/coder.md
+- source: team/tester.md
+  target: .agents/tester.md
 - source: templates/project-description.template.yaml
   target: .system/project-description.yaml
 - source: templates/project-manifest.template.yaml
@@ -47,6 +51,18 @@ source_of_truth:
   target: docs/product/current-slice.yaml
 - source: templates/product-system-framing.template.md
   target: docs/product/product-system-framing.md
+- source: templates/storybook-map.template.md
+  target: docs/templates/storybook-map.template.md
+  render: false
+- source: templates/storybook-story-requirements.template.json
+  target: docs/templates/storybook-story-requirements.template.json
+  render: false
+- source: templates/storybook-review.template.json
+  target: docs/templates/storybook-review.template.json
+  render: false
+- source: templates/storybook-review.template.md
+  target: docs/templates/storybook-review.template.md
+  render: false
 - source: templates/customer-checkpoint-template.md
   target: docs/templates/customer-checkpoint-template.md
 - source: templates/slice-closeout-review-template.md

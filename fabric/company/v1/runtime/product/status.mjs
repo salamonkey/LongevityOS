@@ -37,14 +37,19 @@ const CANONICAL_STEP_BY_COMMAND = Object.freeze({
   'pm:finalize-bootstrap-reviews': '11',
   'pm:bootstrap-signoff': '12',
   'uiux:generate-design-system': '13',
+  'uiux:generate-storybook-map': '17b',
   'db:init': '14',
   'db:check': '15',
   'architect:generate-current-slice-baseline': '16',
   'uiux:generate-current-slice-flow': '17',
   'coder:prepare-current-slice': '19',
   'coder:implement-current-slice': '20',
-  'uiux:review-current-slice-semantics': '21',
-  'coder:repair-semantic-ux-findings': '21b',
+  'coder:generate-current-slice-stories': '20a',
+  'uiux:review-current-slice-storybook': '21',
+  'uiux:review-current-slice-semantics': '21b',
+  'coder:repair-semantic-ux-findings': '21c',
+  'tester:validate-current-slice': '21d',
+  'coder:repair-implementation-findings': '21e',
   'coder:close-current-slice': '22',
   'orchestrator:advance-slice': '24',
   gate: '25',
@@ -71,6 +76,96 @@ function baselinePathForSlice(targetRoot, sliceId) {
 
 function uxFlowPathForSlice(targetRoot, sliceId) {
   return path.join(targetRoot, 'docs/ux', `${normalizedSliceIdForPath(sliceId)}-current-slice-flow.md`);
+}
+
+function storybookRequirementsPathForSlice(targetRoot, sliceId) {
+  return path.join(targetRoot, 'docs/storybook', `${normalizedSliceIdForPath(sliceId)}-story-requirements.json`);
+}
+
+function storybookReviewPathForSlice(targetRoot, sliceId) {
+  return path.join(targetRoot, 'docs/reviews/storybook', `${normalizedSliceIdForPath(sliceId)}-storybook-review.json`);
+}
+
+function storybookStoriesDirForSlice(targetRoot, sliceId) {
+  return path.join(targetRoot, 'src/stories/slices', normalizedSliceIdForPath(sliceId));
+}
+
+function storybookReviewPassed(targetRoot, sliceId) {
+  const reviewPath = storybookReviewPathForSlice(targetRoot, sliceId);
+  if (!fs.existsSync(reviewPath)) return false;
+  try {
+    const parsed = JSON.parse(readText(reviewPath));
+    return String(parsed.status || '').toLowerCase() === 'pass';
+  } catch (_) {
+    return false;
+  }
+}
+
+function semanticUxReviewPathForSlice(targetRoot, sliceId) {
+  return path.join(targetRoot, 'docs/reviews/ux', `${normalizedSliceIdForPath(sliceId)}-semantic-ux-review.json`);
+}
+
+function semanticUxReviewStatus(targetRoot, sliceId) {
+  const reviewPath = semanticUxReviewPathForSlice(targetRoot, sliceId);
+  if (!fs.existsSync(reviewPath)) return 'missing';
+  try {
+    const parsed = JSON.parse(readText(reviewPath));
+    return String(parsed.status || '').toLowerCase() || 'unknown';
+  } catch (_) {
+    return 'invalid';
+  }
+}
+
+function checklistPathForSlice(targetRoot, sliceId) {
+  return path.join(targetRoot, 'docs/testing', `${normalizedSliceIdForPath(sliceId)}-user-checklist.md`);
+}
+
+function sectionBodyByHeading(markdownText, headingPattern) {
+  const lines = String(markdownText || '').replace(/\r\n?/g, '\n').split('\n');
+  const startIndex = lines.findIndex((line) => headingPattern.test(line));
+  if (startIndex < 0) return '';
+  const out = [];
+  for (const line of lines.slice(startIndex + 1)) {
+    if (/^\s*##\s+/.test(line)) break;
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
+function parseChecklistResultState(checklistText) {
+  const hasResultSection = /^\s*##\s+Result\s*$/im.test(String(checklistText || ''));
+  const resultBody = sectionBodyByHeading(checklistText, /^\s*##\s+Result\s*$/i);
+  if (!hasResultSection) return 'missing_result_section';
+  if (!resultBody) return 'unresolved';
+  const explicitStatus = resultBody.match(/^\s*Status\s*:\s*(Pass|Fail|Pending)\s*$/im);
+  if (explicitStatus) {
+    const value = explicitStatus[1].toLowerCase();
+    return value === 'pending' ? 'unresolved' : value;
+  }
+  if (/^\s*-\s*Pass\s*\/\s*Fail\b/im.test(resultBody)) return 'unresolved';
+  if (/^\s*-\s*Fail\b/im.test(resultBody)) return 'fail';
+  if (/^\s*-\s*Pass\b/im.test(resultBody)) return 'pass';
+  return 'unresolved';
+}
+
+function checklistResultState(targetRoot, sliceId) {
+  const checklistPath = checklistPathForSlice(targetRoot, sliceId);
+  if (!fs.existsSync(checklistPath)) return 'missing';
+  return parseChecklistResultState(readText(checklistPath));
+}
+
+function hasSliceStorybookPrerequisites(targetRoot, sliceId) {
+  const mapExists = fs.existsSync(path.join(targetRoot, 'docs/design-system/storybook-map.md'));
+  const requirementsExists = fs.existsSync(storybookRequirementsPathForSlice(targetRoot, sliceId));
+  return { mapExists, requirementsExists };
+}
+
+function hasSliceStoryFiles(targetRoot, sliceId) {
+  const dir = storybookStoriesDirForSlice(targetRoot, sliceId);
+  const slug = normalizedSliceIdForPath(sliceId);
+  return fs.existsSync(path.join(dir, 'fixtures.ts'))
+    && fs.existsSync(path.join(dir, `${slug}.stories.tsx`))
+    && fs.existsSync(path.join(dir, 'README.md'));
 }
 
 function hasSlicePrerequisites(targetRoot, sliceId) {
@@ -179,6 +274,40 @@ function readOrchestratorState(targetRoot) {
   };
 }
 
+function readBootstrapFlowCheckState(targetRoot) {
+  const manifestPath = path.join(targetRoot, '.system/project-manifest.yaml');
+  if (!fs.existsSync(manifestPath)) {
+    return {
+      command: '',
+      result: '',
+      checkedAtMs: 0,
+    };
+  }
+  const manifestText = readText(manifestPath);
+  const statusScalars = parseBlockScalars(manifestText, 'status');
+  return {
+    command: String(statusScalars.last_flow_check_command || '').trim().toLowerCase(),
+    result: String(statusScalars.last_flow_check_result || '').trim().toLowerCase(),
+    checkedAtMs: parseUtcMs(statusScalars.last_flow_check_checked_at_utc),
+  };
+}
+
+function readBootstrapStampMs(stampPath) {
+  if (!fs.existsSync(stampPath)) {
+    return 0;
+  }
+  try {
+    const parsed = JSON.parse(readText(stampPath));
+    const checkedAtMs = parseUtcMs(parsed?.checked_at_utc);
+    if (checkedAtMs > 0) {
+      return checkedAtMs;
+    }
+  } catch (_) {
+    // Ignore JSON parsing issues and fall back to mtime.
+  }
+  return fileMtimeMs(stampPath);
+}
+
 function resolveImplementationStatus({ pipelineStatus, explicitStatus }) {
   if (explicitStatus) {
     return explicitStatus;
@@ -196,13 +325,48 @@ function resolveImplementationStatus({ pipelineStatus, explicitStatus }) {
   return 'Not Recorded';
 }
 
-function resolveNextCommandForInProgress({ pipelineStatus, implementationStatus, valuesArg }) {
+function isPostImplementationStatus(implementationStatus) {
+  const normalized = String(implementationStatus || '').toLowerCase().trim();
+  if (!normalized) return false;
+  if (normalized === 'implemented' || normalized === 'completed' || normalized === 'completed (inferred)') {
+    return true;
+  }
+  if (normalized.endsWith('repair applied')) {
+    return true;
+  }
+  return false;
+}
+
+function resolveNextCommandForInProgress({ pipelineStatus, implementationStatus, valuesArg, targetRoot, sliceId }) {
   const pipeline = String(pipelineStatus || '').toLowerCase();
   if (pipeline !== 'in_progress') {
     return '';
   }
-  const implementation = String(implementationStatus || '').toLowerCase();
-  if (implementation === 'implemented' || implementation === 'completed' || implementation === 'completed (inferred)') {
+  if (isPostImplementationStatus(implementationStatus)) {
+    const { mapExists, requirementsExists } = hasSliceStorybookPrerequisites(targetRoot, sliceId);
+    if (!mapExists || !requirementsExists) {
+      return `./fabric/company/v1/fabric uiux:generate-storybook-map --target . --values ${valuesArg}`;
+    }
+    if (!hasSliceStoryFiles(targetRoot, sliceId)) {
+      return `./fabric/company/v1/fabric coder:generate-current-slice-stories --target . --values ${valuesArg}`;
+    }
+    if (!storybookReviewPassed(targetRoot, sliceId)) {
+      return `./fabric/company/v1/fabric uiux:review-current-slice-storybook --target . --values ${valuesArg}`;
+    }
+    const uxReviewStatus = semanticUxReviewStatus(targetRoot, sliceId);
+    if (uxReviewStatus === 'fail') {
+      return `./fabric/company/v1/fabric coder:repair-semantic-ux-findings --target . --values ${valuesArg}`;
+    }
+    if (uxReviewStatus !== 'pass') {
+      return `./fabric/company/v1/fabric uiux:review-current-slice-semantics --target . --values ${valuesArg}`;
+    }
+    const checklistState = checklistResultState(targetRoot, sliceId);
+    if (checklistState === 'fail') {
+      return `./fabric/company/v1/fabric coder:repair-implementation-findings --target . --values ${valuesArg}`;
+    }
+    if (checklistState !== 'pass') {
+      return `./fabric/company/v1/fabric tester:validate-current-slice --target . --values ${valuesArg}`;
+    }
     return `./fabric/company/v1/fabric coder:close-current-slice --target . --values ${valuesArg}`;
   }
   return `./fabric/company/v1/fabric coder:implement-current-slice --target . --values ${valuesArg}`;
@@ -236,6 +400,8 @@ function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orche
         pipelineStatus: row.pipelineStatus,
         implementationStatus: row.implementationStatus,
         valuesArg,
+        targetRoot,
+        sliceId: row.id,
       });
       row.nextCanonicalStep = resolveCanonicalStep(row.nextCommand);
     }
@@ -261,36 +427,42 @@ function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orche
       const { baselineExists, uxExists } = hasSlicePrerequisites(targetRoot, activeRow.id);
       if (!baselineExists) {
         activeRow.nextCommand = `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ${valuesArg}`;
-        activeRow.nextCanonicalStep = '14';
+        activeRow.nextCanonicalStep = '16';
       } else if (!uxExists) {
         activeRow.nextCommand = `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ${valuesArg}`;
-        activeRow.nextCanonicalStep = '15';
+        activeRow.nextCanonicalStep = '17';
       } else {
-        if (!activeSliceHasCompletedBefore) {
-          const prereqMtimeMs = Math.max(
-            currentSliceMtimeMs,
-            fileMtimeMs(baselinePathForSlice(targetRoot, activeRow.id)),
-            fileMtimeMs(uxFlowPathForSlice(targetRoot, activeRow.id)),
-            fileMtimeMs(path.join(targetRoot, 'docs/ux/current-slice-flow.md')),
-          );
-          if (gatePassedAtMs < prereqMtimeMs) {
-            activeRow.nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
-            activeRow.nextCanonicalStep = '16';
-            return rows;
-          }
+        const { mapExists, requirementsExists } = hasSliceStorybookPrerequisites(targetRoot, activeRow.id);
+        if (!mapExists || !requirementsExists) {
+          activeRow.nextCommand = `./fabric/company/v1/fabric uiux:generate-storybook-map --target . --values ${valuesArg}`;
+          activeRow.nextCanonicalStep = '17b';
+          return rows;
+        }
+        const prereqMtimeMs = Math.max(
+          currentSliceMtimeMs,
+          fileMtimeMs(baselinePathForSlice(targetRoot, activeRow.id)),
+          fileMtimeMs(uxFlowPathForSlice(targetRoot, activeRow.id)),
+          fileMtimeMs(path.join(targetRoot, 'docs/ux/current-slice-flow.md')),
+          fileMtimeMs(path.join(targetRoot, 'docs/design-system/storybook-map.md')),
+          fileMtimeMs(storybookRequirementsPathForSlice(targetRoot, activeRow.id)),
+        );
+        if (gatePassedAtMs < prereqMtimeMs) {
+          activeRow.nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
+          activeRow.nextCanonicalStep = '18';
+          return rows;
         }
         activeRow.nextCommand = `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ${valuesArg}`;
-        activeRow.nextCanonicalStep = '17';
+        activeRow.nextCanonicalStep = '19';
       }
       return rows;
     }
     if (activePipeline === 'completed') {
       if (gatePassedAtMs < currentSliceMtimeMs) {
         activeRow.nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
-        activeRow.nextCanonicalStep = '21';
+        activeRow.nextCanonicalStep = '23';
       } else {
         activeRow.nextCommand = `./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ${valuesArg}`;
-        activeRow.nextCanonicalStep = '22';
+        activeRow.nextCanonicalStep = '24';
       }
       return rows;
     }
@@ -301,23 +473,43 @@ function buildStatusRows({ slices, valuesArg, implementationStatusBySlice, orche
     if (activeSliceState === 'completed') {
       if (gatePassedAtMs < currentSliceMtimeMs) {
         rows[firstNotStartedIndex].nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
-        rows[firstNotStartedIndex].nextCanonicalStep = '21';
+        rows[firstNotStartedIndex].nextCanonicalStep = '23';
       } else {
         rows[firstNotStartedIndex].nextCommand = `./fabric/company/v1/fabric orchestrator:advance-slice --target . --values ${valuesArg}`;
-        rows[firstNotStartedIndex].nextCanonicalStep = '22';
+        rows[firstNotStartedIndex].nextCanonicalStep = '24';
       }
       return rows;
     } else if (activeSliceState === 'planned') {
-      const { baselineExists, uxExists } = hasSlicePrerequisites(targetRoot, rows[firstNotStartedIndex].id);
+      const activeRow = rows[firstNotStartedIndex];
+      const { baselineExists, uxExists } = hasSlicePrerequisites(targetRoot, activeRow.id);
       if (!baselineExists) {
-        rows[firstNotStartedIndex].nextCommand = `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ${valuesArg}`;
-        rows[firstNotStartedIndex].nextCanonicalStep = '14';
+        activeRow.nextCommand = `./fabric/company/v1/fabric architect:generate-current-slice-baseline --target . --values ${valuesArg}`;
+        activeRow.nextCanonicalStep = '16';
       } else if (!uxExists) {
-        rows[firstNotStartedIndex].nextCommand = `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ${valuesArg}`;
-        rows[firstNotStartedIndex].nextCanonicalStep = '15';
+        activeRow.nextCommand = `./fabric/company/v1/fabric uiux:generate-current-slice-flow --target . --values ${valuesArg}`;
+        activeRow.nextCanonicalStep = '17';
       } else {
-        rows[firstNotStartedIndex].nextCommand = `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ${valuesArg}`;
-        rows[firstNotStartedIndex].nextCanonicalStep = '17';
+        const { mapExists, requirementsExists } = hasSliceStorybookPrerequisites(targetRoot, activeRow.id);
+        if (!mapExists || !requirementsExists) {
+          activeRow.nextCommand = `./fabric/company/v1/fabric uiux:generate-storybook-map --target . --values ${valuesArg}`;
+          activeRow.nextCanonicalStep = '17b';
+        } else {
+          const prereqMtimeMs = Math.max(
+            currentSliceMtimeMs,
+            fileMtimeMs(baselinePathForSlice(targetRoot, activeRow.id)),
+            fileMtimeMs(uxFlowPathForSlice(targetRoot, activeRow.id)),
+            fileMtimeMs(path.join(targetRoot, 'docs/ux/current-slice-flow.md')),
+            fileMtimeMs(path.join(targetRoot, 'docs/design-system/storybook-map.md')),
+            fileMtimeMs(storybookRequirementsPathForSlice(targetRoot, activeRow.id)),
+          );
+          if (gatePassedAtMs < prereqMtimeMs) {
+            activeRow.nextCommand = `./fabric/company/v1/fabric gate --target . --values ${valuesArg}`;
+            activeRow.nextCanonicalStep = '18';
+            return rows;
+          }
+          activeRow.nextCommand = `./fabric/company/v1/fabric coder:prepare-current-slice --target . --values ${valuesArg}`;
+          activeRow.nextCanonicalStep = '19';
+        }
       }
     }
   }
@@ -411,6 +603,8 @@ function detectBootstrapProgress(targetRoot) {
   const intakeSourcesPath = path.join(targetRoot, 'docs/pm/intake/sources.json');
   const intakeReportPath = path.join(targetRoot, 'docs/pm/intake/intake-report.md');
   const draftMarkerPath = path.join(targetRoot, 'docs/pm/brief/brief-draft.stamp.json');
+  const formatFromBriefStampPath = path.join(targetRoot, 'docs/pm/brief/format-from-brief.stamp.json');
+  const scaffoldStampPath = path.join(targetRoot, 'docs/pm/brief/scaffold.stamp.json');
   const readinessPath = path.join(targetRoot, 'docs/reviews/product-manager/brief-readiness-review.md');
   const briefPath = path.join(targetRoot, 'docs/product/project-brief.md');
   const valuesJsonPath = path.join(targetRoot, 'fabric.values.json');
@@ -436,6 +630,26 @@ function detectBootstrapProgress(targetRoot) {
   const briefMtimeMs = briefExists ? fs.statSync(briefPath).mtimeMs : 0;
   const valuesMtimeMs = valuesPath ? fs.statSync(valuesPath).mtimeMs : 0;
   const valuesNeedRefreshFromApprovedBrief = briefApproved && (!valuesExist || valuesMtimeMs < briefMtimeMs);
+  const bootstrapFlowCheckState = readBootstrapFlowCheckState(targetRoot);
+  const bootstrapBaselineMs = Math.max(briefMtimeMs, valuesMtimeMs);
+  const formatFromBriefStampMs = readBootstrapStampMs(formatFromBriefStampPath);
+  const scaffoldStampMs = readBootstrapStampMs(scaffoldStampPath);
+  const formatFromBriefPassed = (
+    (
+      bootstrapFlowCheckState.command === 'format-from-brief'
+      && bootstrapFlowCheckState.result === 'passed'
+      && bootstrapFlowCheckState.checkedAtMs >= bootstrapBaselineMs
+    )
+    || formatFromBriefStampMs >= bootstrapBaselineMs
+  );
+  const scaffoldPassed = (
+    (
+      bootstrapFlowCheckState.command === 'scaffold'
+      && bootstrapFlowCheckState.result === 'passed'
+      && bootstrapFlowCheckState.checkedAtMs >= bootstrapBaselineMs
+    )
+    || scaffoldStampMs >= bootstrapBaselineMs
+  );
 
   let nextCommand = './fabric/company/v1/fabric pm:intake --target .';
   let reason = 'No intake artifacts detected yet.';
@@ -452,8 +666,16 @@ function detectBootstrapProgress(targetRoot) {
       ? 'Brief is approved and newer than values; derive-values should be re-run.'
       : 'Brief is approved; values file is missing.';
   } else if (briefApproved && valuesExist) {
-    nextCommand = './fabric/company/v1/fabric format-from-brief --target .';
-    reason = 'PM bootstrap sequence is complete; continue with format/scaffold.';
+    if (scaffoldPassed) {
+      nextCommand = './fabric/company/v1/fabric pm:plan-slices --target .';
+      reason = 'Scaffold step is already recorded for this approved brief; continue with slice planning.';
+    } else if (formatFromBriefPassed) {
+      nextCommand = './fabric/company/v1/fabric scaffold --target . --values ./fabric.values.json';
+      reason = 'Format-from-brief is already recorded; continue with scaffold.';
+    } else {
+      nextCommand = './fabric/company/v1/fabric format-from-brief --target .';
+      reason = 'PM bootstrap sequence is complete; continue with format/scaffold.';
+    }
   } else if (intakeDone && readinessSufficient && !draftDone) {
     nextCommand = './fabric/company/v1/fabric pm:brief-draft --target .';
     reason = briefExists

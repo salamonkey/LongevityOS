@@ -15,6 +15,12 @@ import { architectGenerateCurrentSliceBaseline } from '../product/architecture-r
 import { uiuxGenerateCurrentSliceFlow } from '../product/ux-review.mjs';
 import { uiuxGenerateDesignSystem } from '../product/design-system.mjs';
 import { reviewCurrentSliceSemantics as uiuxReviewCurrentSliceSemantics } from '../product/semantic-ux-validation.mjs';
+import {
+  uiuxGenerateStorybookMap,
+  coderGenerateCurrentSliceStories,
+  uiuxReviewCurrentSliceStorybook,
+} from '../product/storybook.mjs';
+import { testerValidateCurrentSlice } from '../product/tester-validation.mjs';
 
 export {
   llmCheck,
@@ -33,4 +39,8 @@ export {
   uiuxGenerateCurrentSliceFlow,
   uiuxGenerateDesignSystem,
   uiuxReviewCurrentSliceSemantics,
+  uiuxGenerateStorybookMap,
+  coderGenerateCurrentSliceStories,
+  uiuxReviewCurrentSliceStorybook,
+  testerValidateCurrentSlice,
 };
