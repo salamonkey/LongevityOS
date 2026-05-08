@@ -39,6 +39,8 @@ function toViewItem(generatedItem, definition) {
     displayName: definition.displayName,
     category: definition.category,
     categoryLabel: getCategoryLabel(definition.category, 'singular'),
+    interventionType: definition.interventionType,
+    interventionTypeLabel: definition.interventionTypeLabel,
     cadenceText: definition.cadenceText,
     status,
     statusLabel: getStatusLabel(status),

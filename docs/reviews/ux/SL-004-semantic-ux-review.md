@@ -2,7 +2,7 @@
 
 - Status: `fail`
 - Slice: `SL-004` Vaccination Tracking Area and Manual Entries
-- Generated: `2026-05-05T12:06:04.979Z`
+- Generated: `2026-05-05T15:21:38.198Z`
 - Deterministic findings: 0
 - LLM status: `unavailable`
 - LLM reviewer: [not run]

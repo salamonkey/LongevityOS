@@ -1,0 +1,129 @@
+.sl005-self-form,
+.sl005-profile-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl005-self-form input[type='text'],
+.sl005-profile-form input[type='text'] {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+}
+
+.sl005-gender-field {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl005-gender-field label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl005-form-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.sl005-summary-strip {
+  margin-top: var(--space-4);
+  background: var(--color-priority-later);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+}
+
+.sl005-summary-strip p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.sl005-added-profiles,
+.sl005-overview-list {
+  margin-top: var(--space-4);
+}
+
+.sl005-added-profiles h2 {
+  margin: 0 0 var(--space-2);
+}
+
+.sl005-profile-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl005-profile-list li {
+  color: var(--color-text-secondary);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.sl005-overview-card {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  margin-top: var(--space-4);
+  background: var(--color-surface-card);
+}
+
+.sl005-overview-meta {
+  margin-top: var(--space-3);
+}
+
+.sl005-overview-meta p {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.sl005-overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sl005-dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.sl005-active-profile {
+  margin: var(--space-3) 0;
+  color: var(--color-text-secondary);
+}
+
+.sl005-context-shell {
+  padding-bottom: 0;
+}
+
+.sl005-context-panel {
+  margin-bottom: var(--space-4);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+@media (max-width: 720px) {
+  .sl005-form-actions,
+  .sl005-overview-actions,
+  .sl005-dashboard-actions,
+  .sl005-context-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

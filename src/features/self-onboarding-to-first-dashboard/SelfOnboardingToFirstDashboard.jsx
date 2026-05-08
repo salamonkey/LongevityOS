@@ -1,12 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppShell,
   FamilyProfileCard,
-  HealthScoreCard,
-  NextRecommendedStepCard,
   PrioritySection,
 } from './components';
-import { buildDashboardProjection, hasPopulatedDashboard } from './dashboard';
+import { buildDashboardProjection } from './dashboard';
 import { generateInitialPlanSnapshotAsync } from './plan';
 import { normalizeSelfProfileInput, validateSelfProfileInput } from './validation';
 
@@ -15,6 +13,7 @@ export default function SelfOnboardingToFirstDashboard({
   initialProfile = null,
   initialPlanSnapshot = null,
   onOpenHealthPlan,
+  onOnboardingCompleted,
 }) {
   const ageRef = useRef(null);
   const genderRef = useRef(null);
@@ -28,6 +27,14 @@ export default function SelfOnboardingToFirstDashboard({
   const [planSnapshot, setPlanSnapshot] = useState(initialPlanSnapshot);
   const [fatalIntegrityError, setFatalIntegrityError] = useState(false);
 
+  useEffect(() => {
+    setProfile(initialProfile);
+    setPlanSnapshot(initialPlanSnapshot);
+    if (initialProfile && initialPlanSnapshot) {
+      setFatalIntegrityError(false);
+    }
+  }, [initialPlanSnapshot, initialProfile]);
+
   const projection = useMemo(() => {
     if (!planSnapshot || !profile) {
       return null;
@@ -35,8 +42,6 @@ export default function SelfOnboardingToFirstDashboard({
 
     return buildDashboardProjection(planSnapshot, profile);
   }, [planSnapshot, profile]);
-
-  const isDashboardReady = Boolean(projection && hasPopulatedDashboard(projection));
 
   const handleFieldChange = (field, value) => {
     setForm((previous) => ({
@@ -86,7 +91,7 @@ export default function SelfOnboardingToFirstDashboard({
     const normalized = normalizeSelfProfileInput(form);
     const profileData = {
       profileId: 'self',
-      name: 'You',
+      name: 'Me',
       age: normalized.age,
       gender: normalized.gender,
       createdAt: new Date().toISOString(),
@@ -95,15 +100,15 @@ export default function SelfOnboardingToFirstDashboard({
 
     try {
       const generatedPlan = await planGenerator(profileData);
-      const generatedProjection = buildDashboardProjection(generatedPlan, profileData);
-
-      if (!hasPopulatedDashboard(generatedProjection)) {
-        setFatalIntegrityError(true);
-        return;
-      }
 
       setProfile(profileData);
       setPlanSnapshot(generatedPlan);
+      if (typeof onOnboardingCompleted === 'function') {
+        onOnboardingCompleted({
+          profile: profileData,
+          planSnapshot: generatedPlan,
+        });
+      }
     } catch {
       setSubmissionError("We couldn't create your plan right now. Please try again.");
     } finally {
@@ -115,11 +120,6 @@ export default function SelfOnboardingToFirstDashboard({
     setFatalIntegrityError(false);
     setPlanSnapshot(null);
     setProfile(null);
-  };
-
-  const openHealthPlan = () => {
-    if (typeof onOpenHealthPlan !== 'function' || !planSnapshot || !profile) return;
-    onOpenHealthPlan({ planSnapshot, profile });
   };
 
   const openHealthPlanFromDashboardItem = (item) => {
@@ -147,28 +147,25 @@ export default function SelfOnboardingToFirstDashboard({
     );
   }
 
-  if (isDashboardReady && projection) {
+  if (projection) {
     const dueTodayCount = projection.sections.find((section) => section.priority === 'today')?.items.length ?? 0;
-    let dashboardHeaderAction;
-    if (typeof onOpenHealthPlan === 'function') {
-      dashboardHeaderAction = (
-        <button type="button" className="sl001-primary-action sl001-dashboard-plan-cta" onClick={openHealthPlan}>
-          Plan details
-        </button>
-      );
-    }
 
     return (
-      <AppShell title="Your preventive dashboard" headerAction={dashboardHeaderAction}>
+      <AppShell title={null}>
         <div className="sl001-dashboard-summary-cards">
           <FamilyProfileCard
             name={projection.profileName}
             age={projection.profileAge}
             gender={projection.profileGender}
             dueCount={dueTodayCount}
+            showDueCount={false}
+            healthScore={projection.healthScore}
+            highlightedItem={projection.highlightedItem}
+            onOpenNextStep={typeof onOpenHealthPlan === 'function' ? openHealthPlanFromDashboardItem : undefined}
+            nextStepVariant="health-cta"
+            cardLabel="Health readiness"
+            showHealthTileLabel={false}
           />
-          <HealthScoreCard score={projection.healthScore} />
-          <NextRecommendedStepCard highlightedItem={projection.highlightedItem} />
         </div>
         <div className="sl001-dashboard-sections">
           {projection.sections.map((section) => (
@@ -186,69 +183,80 @@ export default function SelfOnboardingToFirstDashboard({
   }
 
   return (
-    <AppShell title="Build your first preventive plan">
-      <p className="sl001-support-copy">
-        Share your age and gender so we can create a personalized plan with clear next steps.
-      </p>
-      <form className="sl001-form" onSubmit={handleSubmit} noValidate>
-        {submissionError && (
-          <p className="sl001-error-banner" role="alert">{submissionError}</p>
-        )}
+    <AppShell title={null}>
+      <div className="sl001-onboarding-stack">
+        <section className="sl001-summary-card sl001-onboarding-intro" aria-label="Onboarding overview">
+          <p className="sl001-label">Onboarding</p>
+          <h1 className="sl001-summary-title">Build your first preventive plan</h1>
+          <p className="sl001-summary-meta">
+            Share your age and gender so we can create a personalized plan with clear next steps.
+          </p>
+        </section>
 
-        <label htmlFor="sl001-age">Age</label>
-        <input
-          ref={ageRef}
-          id="sl001-age"
-          name="age"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={form.age}
-          onChange={(event) => handleFieldChange('age', event.target.value)}
-          readOnly={isSubmitting}
-          aria-invalid={Boolean(errors.age)}
-          aria-describedby="sl001-age-help sl001-age-error"
-        />
-        <p className="sl001-helper" id="sl001-age-help">We use your age to generate your first plan.</p>
-        {errors.age && (
-          <p className="sl001-field-error" id="sl001-age-error" role="alert">{errors.age}</p>
-        )}
+        <section className="sl001-summary-card sl001-onboarding-form-card" aria-label="Profile input">
+          <form className="sl001-form sl001-onboarding-form" onSubmit={handleSubmit} noValidate>
+            {submissionError && (
+              <p className="sl001-error-banner" role="alert">{submissionError}</p>
+            )}
 
-        <fieldset ref={genderRef} aria-describedby="sl001-gender-error" className="sl001-gender-field" disabled={isSubmitting}>
-          <legend>Gender</legend>
-          <label>
+            <label htmlFor="sl001-age">Age</label>
             <input
-              type="radio"
-              name="gender"
-              value="female"
-              checked={form.gender === 'female'}
-              onChange={(event) => handleFieldChange('gender', event.target.value)}
+              ref={ageRef}
+              id="sl001-age"
+              name="age"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={form.age}
+              onChange={(event) => handleFieldChange('age', event.target.value)}
+              readOnly={isSubmitting}
+              aria-invalid={Boolean(errors.age)}
+              aria-describedby="sl001-age-help sl001-age-error"
             />
-            Female
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="gender"
-              value="male"
-              checked={form.gender === 'male'}
-              onChange={(event) => handleFieldChange('gender', event.target.value)}
-            />
-            Male
-          </label>
-        </fieldset>
-        {errors.gender && (
-          <p className="sl001-field-error" id="sl001-gender-error" role="alert">{errors.gender}</p>
-        )}
+            <p className="sl001-helper" id="sl001-age-help">We use your age to generate your first plan.</p>
+            {errors.age && (
+              <p className="sl001-field-error" id="sl001-age-error" role="alert">{errors.age}</p>
+            )}
 
-        <button
-          type="submit"
-          className="sl001-primary-action"
-          disabled={!canSubmit}
-        >
-          {isSubmitting ? 'Generating your plan...' : 'Generate my plan'}
-        </button>
-      </form>
+            <fieldset ref={genderRef} aria-describedby="sl001-gender-error" className="sl001-gender-field" disabled={isSubmitting}>
+              <legend>Gender</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="gender"
+                  value="female"
+                  checked={form.gender === 'female'}
+                  onChange={(event) => handleFieldChange('gender', event.target.value)}
+                />
+                Female
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="gender"
+                  value="male"
+                  checked={form.gender === 'male'}
+                  onChange={(event) => handleFieldChange('gender', event.target.value)}
+                />
+                Male
+              </label>
+            </fieldset>
+            {errors.gender && (
+              <p className="sl001-field-error" id="sl001-gender-error" role="alert">{errors.gender}</p>
+            )}
+
+            <div className="sl001-onboarding-actions">
+              <button
+                type="submit"
+                className="sl001-primary-action sl001-onboarding-submit-action"
+                disabled={!canSubmit}
+              >
+                {isSubmitting ? 'Generating your plan...' : 'Generate my plan'}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
     </AppShell>
   );
 }

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T19:15:50.473Z",
+  "slice_id": "SL-006",
+  "slice_title": "Profile Area and Household Preferences",
+  "status": "pass",
+  "summary": "Available source context for SL-006 appears semantically fit: profile and preferences copy is user-facing and plain-language, validation and error states are understandable, reminder timing labels and profile counts are human-readable, and no visible internal/debug/process language or delete/archive semantics appear in the current slice implementation.",
+  "contract": "docs/ux/SL-006-semantic-ux-contract.json",
+  "deterministic_findings_count": 0,
+  "llm_enabled": true,
+  "llm_required": true,
+  "llm_status": "pass",
+  "llm_reviewer": "openai/gpt-5.4",
+  "findings": []
+}

@@ -1,4 +1,8 @@
-import { MVP_PREVENTIVE_CATALOG } from '../self-onboarding-to-first-dashboard/catalog.js';
+import {
+  MVP_PREVENTIVE_CATALOG,
+  getInterventionTypeLabel,
+  resolveInterventionTypeForCatalogItem,
+} from '../self-onboarding-to-first-dashboard/catalog.js';
 
 const RECOMMENDATION_TEXT_BY_ITEM_KEY = Object.freeze({
   'annual-wellness-visit': 'Schedule a yearly wellness visit so you and your clinician can review your preventive plan and update it as your needs change.',
@@ -23,14 +27,21 @@ function normalizeText(value) {
 }
 
 export const LOCKED_PREVENTIVE_ITEM_DEFINITIONS = Object.freeze(
-  MVP_PREVENTIVE_CATALOG.map((catalogItem) => ({
-    itemKey: catalogItem.itemId,
-    displayName: normalizeText(catalogItem.name),
-    category: normalizeText(catalogItem.category),
-    cadenceText: normalizeText(catalogItem.cadenceLabel),
-    recommendationText: normalizeText(RECOMMENDATION_TEXT_BY_ITEM_KEY[catalogItem.itemId]),
-    whyItMattersText: normalizeText(catalogItem.whyItMatters),
-  })),
+  MVP_PREVENTIVE_CATALOG.map((catalogItem) => {
+    const interventionType = resolveInterventionTypeForCatalogItem(catalogItem);
+    return {
+      itemKey: catalogItem.itemId,
+      displayName: normalizeText(catalogItem.name),
+      category: normalizeText(catalogItem.category),
+      interventionType: normalizeText(interventionType),
+      interventionTypeLabel: normalizeText(getInterventionTypeLabel(interventionType)),
+      cadenceText: normalizeText(catalogItem.cadenceLabel),
+      recommendationText: normalizeText(
+        RECOMMENDATION_TEXT_BY_ITEM_KEY[catalogItem.itemId] ?? catalogItem.whyItMatters,
+      ),
+      whyItMattersText: normalizeText(catalogItem.whyItMatters),
+    };
+  }),
 );
 
 export const PREVENTIVE_ITEM_DEFINITION_INDEX = Object.freeze(

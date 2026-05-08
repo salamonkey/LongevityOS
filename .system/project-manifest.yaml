@@ -4,7 +4,7 @@
 schema_version: 1
 manifest_version: 1
 generated_at_utc: '2026-05-05T07:57:05.639Z'
-last_updated_utc: "2026-05-05T11:44:02.232Z"
+last_updated_utc: "2026-05-05T19:23:29.776Z"
 project:
   id: 'longevity-health-os'
   name: 'Longevity Health OS'
@@ -46,17 +46,17 @@ status:
   initialized: true
   requires_customer_escalation: false
   blocking_decision: null
-  active_slice: "SL-004"
-  active_slice_state: "in_progress"
-  active_milestone: "SL-004_implementation"
+  active_slice: "SL-006"
+  active_slice_state: "completed"
+  active_milestone: "SL-006_closeout"
   last_gate_result: "passed"
   last_gate_stage: "gate"
-  last_gate_checked_at_utc: "2026-05-05T11:44:02.034Z"
+  last_gate_checked_at_utc: "2026-05-05T19:23:29.776Z"
   last_gate_message: "validate and doctor passed"
   last_flow_check_command: "gate"
   last_flow_check_step: "18|23|25"
   last_flow_check_result: "passed"
-  last_flow_check_checked_at_utc: "2026-05-05T11:44:02.035Z"
+  last_flow_check_checked_at_utc: "2026-05-05T19:23:29.776Z"
   last_flow_check_message: "command completed successfully"
   approved_reviews:
     - "docs/reviews/product-manager/bootstrap-foundation-review.md"

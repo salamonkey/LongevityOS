@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T15:31:06.802Z",
+  "slice_id": "SL-005",
+  "required_components": [
+    "AppShell",
+    "HealthScoreCard",
+    "PrioritySection",
+    "HealthPlanItem",
+    "StatusPill",
+    "FamilyProfileCard",
+    "VaccinationStatusRow"
+  ],
+  "allowed_statuses": [
+    "done",
+    "due",
+    "soon",
+    "planned",
+    "overdue"
+  ],
+  "allowed_priorities": [
+    "today",
+    "soon",
+    "later"
+  ],
+  "rules": [
+    "Use approved components before creating one-off equivalents.",
+    "Status display must use StatusPill when status is visible.",
+    "Preventive action rows/cards must use HealthPlanItem when applicable.",
+    "Dashboard priority groups must use PrioritySection when applicable.",
+    "Do not introduce raw visual values where design tokens exist."
+  ]
+}

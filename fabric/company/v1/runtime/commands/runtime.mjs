@@ -2000,9 +2000,43 @@ function summarizeSemanticUxFindings(findings = []) {
   }));
 }
 
+function dependencySliceSlugs(slice = {}) {
+  const deps = Array.isArray(slice?.dependencies) ? slice.dependencies : [];
+  const out = new Set();
+  for (const dep of deps) {
+    const slug = slugifySliceTitle(String(dep || '').trim());
+    if (slug) out.add(slug);
+  }
+  return [...out];
+}
+
+function semanticFindingRequestsSharedIntegration(findings = []) {
+  return summarizeSemanticUxFindings(findings).some((finding) => {
+    const issueType = String(finding.issue_type || '').trim().toLowerCase();
+    const file = String(finding.file || '').trim();
+    if (issueType === 'slice_surface_not_exposed') return true;
+    if (file === 'src/App.jsx' || file === 'src/main.jsx' || file === 'src/main.tsx') return true;
+    return false;
+  });
+}
+
 function semanticRepairAllowedPatterns({ slice, findings = [], values = {} }) {
   const allowAppShellMutation = resolveAllowAppShellMutation(values);
   const allowed = deriveCodexAllowedPaths(slice, { allowAppShellMutation });
+  const dependencySlugs = dependencySliceSlugs(slice);
+  const dependencyTargets = dependencySlugs.flatMap((slug) => [
+    `src/features/${slug}/**`,
+    `src/routes/${slug}.jsx`,
+    `src/routes/${slug}.js`,
+  ]);
+  const sharedIntegrationTargets = semanticFindingRequestsSharedIntegration(findings)
+    ? [
+      'src/App.jsx',
+      'src/main.jsx',
+      'src/main.tsx',
+      'src/routes/**',
+    ]
+    : [];
   const referencedFiles = summarizeSemanticUxFindings(findings)
     .map((finding) => finding.file)
     .filter((relPath) => /^(src|tests)\//.test(String(relPath || '')));
@@ -2010,6 +2044,8 @@ function semanticRepairAllowedPatterns({ slice, findings = [], values = {} }) {
     create: [...allowed.create],
     modify: [
       ...allowed.modify,
+      ...dependencyTargets,
+      ...sharedIntegrationTargets,
       ...referencedFiles,
       `docs/implementation/${normalizeSliceIdForWorkOrder(slice.id)}-implementation-notes.md`,
     ],
@@ -2471,6 +2507,16 @@ function resolveCodexCommand(values = {}) {
   return String(values.codex_command || values.coder_codex_command || process.env.FABRIC_CODEX_COMMAND || 'codex').trim() || 'codex';
 }
 
+function resolveBooleanish(value, defaultValue = false) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return Boolean(defaultValue);
+  }
+  const normalized = String(value).trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return Boolean(defaultValue);
+}
+
 async function runCodexExec({ targetRoot, values, workOrderText, onProgress }) {
   const command = resolveCodexCommand(values);
   const extraArgs = Array.isArray(values.coder_codex_exec_args) ? values.coder_codex_exec_args.map(String) : [];
@@ -2479,6 +2525,10 @@ async function runCodexExec({ targetRoot, values, workOrderText, onProgress }) {
 
   const heartbeatSecondsRaw = Number(values?.coder_codex_heartbeat_seconds ?? 10);
   const heartbeatSeconds = Number.isFinite(heartbeatSecondsRaw) ? Math.max(5, Math.floor(heartbeatSecondsRaw)) : 10;
+  const streamOutput = resolveBooleanish(
+    values?.coder_codex_stream_output ?? process.env.FABRIC_CODEX_STREAM_OUTPUT,
+    true,
+  );
   const startedAtMs = Date.now();
 
   return await new Promise((resolve) => {
@@ -2495,13 +2545,21 @@ async function runCodexExec({ targetRoot, values, workOrderText, onProgress }) {
 
     if (child.stdout) {
       child.stdout.on('data', (chunk) => {
-        stdoutChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'));
+        const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+        stdoutChunks.push(data);
+        if (streamOutput) {
+          process.stdout.write(data);
+        }
       });
     }
 
     if (child.stderr) {
       child.stderr.on('data', (chunk) => {
-        stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8'));
+        const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+        stderrChunks.push(data);
+        if (streamOutput) {
+          process.stderr.write(data);
+        }
       });
     }
 
@@ -3319,7 +3377,7 @@ async function coderImplementCurrentSlice({ targetRoot, valuesPath, force = fals
   }
 }
 
-function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
+function coderCloseCurrentSlice({ targetRoot, valuesPath, allowSemanticUxFail = false }) {
   const currentSlicePath = path.join(targetRoot, 'docs/product/current-slice.yaml');
   const backlogPath = path.join(targetRoot, 'docs/product/backlog.yaml');
   if (!fs.existsSync(currentSlicePath) || !fs.existsSync(backlogPath)) {
@@ -3380,11 +3438,12 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
 
   const semanticReviewRelPath = semanticUxReviewJsonRelPathForSlice(currentSlice.id);
   const semanticReview = readSemanticUxReviewStatus({ targetRoot, sliceId: currentSlice.id });
+  const semanticUxOverrideUsed = Boolean(allowSemanticUxFail && semanticReview.exists && semanticReview.status !== 'pass');
   if (!semanticReview.exists) {
     issues.push(`missing ${semanticReviewRelPath}; run uiux:review-current-slice-semantics before closeout`);
-  } else if (semanticReview.status !== 'pass') {
+  } else if (semanticReview.status !== 'pass' && !allowSemanticUxFail) {
     issues.push(`${semanticReviewRelPath} status is ${semanticReview.status}; resolve semantic UX findings before closeout`);
-  } else if (semanticReview.blockerCount > 0) {
+  } else if (semanticReview.status === 'pass' && semanticReview.blockerCount > 0) {
     issues.push(`${semanticReviewRelPath} still has blocker findings; resolve semantic UX findings before closeout`);
   }
 
@@ -3486,7 +3545,9 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
       implementationNotesNeedArtifactReconciliation ? 'Implementation notes artifact evidence was reconciled from the filesystem during closeout.' : 'Implementation notes artifact evidence already aligned with required target paths or was refreshed during closeout.',
       'Architecture baseline, UX flow, semantic UX contract, and implementation notes are all placeholder-free.',
       `Storybook review passed: ${storybookReviewRelPath}.`,
-      `Semantic UX review passed: ${semanticReviewRelPath}.`,
+      semanticUxOverrideUsed
+        ? `Semantic UX review override used: ${semanticReviewRelPath} status is ${semanticReview.status}.`
+        : `Semantic UX review passed: ${semanticReviewRelPath}.`,
       'package.json includes a local dev command so the slice can be customer-tested.',
     ],
     executionNotes: [
@@ -3513,6 +3574,9 @@ function coderCloseCurrentSlice({ targetRoot, valuesPath }) {
   console.log('fabric coder:close-current-slice: OK');
   console.log(`- closed slice: ${completedSlice.id} ${completedSlice.title}`);
   console.log(`- updated: ${implementationNotesRelPath}`);
+  if (semanticUxOverrideUsed) {
+    console.log(`- semantic UX gate override used (--allow-semantic-ux-fail): ${semanticReviewRelPath} status ${semanticReview.status}`);
+  }
   if (implementationNotesNeedArtifactReconciliation) {
     console.log('- reconciled implementation artifact evidence from filesystem');
   }

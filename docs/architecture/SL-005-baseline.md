@@ -1,0 +1,56 @@
+<!-- generated_from: templates/architecture-baseline-template.md -->
+<!-- fabric_version: v1 -->
+<!-- generated_at: 2026-05-05T15:30:22.817Z -->
+# Architecture Baseline
+
+Date: `2026-05-05`
+Status: `Ready for implementation`
+Scope: Current slice `SL-005 Family Onboarding and Family Overview`
+
+## 1. Context
+
+SL-005 adds multi-profile family management inside a single account for the MVP. The slice extends existing self onboarding, dashboard, health plan, item action, and vaccination capabilities so one account can create up to five person-specific health profiles, view a family overview, and open each profile's dashboard, plan, and vaccinations with the correct person context preserved.
+
+## 2. Decisions
+
+- Model Account as the top-level owner of HealthProfile records with a required cardinality of 1 to 5 profiles per account. The existing self profile is the first HealthProfile; this slice does not introduce a separate family-member account model.
+- Define HealthProfile as the person-specific aggregate for preventive guidance with fields limited to profileId, accountId, displayLabel, age, and gender for this slice. displayLabel is used only for identification in family views; age and gender are the only plan-generation inputs.
+- Treat HealthPlan, HealthItem status, Vaccination entries, and HealthScore as profile-scoped data. Every plan, dashboard summary, vaccination list, reminder action, and item completion action must resolve through a single profileId.
+- Generate a separate rule-based plan for each HealthProfile at profile creation time using the existing recommendation engine with age and gender inputs. This slice does not add profile editing or retroactive plan regeneration workflows.
+- Introduce an explicit activeProfileId application context. Dashboard, plan, item detail, reminder, and vaccination routes must read and write against activeProfileId or an equivalent validated route profileId rather than assuming the first or self profile.
+- Create an account-scoped FamilyOverview read model that lists each profile with displayLabel, HealthScore, and due-item summary derived from the profile's current underlying item statuses. The overview is read-only in this slice except for navigation into a selected profile.
+- Extend onboarding with an optional family-profile creation step after self-profile capture. The self-profile flow remains completable without adding family members, and any family members added during onboarding reuse the same profile-creation command used after onboarding so creation rules stay consistent in one path.
+
+## 3. Invariant and Guardrail Decisions
+
+- Enforce the maximum of five profiles per account in domain or service logic, not only in the UI. Attempts to create a sixth profile must fail deterministically.
+- Do not introduce profile editing, archive, delete, transfer, or merge behavior in this slice. Profile lifecycle is create and view only.
+- Do not introduce multi-user permissions, invitations, or shared roles. All profiles in this slice are managed by one account owner.
+- Do not compute or display a combined family Health Score. Scores and priority summaries remain strictly per profile.
+- Do not duplicate plan or vaccination state into the family overview store. Family overview summaries must be derived from the existing profile-level sources of truth.
+- Use only age and gender as recommendation inputs for plan generation in this slice. displayLabel exists for navigation and identification only and must not affect recommendations.
+- Route access to a profile must validate that the profile belongs to the signed-in account before loading dashboard, plan, or vaccination content for that profile.
+
+## 4. Verification Decisions
+
+- Automated walkthrough proves onboarding can complete with only the self profile and still reach the first dashboard without requiring family creation.
+- Automated walkthrough proves onboarding can create the self profile plus at least one added family profile in the same account and yields separate dashboards, Health Scores, and priority lists for the two profiles.
+- Automated tests prove profile creation is blocked after the fifth profile whether profiles are added during onboarding or after onboarding.
+- Navigation tests prove selecting a profile from the family overview opens that profile's dashboard, checkup plan, and vaccinations, and each screen shows person-specific content tied to the selected profileId.
+- State tests prove switching profiles changes the activeProfileId and preserves correct person context across dashboard, plan, item detail, reminder action, and vaccination screens.
+- Summary consistency tests prove the family overview due-item summary and Health Score for a profile match that profile's underlying item statuses, and updating one profile does not alter another profile's summary.
+- Authorization or ownership tests prove a profile route cannot load data for a profileId outside the current account, including deep-link attempts to dashboard, plan, and vaccination areas.
+
+## 5. Constraints
+
+- Keep implementation bounded to one-account-many-profiles management for the current signed-in user; no additional account or household domain is introduced.
+- Limit HealthProfile inputs in this slice to the minimum needed for generation and identification: displayLabel, age, and gender. Do not expand into broader medical or demographic data capture.
+- Preserve existing dashboard, plan, item action, reminder, and vaccination modules as profile-scoped features; adapt them to accept explicit profile context instead of creating parallel family-specific variants.
+- Family overview is a navigation and status-summary surface only. It must not become a combined analytics, household reporting, or medical-record screen.
+- The slice must remain compatible with the existing rule-based MVP model and must not introduce AI, external APIs, provider integrations, or new scoring logic.
+- Implementation artifacts stay within the declared slice targets: onboarding flow updates in src/features/onboarding/ and src/routes/onboarding*, profile and family overview behavior in src/features/profile/, and slice verification in tests/onboarding/.
+- The finished slice must satisfy the documented done-definition evidence, including completed user checklist, updated implementation notes, and a passing fabric doctor result without bootstrap semantic issues.
+
+## 6. Open Questions
+
+- None.

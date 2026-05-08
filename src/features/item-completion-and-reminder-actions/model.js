@@ -16,7 +16,9 @@ export const REMINDER_OPTION_LABELS = Object.freeze({
 
 export const DETAIL_ACTION_ERRORS = Object.freeze({
   missing_date: 'Please choose a reminder date.',
+  missing_done_date: 'Please choose the completion date.',
   past_date: 'Choose a future date for your reminder.',
+  future_done_date: 'Choose today or a past date for completion.',
   invalid_date: 'Enter a valid calendar date.',
   action_failed: 'We could not save your update. Please try again.',
 });

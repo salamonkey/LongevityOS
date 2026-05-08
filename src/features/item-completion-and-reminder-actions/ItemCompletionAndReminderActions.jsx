@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppShell,
   StatusPill,
@@ -41,6 +41,80 @@ import {
   validateManualVaccinationEntryInput,
 } from '../vaccination-tracking-area-and-manual-entries/model.js';
 
+const DONE_COMPLETION_TIMING_TYPES = Object.freeze({
+  today: 'today',
+  custom_date: 'custom_date',
+});
+const EMPTY_REMINDER_TIMING = '';
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseCadenceIntervalDays(cadenceText) {
+  const normalized = String(cadenceText || '').trim().toLowerCase();
+  if (!normalized) return null;
+
+  const rangeYears = /every\s+(\d+)\s*(?:to|-)\s*(\d+)\s*years?/.exec(normalized);
+  if (rangeYears) {
+    return Number(rangeYears[1]) * 365;
+  }
+
+  const fixedYears = /every\s+(\d+)\s*years?/.exec(normalized);
+  if (fixedYears) {
+    return Number(fixedYears[1]) * 365;
+  }
+
+  const fixedMonths = /every\s+(\d+)\s*months?/.exec(normalized);
+  if (fixedMonths) {
+    return Number(fixedMonths[1]) * 30;
+  }
+
+  if (normalized.includes('every year') || normalized.includes('at least every year') || normalized.includes('seasonal')) {
+    return 365;
+  }
+
+  return null;
+}
+
+function parseIsoDateToUtcDate(isoDate) {
+  const parts = String(isoDate || '').split('-');
+  if (parts.length !== 3) return null;
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function buildTimeToGoState({ completedOn, cadenceText, now = new Date() }) {
+  const intervalDays = parseCadenceIntervalDays(cadenceText);
+  if (!intervalDays) return null;
+
+  const completedDate = parseIsoDateToUtcDate(completedOn);
+  if (!completedDate) return null;
+
+  const nowDate = new Date(now);
+  const currentUtc = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth(), nowDate.getUTCDate()));
+  const nextDueDate = new Date(completedDate.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+  const elapsedDays = Math.floor((currentUtc.getTime() - completedDate.getTime()) / (24 * 60 * 60 * 1000));
+  const remainingDays = Math.ceil((nextDueDate.getTime() - currentUtc.getTime()) / (24 * 60 * 60 * 1000));
+  const progressRatio = clamp(elapsedDays / intervalDays, 0, 1);
+  const progressPercent = Math.round(progressRatio * 100);
+  const overdueDays = Math.max(0, Math.abs(remainingDays));
+
+  return {
+    nextDueLabel: formatDateForConfirmation(nextDueDate.toISOString().slice(0, 10)),
+    progressPercent,
+    remainingText: remainingDays >= 0
+      ? `${remainingDays} day${remainingDays === 1 ? '' : 's'} left`
+      : `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`,
+    isOverdue: remainingDays < 0,
+  };
+}
+
 function PlanRow({ item, onOpen }) {
   return (
     <li>
@@ -80,13 +154,35 @@ function ReminderForm({
   customDate,
   onTimingChange,
   onCustomDateChange,
-  onSubmit,
   onCancel,
   pending,
   validationMessage,
 }) {
+  const customDateInputRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedTiming !== REMINDER_TIMING_TYPES.custom_date) {
+      return;
+    }
+
+    const input = customDateInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+      } catch {
+        // Some browsers block programmatic picker open; focus is a safe fallback.
+      }
+    }
+  }, [selectedTiming]);
+
   return (
-    <form className="sl003-reminder-form" onSubmit={onSubmit} noValidate>
+    <div className="sl003-reminder-form" role="group" aria-label="Set a reminder">
       <fieldset className="sl003-reminder-fieldset" disabled={pending}>
         <legend>Set a reminder</legend>
         <label>
@@ -123,6 +219,7 @@ function ReminderForm({
           <div className="sl003-custom-date">
             <label htmlFor="sl003-custom-date">Reminder date</label>
             <input
+              ref={customDateInputRef}
               id="sl003-custom-date"
               type="date"
               value={customDate}
@@ -134,8 +231,89 @@ function ReminderForm({
       </fieldset>
       {validationMessage ? <p className="sl001-field-error" role="alert">{validationMessage}</p> : null}
       <div className="sl003-reminder-actions">
+        <button className="sl003-quiet-button" type="button" onClick={onCancel} disabled={pending}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DoneForm({
+  selectedTiming,
+  customDate,
+  onTimingChange,
+  onCustomDateChange,
+  onSubmit,
+  onCancel,
+  pending,
+  validationMessage,
+}) {
+  const customDateInputRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedTiming !== DONE_COMPLETION_TIMING_TYPES.custom_date) {
+      return;
+    }
+
+    const input = customDateInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+      } catch {
+        // Some browsers block programmatic picker open; focus is a safe fallback.
+      }
+    }
+  }, [selectedTiming]);
+
+  return (
+    <form className="sl003-reminder-form" onSubmit={onSubmit} noValidate>
+      <fieldset className="sl003-reminder-fieldset" disabled={pending}>
+        <legend>Mark as done</legend>
+        <label>
+          <input
+            type="radio"
+            name="done-timing"
+            value={DONE_COMPLETION_TIMING_TYPES.today}
+            checked={selectedTiming === DONE_COMPLETION_TIMING_TYPES.today}
+            onChange={(event) => onTimingChange(event.target.value)}
+          />
+          Today
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="done-timing"
+            value={DONE_COMPLETION_TIMING_TYPES.custom_date}
+            checked={selectedTiming === DONE_COMPLETION_TIMING_TYPES.custom_date}
+            onChange={(event) => onTimingChange(event.target.value)}
+          />
+          Choose date
+        </label>
+        {selectedTiming === DONE_COMPLETION_TIMING_TYPES.custom_date ? (
+          <div className="sl003-custom-date">
+            <label htmlFor="sl003-done-custom-date">Completion date</label>
+            <input
+              ref={customDateInputRef}
+              id="sl003-done-custom-date"
+              type="date"
+              value={customDate}
+              onChange={(event) => onCustomDateChange(event.target.value)}
+              aria-invalid={Boolean(validationMessage)}
+            />
+          </div>
+        ) : null}
+      </fieldset>
+      {validationMessage ? <p className="sl001-field-error" role="alert">{validationMessage}</p> : null}
+      <div className="sl003-reminder-actions">
         <button className="sl001-primary-action" type="submit" disabled={pending}>
-          {pending ? 'Saving reminder...' : 'Save reminder'}
+          {pending ? 'Saving...' : 'Save completion'}
         </button>
         <button className="sl003-quiet-button" type="button" onClick={onCancel} disabled={pending}>
           Cancel
@@ -204,7 +382,7 @@ function ManualEntryForm({
 
       <div className="sl003-manual-form-actions">
         <button type="submit" className="sl001-primary-action" disabled={pending}>
-          {pending ? 'Saving entry...' : 'Save vaccination entry'}
+          {pending ? 'Saving entry...' : 'Save'}
         </button>
         <button type="button" className="sl003-quiet-button" onClick={onCancel} disabled={pending}>
           Cancel
@@ -217,12 +395,18 @@ function ManualEntryForm({
 function DetailView({
   item,
   readOnly = false,
-  onMarkDone,
   donePending,
+  showDoneForm,
+  onOpenDone,
+  onDoneSubmit,
+  onDoneCancel,
+  onDoneTimingChange,
+  onCustomDoneDateChange,
+  selectedDoneTiming,
+  customDoneDate,
   reminderPending,
   showReminderForm,
   onOpenReminder,
-  onReminderSubmit,
   onReminderCancel,
   onReminderTimingChange,
   onCustomReminderDateChange,
@@ -232,17 +416,27 @@ function DetailView({
   confirmationMessage,
 }) {
   const actionsDisabled = donePending || reminderPending;
+  const doneTimeToGo = item.status === 'done' && item.completedOn
+    ? buildTimeToGoState({
+      completedOn: item.completedOn,
+      cadenceText: item.cadenceText,
+    })
+    : null;
 
   return (
     <section className="sl002-detail-view" aria-label={`${item.displayName} details`}>
       <div className="sl002-detail-topline">
         <StatusPill status={item.status} label={item.statusLabel} />
-        <span className="sl002-detail-category">{item.categoryLabel}</span>
+        <span className="sl002-detail-category">{item.interventionTypeLabel ?? item.categoryLabel}</span>
       </div>
-      <p className="sl002-detail-cadence">Recommended cadence: {item.cadenceText}</p>
       {item.reminderDateLabel ? (
         <p className="sl003-reminder-note">Planned for {item.reminderDateLabel}</p>
       ) : null}
+
+      <section className="sl002-detail-section" aria-label="Cadence">
+        <h3>Cadence</h3>
+        <p>{item.cadenceText}</p>
+      </section>
 
       <section className="sl002-detail-section" aria-label="Recommendation">
         <h3>Recommendation</h3>
@@ -255,21 +449,54 @@ function DetailView({
       </section>
 
       <section className="sl003-action-area" aria-label="Item actions">
-        <h3>Next step</h3>
+        <h3>{doneTimeToGo ? 'Time to go' : 'Next step'}</h3>
         {readOnly ? (
           <p className="sl003-complete-message">This item is not currently in your active plan list.</p>
         ) : item.status === 'done' ? (
-          <p className="sl003-complete-message">This item is marked as done.</p>
+          <>
+            <p className="sl003-complete-message">
+              {item.completedOnLabel
+                ? `This item was marked as done on ${item.completedOnLabel}.`
+                : 'This item is marked as done.'}
+            </p>
+            {doneTimeToGo ? (
+              <section className="sl003-time-to-go" aria-label="Time until next due checkup">
+                <div className="sl003-time-to-go-row">
+                  <span className="sl003-time-to-go-due">Next due by {doneTimeToGo.nextDueLabel}</span>
+                  <span className={doneTimeToGo.isOverdue ? 'sl003-time-to-go-remaining is-overdue' : 'sl003-time-to-go-remaining'}>
+                    {doneTimeToGo.remainingText}
+                  </span>
+                </div>
+                <div className="sl003-time-to-go-track" role="presentation">
+                  <div className="sl003-time-to-go-fill" style={{ width: `${doneTimeToGo.progressPercent}%` }} />
+                </div>
+              </section>
+            ) : null}
+          </>
         ) : (
           <>
-            <button
-              type="button"
-              className="sl001-primary-action"
-              onClick={onMarkDone}
-              disabled={actionsDisabled}
-            >
-              {donePending ? 'Saving...' : 'Mark as done'}
-            </button>
+            {!showDoneForm ? (
+              <button
+                type="button"
+                className="sl001-primary-action"
+                onClick={onOpenDone}
+                disabled={actionsDisabled}
+              >
+                Mark as done
+              </button>
+            ) : null}
+            {showDoneForm ? (
+              <DoneForm
+                selectedTiming={selectedDoneTiming}
+                customDate={customDoneDate}
+                onTimingChange={onDoneTimingChange}
+                onCustomDateChange={onCustomDoneDateChange}
+                onSubmit={onDoneSubmit}
+                onCancel={onDoneCancel}
+                pending={donePending}
+                validationMessage={actionError}
+              />
+            ) : null}
             {!showReminderForm ? (
               <button
                 type="button"
@@ -286,7 +513,6 @@ function DetailView({
                 customDate={customReminderDate}
                 onTimingChange={onReminderTimingChange}
                 onCustomDateChange={onCustomReminderDateChange}
-                onSubmit={onReminderSubmit}
                 onCancel={onReminderCancel}
                 pending={reminderPending}
                 validationMessage={actionError}
@@ -295,7 +521,7 @@ function DetailView({
           </>
         )}
 
-        {!showReminderForm && actionError ? <p className="sl001-field-error" role="alert">{actionError}</p> : null}
+        {!showReminderForm && !showDoneForm && actionError ? <p className="sl001-field-error" role="alert">{actionError}</p> : null}
         {confirmationMessage ? <p className="sl003-confirmation" role="status">{confirmationMessage}</p> : null}
       </section>
     </section>
@@ -313,12 +539,13 @@ function NotFoundState({ onRecover }) {
 }
 
 export default function ItemCompletionAndReminderActions({
-  profile = { profileId: 'self', name: 'You' },
+  profile = { profileId: 'self', name: 'Me' },
   initialPlanSnapshot,
   initialManualEntries = [],
   initialCategory = PLAN_CATEGORIES.checkup,
   initialItemKey,
   initialOrigin = DETAIL_ORIGIN.direct,
+  initialReturnToVaccinationTracker = false,
   onNavigate,
   saveManualEntry,
   onManualEntriesChange,
@@ -331,10 +558,14 @@ export default function ItemCompletionAndReminderActions({
   const [detailState, setDetailState] = useState(initialItemKey ? {
     itemKey: initialItemKey,
     origin: initialOrigin,
+    returnToVaccinationTracker: Boolean(initialReturnToVaccinationTracker),
   } : null);
 
   const [showReminderForm, setShowReminderForm] = useState(false);
-  const [selectedReminderTiming, setSelectedReminderTiming] = useState(REMINDER_TIMING_TYPES.one_month);
+  const [showDoneForm, setShowDoneForm] = useState(false);
+  const [selectedDoneTiming, setSelectedDoneTiming] = useState(DONE_COMPLETION_TIMING_TYPES.today);
+  const [customDoneDate, setCustomDoneDate] = useState('');
+  const [selectedReminderTiming, setSelectedReminderTiming] = useState(EMPTY_REMINDER_TIMING);
   const [customReminderDate, setCustomReminderDate] = useState('');
   const [actionError, setActionError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
@@ -378,6 +609,8 @@ export default function ItemCompletionAndReminderActions({
     displayName: fallbackDefinition.displayName,
     category: fallbackDefinition.category,
     categoryLabel: getCategoryLabel(fallbackDefinition.category, 'singular'),
+    interventionType: fallbackDefinition.interventionType,
+    interventionTypeLabel: fallbackDefinition.interventionTypeLabel,
     cadenceText: fallbackDefinition.cadenceText,
     recommendationText: fallbackDefinition.recommendationText,
     whyItMattersText: fallbackDefinition.whyItMattersText,
@@ -406,8 +639,10 @@ export default function ItemCompletionAndReminderActions({
     setDetailState({
       itemKey,
       origin: resolveOriginForCategory(categoryForOrigin),
+      returnToVaccinationTracker: false,
     });
     setShowReminderForm(false);
+    setShowDoneForm(false);
     setActionError('');
     setConfirmationMessage('');
   };
@@ -427,11 +662,21 @@ export default function ItemCompletionAndReminderActions({
 
       setDetailState(null);
       setShowReminderForm(false);
+      setShowDoneForm(false);
       setActionError('');
       return;
     }
 
     if (target.destination === DETAIL_ORIGIN.vaccinations) {
+      if (detailState?.returnToVaccinationTracker && typeof onNavigate === 'function') {
+        onNavigate(target);
+        setDetailState(null);
+        setShowReminderForm(false);
+        setShowDoneForm(false);
+        setActionError('');
+        return;
+      }
+
       setActiveCategory(PLAN_CATEGORIES.vaccination);
     } else {
       setActiveCategory(PLAN_CATEGORIES.checkup);
@@ -439,10 +684,13 @@ export default function ItemCompletionAndReminderActions({
 
     setDetailState(null);
     setShowReminderForm(false);
+    setShowDoneForm(false);
     setActionError('');
   };
 
-  const handleMarkDone = async () => {
+  const handleDoneSubmit = async (event) => {
+    event.preventDefault();
+
     if (!detailItem || pendingAction) {
       return;
     }
@@ -452,11 +700,33 @@ export default function ItemCompletionAndReminderActions({
     setConfirmationMessage('');
 
     try {
-      const result = service.markItemDone(profile.profileId, detailItem.itemKey);
+      const result = service.markItemDone(profile.profileId, detailItem.itemKey, {
+        customDate: selectedDoneTiming === DONE_COMPLETION_TIMING_TYPES.custom_date
+          ? customDoneDate
+          : '',
+      });
       if (typeof onPlanSnapshotChange === 'function') {
         onPlanSnapshotChange(result.planSnapshot);
       }
+
+      if (detailState?.origin === DETAIL_ORIGIN.dashboard) {
+        setDetailState(null);
+        setShowDoneForm(false);
+        setShowReminderForm(false);
+        setActionError('');
+        setConfirmationMessage('');
+
+        if (typeof onNavigate === 'function') {
+          onNavigate({ destination: DETAIL_ORIGIN.dashboard });
+        }
+        return;
+      }
+
+      setShowDoneForm(false);
       setShowReminderForm(false);
+      if (result.item?.completedOn) {
+        setConfirmationMessage(`Marked done on ${formatDateForConfirmation(result.item.completedOn)}.`);
+      }
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : DETAIL_ACTION_ERRORS.action_failed;
       setActionError(message);
@@ -465,11 +735,9 @@ export default function ItemCompletionAndReminderActions({
     }
   };
 
-  const handleReminderSubmit = async (event) => {
-    event.preventDefault();
-
+  const saveReminderSelection = async ({ timingType, customDate }) => {
     if (!detailItem || pendingAction) {
-      return;
+      return false;
     }
 
     setPendingAction('reminder');
@@ -478,19 +746,34 @@ export default function ItemCompletionAndReminderActions({
 
     try {
       const result = service.scheduleItemReminder(profile.profileId, detailItem.itemKey, {
-        timingType: selectedReminderTiming,
-        customDate: customReminderDate,
+        timingType,
+        customDate,
       });
 
       if (typeof onPlanSnapshotChange === 'function') {
         onPlanSnapshotChange(result.planSnapshot);
       }
 
+      if (detailState?.origin === DETAIL_ORIGIN.dashboard) {
+        setDetailState(null);
+        setShowReminderForm(false);
+        setShowDoneForm(false);
+        setActionError('');
+        setConfirmationMessage('');
+
+        if (typeof onNavigate === 'function') {
+          onNavigate({ destination: DETAIL_ORIGIN.dashboard });
+        }
+        return true;
+      }
+
       setShowReminderForm(false);
       setConfirmationMessage(`Reminder set for ${formatDateForConfirmation(result.reminder.scheduledFor)}.`);
+      return true;
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : DETAIL_ACTION_ERRORS.action_failed;
       setActionError(message);
+      return false;
     } finally {
       setPendingAction(null);
     }
@@ -522,27 +805,65 @@ export default function ItemCompletionAndReminderActions({
         <DetailView
           item={detailItemView}
           readOnly={detailReadOnly}
-          onMarkDone={handleMarkDone}
           donePending={pendingAction === 'done'}
+          showDoneForm={showDoneForm}
+          onOpenDone={() => {
+            setShowDoneForm(true);
+            setShowReminderForm(false);
+            setActionError('');
+            setConfirmationMessage('');
+          }}
+          onDoneSubmit={handleDoneSubmit}
+          onDoneCancel={() => {
+            setShowDoneForm(false);
+            setActionError('');
+          }}
+          onDoneTimingChange={(timingType) => {
+            setSelectedDoneTiming(timingType);
+            setActionError('');
+            setConfirmationMessage('');
+          }}
+          onCustomDoneDateChange={(value) => {
+            setCustomDoneDate(value);
+            setActionError('');
+            setConfirmationMessage('');
+          }}
+          selectedDoneTiming={selectedDoneTiming}
+          customDoneDate={customDoneDate}
           reminderPending={pendingAction === 'reminder'}
           showReminderForm={showReminderForm}
           onOpenReminder={() => {
             setShowReminderForm(true);
+            setShowDoneForm(false);
+            setSelectedReminderTiming(EMPTY_REMINDER_TIMING);
+            setCustomReminderDate('');
             setActionError('');
             setConfirmationMessage('');
           }}
-          onReminderSubmit={handleReminderSubmit}
           onReminderCancel={() => {
             setShowReminderForm(false);
+            setSelectedReminderTiming(EMPTY_REMINDER_TIMING);
+            setCustomReminderDate('');
             setActionError('');
           }}
-          onReminderTimingChange={(timingType) => {
+          onReminderTimingChange={async (timingType) => {
             setSelectedReminderTiming(timingType);
             setActionError('');
+            setConfirmationMessage('');
+            if (timingType !== REMINDER_TIMING_TYPES.custom_date) {
+              await saveReminderSelection({ timingType, customDate: customReminderDate });
+            }
           }}
-          onCustomReminderDateChange={(value) => {
+          onCustomReminderDateChange={async (value) => {
             setCustomReminderDate(value);
             setActionError('');
+            setConfirmationMessage('');
+            if (selectedReminderTiming === REMINDER_TIMING_TYPES.custom_date && value) {
+              await saveReminderSelection({
+                timingType: REMINDER_TIMING_TYPES.custom_date,
+                customDate: value,
+              });
+            }
           }}
           selectedReminderTiming={selectedReminderTiming}
           customReminderDate={customReminderDate}
@@ -552,16 +873,6 @@ export default function ItemCompletionAndReminderActions({
       </AppShell>
     );
   }
-
-  const planHeaderAction = typeof onNavigate === 'function' && (
-    <button
-      type="button"
-      className="sl002-back-to-dashboard"
-      onClick={() => onNavigate({ destination: DETAIL_ORIGIN.dashboard })}
-    >
-      Back to dashboard
-    </button>
-  );
 
   const openManualEntryForm = () => {
     setShowManualEntryForm(true);
@@ -648,7 +959,7 @@ export default function ItemCompletionAndReminderActions({
   };
 
   return (
-    <AppShell title={getCategoryLabel(activeCategory)} headerAction={planHeaderAction}>
+    <AppShell title={null}>
       <section className="sl003-plan-browser" aria-label="Browse your plan">
         <div className="sl002-category-switch" role="tablist" aria-label="Plan categories">
           {[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination].map((category) => {
@@ -696,7 +1007,7 @@ export default function ItemCompletionAndReminderActions({
             ))}
           </ul>
         ) : null}
-        {activeCategory === PLAN_CATEGORIES.vaccination && typeof onNavigate === 'function' ? (
+        {activeCategory === PLAN_CATEGORIES.vaccination ? (
           <>
             <section className="sl003-manual-entry-box sl002-empty-state" aria-label="Manual vaccination records">
               <h3>Your vaccination records</h3>
@@ -726,20 +1037,9 @@ export default function ItemCompletionAndReminderActions({
                 className="sl001-primary-action sl003-manual-entry-cta sl003-manual-entry-cta-inbox"
                 onClick={openManualEntryForm}
               >
-                Add vaccination record
+                Add record
               </button>
             </section>
-            <div className="sl003-manual-entry-action">
-              <button
-                type="button"
-                className="sl001-primary-action sl003-manual-entry-button"
-                aria-label="Add vaccination record"
-                title="Add vaccination record"
-                onClick={() => onNavigate({ destination: DETAIL_ORIGIN.vaccinations })}
-              >
-                +
-              </button>
-            </div>
             {showManualEntryForm ? (
               <section className="sl003-manual-entry-form-shell sl002-empty-state" aria-label="Add vaccination entry">
                 <ManualEntryForm

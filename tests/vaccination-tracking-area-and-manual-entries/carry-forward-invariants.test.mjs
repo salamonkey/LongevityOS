@@ -112,7 +112,7 @@ test('[SL-002] every generated item remains visible and navigable with stable de
 test('[SL-003] mark done and reminder actions still update status and highlighted item rules', () => {
   const profile = createProfile();
   const base = createSnapshot();
-  const todayItem = base.items.find((item) => item.dashboardBucket === 'today') ?? base.items[0];
+  const todayItem = base.items.find((item) => item.status === 'due') ?? base.items[0];
 
   const doneResult = markItemDoneInSnapshot(base, profile.profileId, todayItem.catalogItemId);
   assert.equal(doneResult.item.status, 'done');
@@ -125,7 +125,7 @@ test('[SL-003] mark done and reminder actions still update status and highlighte
     () => new Date('2026-05-05T10:00:00.000Z'),
   );
 
-  assert.equal(reminderResult.item.status, 'planned');
+  assert.equal(reminderResult.item.status, 'pending');
 
   const highlightedBefore = selectHighlightedItemTodayThenSoon(base);
   const highlightedAfterDone = selectHighlightedItemTodayThenSoon(doneResult.planSnapshot);

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T17:57:48.340Z",
+  "slice_id": "SL-005",
+  "status": "pass",
+  "storybook_paths": [
+    "Product/AppShell",
+    "Product/HealthScoreCard",
+    "Product/PrioritySection",
+    "Product/HealthPlanItem",
+    "Product/StatusPill",
+    "Product/FamilyProfileCard",
+    "Product/VaccinationStatusRow",
+    "Screens/onboarding"
+  ],
+  "required_states_covered": true,
+  "package_scripts_present": true,
+  "map_present": true,
+  "findings": [],
+  "note": "This deterministic review checks Fabric-to-Storybook coverage. It does not replace visual review or Storybook build output."
+}

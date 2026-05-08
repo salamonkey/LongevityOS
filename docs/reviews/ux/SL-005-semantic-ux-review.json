@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T18:07:31.543Z",
+  "slice_id": "SL-005",
+  "slice_title": "Family Onboarding and Family Overview",
+  "status": "pass",
+  "summary": "Available user-facing copy for the family onboarding and family overview slice appears semantically fit: it uses plain language for adding profiles, profile limits, per-person context, and recovery states, while avoiding internal implementation terms and unsafe raw data output.",
+  "contract": "docs/ux/SL-005-semantic-ux-contract.json",
+  "deterministic_findings_count": 0,
+  "llm_enabled": true,
+  "llm_required": true,
+  "llm_status": "pass",
+  "llm_reviewer": "openai/gpt-5.4",
+  "findings": []
+}

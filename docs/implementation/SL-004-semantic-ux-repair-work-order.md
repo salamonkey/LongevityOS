@@ -30,27 +30,27 @@ Repair the current implementation so the active slice passes semantic UX review.
 [
   {
     "index": 1,
-    "issue_type": "slice_not_exposed",
+    "issue_type": "context_loss_navigation",
     "severity": "blocker",
     "source": "llm",
     "confidence": "",
     "visibility": "",
-    "file": "src/App.jsx",
-    "slot": "primary_heading",
-    "observed": "The current app only renders onboarding and plan views. The vaccination tracking area component is not routed or linked from the active user flow, so users cannot reach a dedicated Vaccinations screen with its own due guidance and add-entry action.",
-    "required": "/"
+    "file": "src/features/health-plan-browsing-and-item-detail/HealthPlanBrowsingAndItemDetail.jsx",
+    "slot": "related_detail_return",
+    "observed": "When a user opens a vaccination item detail from the Vaccinations area, the Back action resolves to the generic plan's Vaccinations tab instead of returning to the dedicated Vaccinations tracker. This loses the original vaccination-area context rather than preserving it in-session as the slice requires.",
+    "required": "No"
   },
   {
     "index": 2,
-    "issue_type": "mechanical_record_framing",
+    "issue_type": "ambiguous_field_copy",
     "severity": "warning",
     "source": "llm",
     "confidence": "",
     "visibility": "",
     "file": "src/features/vaccination-tracking-area-and-manual-entries/VaccinationTrackingAreaAndManualEntries.jsx",
     "slot": "status_context",
-    "observed": "The confirmation copy 'Vaccination entry saved and added to your records.' emphasizes system storage and broad record-keeping. That wording is less aligned with the slice’s preventive tracking purpose and risks implying a medical-record experience.",
-    "required": "/"
+    "observed": "The manual-entry form labels the required date field only as 'Date'. Because the same field is used for both completed and planned statuses, the copy does not clearly tell the user whether they should enter the date received or the planned date.",
+    "required": "No"
   }
 ]
 ```

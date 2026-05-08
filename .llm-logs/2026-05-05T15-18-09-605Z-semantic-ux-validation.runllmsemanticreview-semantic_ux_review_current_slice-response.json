@@ -1,0 +1,32 @@
+{
+  "task": "semantic_ux_review_current_slice",
+  "caller": "semantic-ux-validation.runLlmSemanticReview",
+  "provider": "openai",
+  "model": "gpt-5.4",
+  "started_utc": "2026-05-05T15:18:09.605Z",
+  "completed_utc": "2026-05-05T15:19:31.282Z",
+  "elapsed_ms": 81677,
+  "ok": true,
+  "response": {
+    "status": "fail",
+    "summary": "The vaccination area largely uses understandable user-facing wording, but the implemented detail-navigation behavior breaks the dedicated vaccination experience required by this slice. A user can leave the vaccination area for item detail, but the return path drops them into the generic plan view instead of back into the vaccination tracker context. The manual-entry form also uses an overly generic date label that weakens status-aware clarity.",
+    "findings": [
+      {
+        "severity": "blocker",
+        "file": "src/features/health-plan-browsing-and-item-detail/HealthPlanBrowsingAndItemDetail.jsx",
+        "slot": "related_detail_return",
+        "issue_type": "context_loss_navigation",
+        "observed": "When a user opens a vaccination item detail from the Vaccinations area, the Back action resolves to the generic plan's Vaccinations tab instead of returning to the dedicated Vaccinations tracker. This loses the original vaccination-area context rather than preserving it in-session as the slice requires.",
+        "required": "No"
+      },
+      {
+        "severity": "warning",
+        "file": "src/features/vaccination-tracking-area-and-manual-entries/VaccinationTrackingAreaAndManualEntries.jsx",
+        "slot": "status_context",
+        "issue_type": "ambiguous_field_copy",
+        "observed": "The manual-entry form labels the required date field only as 'Date'. Because the same field is used for both completed and planned statuses, the copy does not clearly tell the user whether they should enter the date received or the planned date.",
+        "required": "No"
+      }
+    ]
+  }
+}

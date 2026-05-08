@@ -28,6 +28,12 @@ function ManualEntryForm({
   onSubmit,
   onCancel,
 }) {
+  const entryDateLabel = form.statusContext === MANUAL_ENTRY_STATUS_CONTEXT.completed
+    ? 'Date received'
+    : form.statusContext === MANUAL_ENTRY_STATUS_CONTEXT.planned
+      ? 'Planned date'
+      : 'Date received or planned date';
+
   return (
     <form className="sl004-form" onSubmit={onSubmit} noValidate>
       <label htmlFor="sl004-vaccination-item">Vaccination item</label>
@@ -62,7 +68,7 @@ function ManualEntryForm({
       </fieldset>
       {errors.statusContext ? <p className="sl001-field-error" role="alert">{errors.statusContext}</p> : null}
 
-      <label htmlFor="sl004-entry-date">Date</label>
+      <label htmlFor="sl004-entry-date">{entryDateLabel}</label>
       <input
         id="sl004-entry-date"
         type="date"
@@ -88,7 +94,7 @@ function ManualEntryForm({
 }
 
 export default function VaccinationTrackingAreaAndManualEntries({
-  profile = { profileId: 'self', name: 'You' },
+  profile = { profileId: 'self', name: 'Me' },
   planSnapshot,
   initialManualEntries = [],
   initialAddOpen = false,

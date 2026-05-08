@@ -112,7 +112,7 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - When to use: after `coder:implement-current-slice` and before `coder:close-current-slice`.
   - Benefit: catches user-facing issues that structural tests miss, including generic filler copy, internal implementation language leaks, malformed dates/statuses, raw values, and copy that exists but does not satisfy the user-facing purpose.
   - Output artifacts: `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.json` and `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.md`.
-  - Gate rule: `coder:close-current-slice` refuses to close when this review is missing or failed.
+  - Gate rule: `coder:close-current-slice` refuses to close when this review is missing or failed (unless you intentionally pass `--allow-semantic-ux-fail` during manual closeout).
   - On failure, the command prints the next repair command.
 
 - `tester:validate-current-slice --target <project-root> [--values fabric.values.json]`
@@ -127,7 +127,7 @@ Optional wrapper from repository root (only when host repo defines npm scripts a
   - Inputs: `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.json`, `docs/reviews/ux/<SLICE_ID>-semantic-ux-review.md`, `docs/ux/<SLICE_ID>-semantic-ux-contract.json`, `docs/product/current-slice.yaml`, and `docs/implementation/<SLICE_ID>-implementation-notes.md`.
   - Output artifact: `docs/implementation/<SLICE_ID>-semantic-ux-repair-work-order.md`.
   - Ledger: records `semantic_ux_repair` start/completion events in `.system/factory/execution-ledger.jsonl`.
-  - Path policy: allows slice-local files, normal shared integration files, implementation notes, and files explicitly referenced by the semantic findings; review artifacts and Fabric runtime are not repair targets.
+  - Path policy: allows slice-local files, dependency slice surfaces (features/routes named in `dependencies`), shared integration wiring when findings require surface exposure (for example `src/App.jsx` and route registration), implementation notes, and files explicitly referenced by findings; review artifacts and Fabric runtime are not repair targets.
   - After use: rerun `uiux:review-current-slice-semantics` and close only after the review passes.
 
 - `coder:repair-implementation-findings --target <project-root> [--values fabric.values.json]`
@@ -335,6 +335,8 @@ STAGE 4
     - Then rerun tests/build/doctor, Storybook build/review, semantic UX review, and manual checklist review.
 22. Close current slice:
     - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
+    - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json --allow-semantic-ux-fail`
+
 23. Run readiness gate:
     - `./fabric/company/v1/fabric gate --target . --values ./fabric.values.json`
 24. Advance to next slice:
@@ -715,7 +717,7 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 - Guardrails:
   - Does not edit or waive semantic review files.
   - Does not change Fabric runtime files.
-  - Uses a repair path policy: slice-local files, standard shared integration files, implementation notes, and files explicitly referenced by findings.
+  - Uses a repair path policy: slice-local files, dependency slice surfaces, standard shared integration files, implementation notes, and files explicitly referenced by findings.
 - After running:
   - Inspect the diff.
   - Rerun `uiux:review-current-slice-semantics`.
@@ -766,12 +768,13 @@ Before each slice implementation loop, ensure the active slice baseline + UX are
 
 - Command:
   - `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json`
+  - Manual override (semantic UX gate only): `./fabric/company/v1/fabric coder:close-current-slice --target . --values ./fabric.values.json --allow-semantic-ux-fail`
 - What it checks:
   - Required artifacts exist (slice/backlog/baseline/UX/semantic UX contract/Storybook review/semantic UX review/notes/checklist/package scripts).
   - Current slice contains acceptance criteria.
   - Checklist exists for current slice and reports pass.
   - Storybook review exists and reports pass.
-  - Semantic UX review exists and reports pass.
+  - Semantic UX review exists and reports pass (or you intentionally use `--allow-semantic-ux-fail` for manual override).
   - Placeholder-free closeout docs.
   - Implementation artifacts exist under expected source/test locations for every required target path.
   - Carry-forward regression evidence exists for prior passed-slice invariants (`tests/<slice-slug>/carry-forward-invariants.test.mjs`) and references the relevant prior slice IDs.

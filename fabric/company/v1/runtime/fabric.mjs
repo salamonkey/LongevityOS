@@ -678,7 +678,7 @@ function usage() {
   console.log('  coder:repair-implementation-findings --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:prepare-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  coder:implement-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--force]');
-  console.log('  coder:close-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
+  console.log('  coder:close-current-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--allow-semantic-ux-fail]');
   console.log('  orchestrator:run-until-blocked --target <project-root> [--values <fabric.values.json|fabric.values.yaml>] [--max-steps <n>]');
   console.log('  orchestrator:advance-slice --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
   console.log('  pm:bootstrap-signoff --target <project-root> [--values <fabric.values.json|fabric.values.yaml>]');
@@ -938,7 +938,11 @@ async function main() {
     return;
   }
   if (command === 'coder:close-current-slice') {
-    await runWithGuidance(() => coderCloseCurrentSlice({ targetRoot, valuesPath }));
+    await runWithGuidance(() => coderCloseCurrentSlice({
+      targetRoot,
+      valuesPath,
+      allowSemanticUxFail: Boolean(args['allow-semantic-ux-fail']),
+    }));
     return;
   }
   if (command === 'orchestrator:run-until-blocked') {

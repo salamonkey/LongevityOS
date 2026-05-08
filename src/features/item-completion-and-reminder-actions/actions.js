@@ -1,8 +1,13 @@
 import {
   ALLOWED_REMINDER_TIMING_TYPES,
   DETAIL_ACTION_ERRORS,
+  parseIsoDateInput,
   resolveReminderScheduledFor,
+  toIsoDate,
 } from './model.js';
+import {
+  resolveRecurrenceDays,
+} from '../self-onboarding-to-first-dashboard/dashboard.js';
 
 function cloneSnapshotItems(items) {
   return items.map((item) => ({
@@ -51,14 +56,66 @@ function resolveNow(clock) {
   return parsed;
 }
 
-export function markItemDoneInSnapshot(planSnapshot, profileId, itemId) {
-  assertProfileScope(planSnapshot, profileId);
+function resolveDoneCompletedOn(doneInput = {}, now) {
+  const todayIso = toIsoDate(now);
+  if (!todayIso) {
+    throw new Error('Invalid system date.');
+  }
 
-  const updatedSnapshot = updateItemInSnapshot(planSnapshot, itemId, (item) => ({
-    ...item,
-    status: 'done',
-    reminder: undefined,
-  }));
+  const customDateText = String(doneInput?.customDate ?? '').trim();
+  if (!customDateText) {
+    return todayIso;
+  }
+
+  const parsed = parseIsoDateInput(customDateText);
+  if (!parsed) {
+    throw new Error(DETAIL_ACTION_ERRORS.invalid_date);
+  }
+
+  if (parsed > todayIso) {
+    throw new Error(DETAIL_ACTION_ERRORS.future_done_date);
+  }
+
+  return parsed;
+}
+
+function addDaysToIsoDate(isoDate, intervalDays) {
+  const parsed = parseIsoDateInput(isoDate);
+  const safeInterval = Number(intervalDays);
+
+  if (!parsed || !Number.isFinite(safeInterval) || safeInterval <= 0) {
+    return null;
+  }
+
+  const [yearText, monthText, dayText] = parsed.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + Math.round(safeInterval));
+  return date.toISOString().slice(0, 10);
+}
+
+export function markItemDoneInSnapshot(planSnapshot, profileId, itemId, doneInput = {}, clock = () => new Date()) {
+  assertProfileScope(planSnapshot, profileId);
+  const now = resolveNow(clock);
+  const completedOn = resolveDoneCompletedOn(doneInput, now);
+
+  const updatedSnapshot = updateItemInSnapshot(planSnapshot, itemId, (item) => {
+    const recurrenceDays = resolveRecurrenceDays(item);
+    const nextDueDate = addDaysToIsoDate(completedOn, recurrenceDays);
+
+    return {
+      ...item,
+      status: 'done',
+      reminder: undefined,
+      completedOn,
+      dueDate: undefined,
+      dueAt: undefined,
+      nextDueAt: undefined,
+      nextDueDate: nextDueDate ?? undefined,
+    };
+  });
 
   const updatedItem = updatedSnapshot.items.find((item) => item.catalogItemId === itemId) ?? null;
 
@@ -86,8 +143,9 @@ export function scheduleItemReminderInSnapshot(planSnapshot, profileId, itemId, 
 
   const updatedSnapshot = updateItemInSnapshot(planSnapshot, itemId, (item) => ({
     ...item,
-    status: 'planned',
+    status: 'pending',
     reminder,
+    completedOn: undefined,
   }));
 
   const updatedItem = updatedSnapshot.items.find((item) => item.catalogItemId === itemId) ?? null;
@@ -105,9 +163,9 @@ export function createItemActionService({ profileId, getPlanSnapshot, setPlanSna
   }
 
   return {
-    markItemDone(targetProfileId, itemId) {
+    markItemDone(targetProfileId, itemId, doneInput = {}) {
       try {
-        const result = markItemDoneInSnapshot(getPlanSnapshot(), targetProfileId, itemId);
+        const result = markItemDoneInSnapshot(getPlanSnapshot(), targetProfileId, itemId, doneInput, clock);
         setPlanSnapshot(result.planSnapshot);
         return result;
       } catch (error) {

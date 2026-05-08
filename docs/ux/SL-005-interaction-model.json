@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T15:31:06.802Z",
+  "slice_id": "SL-005",
+  "user_goal": "Allow one account to manage multiple people with separate preventive plans, summaries, and navigation paths.",
+  "entry_points": [
+    "primary_app_flow"
+  ],
+  "screens": [
+    "onboarding"
+  ],
+  "states": [
+    "default",
+    "loading",
+    "empty",
+    "validation_error",
+    "success"
+  ],
+  "transitions": [
+    {
+      "from": "entry",
+      "action": "open",
+      "to": "onboarding"
+    },
+    {
+      "from": "onboarding",
+      "action": "primary_action",
+      "to": "success_or_next_state"
+    },
+    {
+      "from": "onboarding",
+      "action": "invalid_input",
+      "to": "validation_error"
+    }
+  ],
+  "primary_actions": [
+    "primary_action"
+  ],
+  "secondary_actions": [
+    "open_detail",
+    "set_reminder"
+  ],
+  "validation_rules": [
+    "Required user inputs must be validated before transition.",
+    "Errors must be specific and user-facing."
+  ],
+  "recovery_paths": [
+    "Let the user correct invalid or missing input without losing context."
+  ],
+  "trust_constraints": [
+    "Do not imply medical diagnosis.",
+    "Use calm, clear, trustworthy copy."
+  ]
+}

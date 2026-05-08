@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T18:10:31.352Z",
+  "slice_id": "SL-006",
+  "screens": [
+    {
+      "screen_id": "family",
+      "purpose": "Let users maintain profile basics and limited household settings without expanding the MVP into full account customization.",
+      "required_sections": [
+        "health_score",
+        "today",
+        "soon",
+        "later"
+      ],
+      "required_components": [
+        "AppShell",
+        "HealthScoreCard",
+        "PrioritySection",
+        "HealthPlanItem",
+        "StatusPill"
+      ],
+      "visible_data": [
+        "profile_name",
+        "health_score",
+        "due_items",
+        "upcoming_items"
+      ],
+      "states": [
+        "default",
+        "loading",
+        "empty",
+        "error",
+        "success"
+      ],
+      "action_hierarchy": [
+        "open_next_due_action",
+        "set_reminder",
+        "open_later_item"
+      ],
+      "rules": [
+        "Today / Soon / Later order is mandatory.",
+        "Today can dominate visually but must not create anxiety."
+      ]
+    }
+  ]
+}

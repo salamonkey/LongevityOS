@@ -1,0 +1,57 @@
+<!-- generated_from: templates/architecture-baseline-template.md -->
+<!-- fabric_version: v1 -->
+<!-- generated_at: 2026-05-05T18:09:03.616Z -->
+# Architecture Baseline
+
+Date: `2026-05-05`
+Status: `Ready for implementation`
+Scope: Current slice `SL-006 Profile Area and Household Preferences`
+
+## 1. Context
+
+SL-006 defines the bounded architecture for Profile Area and Household Preferences on top of existing onboarding, dashboard, plan, reminder, vaccination, and family overview slices. This slice adds profile creation/view/edit, profile-scoped regeneration after age or gender changes, a household management surface, and a narrowly scoped preferences area without expanding the MVP into full account customization.
+
+## 2. Decisions
+
+- Keep Account and HealthProfile as the only ownership boundary for this slice: one Account owns up to 5 active HealthProfiles, and no separate persisted Household aggregate is introduced.
+- The profile basics record handled by this slice is limited to displayName, age, and gender; no relationship, medical history, provider, insurance, document, or broader account fields are added.
+- Household Management is an account-scoped read model derived from the account's HealthProfiles, with per-profile summary data and navigation targets to that profile's dashboard, plan, and vaccinations.
+- Profile identity is stable: editing a profile never changes profileId or account membership, so all profile-scoped data continues to resolve through the same profile boundary.
+- Age and gender are the only profile edits in this slice that trigger rule-based plan regeneration, because they are the active MVP plan inputs.
+- Plan regeneration is profile-scoped and same-session: after an age or gender update, the profile-area feature invokes the existing plan generator for only that profile and immediately refreshes that profile's dashboard summary and plan queries.
+- Regeneration must use stable recommendation item codes so existing completion state and reminder state can be rebound for recommendations that still exist after recalculation; recommendations no longer produced by the rules are removed from the active plan view for that profile only.
+
+## 3. Invariant and Guardrail Decisions
+
+- Do not add a general account-settings surface; keep preferences limited to reminder settings and household management only.
+- Do not introduce archive, delete, deactivate, or soft-delete behavior in UI, routes, domain state, or persistence for profiles in this slice.
+- Do not store Household Management as a standalone persisted model when it is fully derivable from account and profile data.
+- Do not let a profile edit mutate any other profile's plan, Health Score, priority list, reminders, or vaccination entries.
+- Do not bypass the canonical rule-based plan generator with UI-only recalculation; refreshed dashboard data must come from regenerated profile data.
+- Do not treat manual vaccination entries as generated plan items or remove them during profile regeneration.
+- Do not add new reminder channels, external notification integrations, provider integrations, analytics features, or extra personal data collection in this slice.
+
+## 4. Verification Decisions
+
+- Add an integration test proving a user can open the profile area, create a new profile with displayName, age, and gender, and then view and edit that profile from the same area.
+- Add an integration test proving that editing a profile's age regenerates only that profile's plan and updates its current dashboard summary in the same session.
+- Add an integration test proving that editing a profile's gender regenerates only that profile's plan and updates its current dashboard and plan views in the same session.
+- Add a regression test proving unchanged recommendation item codes retain completion and reminder state after profile regeneration, while removed recommendations no longer appear in that profile's active plan.
+- Add a regression test proving manual vaccination entries remain attached to the edited profile and visible after age or gender regeneration.
+- Add a multi-profile test proving that editing one profile leaves other profiles' Health Scores, priority lists, and vaccination areas unchanged.
+- Add a UI test proving the preferences area exposes only reminder settings and household management sections and no broader account customization controls or routes are reachable from it.
+
+## 5. Constraints
+
+- Limit the account to a maximum of 5 active profiles to stay aligned with MVP family mode.
+- Keep the product framed as preventive guidance, not a medical record; profile management must not expand into broader record-keeping or account administration.
+- Age and gender changes must invoke canonical rule-based plan regeneration for the edited profile before refreshed score or priority data is shown.
+- All plan, dashboard, reminder, and vaccination reads and writes must remain profile-scoped so family member data stays isolated.
+- Reminder settings may configure only reminder behavior already supported by the MVP and must not require new delivery infrastructure.
+- Implementation artifacts for this slice must live under the approved SL-006 targets: src/features/profile-area-and-household-preferences/, src/routes/profile-area-and-household-preferences*, and tests/profile-area-and-household-preferences/.
+- Navigation labels and screens must stay within approved MVP scope and must not surface delete, archive, provider, insurance, analytics, or external integration features.
+
+## 6. Open Questions
+
+- What exact account-scoped reminder settings fields already exist and should be exposed in this slice without extending the reminder domain?
+- Should displayName be required for every profile at creation time, or may the self profile keep a generated label while family profiles require explicit names?

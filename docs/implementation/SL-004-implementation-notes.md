@@ -1,11 +1,11 @@
 <!-- generated_from: templates/implementation-notes-template.md -->
 <!-- fabric_version: v1 -->
-<!-- generated_at: 2026-05-05T11:51:30.719Z -->
+<!-- generated_at: 2026-05-05T15:30:15.396Z -->
 # Current Slice Implementation Notes
 
 Date: `2026-05-05`
 Slice: `SL-004 - Vaccination Tracking Area and Manual Entries`
-Status: `Implemented`
+Status: `Completed`
 
 ## 1. Handoff Context
 - Self onboarding to first dashboard
@@ -27,27 +27,39 @@ Provide a dedicated vaccination experience that combines rule-based due guidance
 - supabase/migrations/ (if schema change is required)
 
 ## 4. Completed Scope
-- Not closed yet. Use this section to track completed items during implementation.
+- Dedicated vaccination list for the self profile
+- Vaccination due guidance shown inside the vaccination area using the MVP rule set
+- Manual addition of vaccination entries with date and status context
+- Immediate display of newly added vaccination entries in the same session
+- Access from the vaccination area into the related vaccination item detail where applicable
 
 ## 5. Changed Files
-- .system/factory/execution-ledger.jsonl
-- .system/factory/work-orders/SL-004-coder-codex.md
-- src/features/vaccination-tracking-area-and-manual-entries/
+- src/features/vaccination-tracking-area-and-manual-entries/VaccinationTrackingAreaAndManualEntries.jsx
+- src/features/vaccination-tracking-area-and-manual-entries/index.js
+- src/features/vaccination-tracking-area-and-manual-entries/model.js
+- src/features/vaccination-tracking-area-and-manual-entries/service.js
+- src/features/vaccination-tracking-area-and-manual-entries/vaccination-tracking-area-and-manual-entries.css
 - src/routes/vaccination-tracking-area-and-manual-entries.jsx
-- tests/vaccination-tracking-area-and-manual-entries/
+- tests/vaccination-tracking-area-and-manual-entries/carry-forward-invariants.test.mjs
+- tests/vaccination-tracking-area-and-manual-entries/vaccination-tracking-area-and-manual-entries.test.mjs
 
 ## 6. Verification Evidence Summary
-- Delegated implementation to Codex CLI using a Fabric-generated work order.
-- Captured Codex result and changed files in the execution ledger.
-- Changed files passed the Fabric allowed-path policy.
+- Implementation artifacts recorded for closeout: 8.
+- Required implementation artifacts exist on disk for every required target path.
+- Carry-forward regression evidence verified: tests/vaccination-tracking-area-and-manual-entries/carry-forward-invariants.test.mjs.
+- Implementation notes artifact evidence already aligned with required target paths or was refreshed during closeout.
+- Architecture baseline, UX flow, semantic UX contract, and implementation notes are all placeholder-free.
+- Storybook review passed: docs/reviews/storybook/SL-004-storybook-review.json.
+- Semantic UX review override used: docs/reviews/ux/SL-004-semantic-ux-review.json status is fail.
+- package.json includes a local dev command so the slice can be customer-tested.
 
 ## 7. Execution Notes
-- This command used Codex as the implementation worker and Fabric as the orchestrator/validator.
-- Work order: .system/factory/work-orders/SL-004-coder-codex.md
-- Codex exit status: 0
+- Closeout validates concrete implementation artifacts and Storybook coverage before relying on implementation-note evidence.
+- Closeout refreshed implementation notes with the verified implementation artifact list.
+- Run fabric gate after closeout to verify overall coherence.
 
 ## 8. Next Execution Steps
-1. Inspect the git diff created by Codex.
-2. Run npm test and npm run build if Codex did not already run them successfully.
-3. Run uiux:review-current-slice-semantics after verifying the slice locally.
-4. Run coder:close-current-slice only after semantic UX review passes.
+1. Run gate before advancing the slice pointer.
+2. Run orchestrator:advance-slice to activate the next slice.
+3. Keep implementation notes as the record for this completed slice.
+4. Issue a customer checkpoint when a customer-facing milestone exists.

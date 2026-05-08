@@ -1,0 +1,239 @@
+.sl006-profile-form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl006-add-profile-stack {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.sl006-add-profile-intro .sl001-summary-title {
+  font-size: clamp(1.8rem, 6.2vw, 2.3rem);
+}
+
+.sl006-add-profile-intro .sl001-summary-meta {
+  max-width: 52ch;
+}
+
+.sl006-add-profile-form-card {
+  padding-top: var(--space-6);
+}
+
+.sl006-add-profile-form {
+  gap: var(--space-3);
+}
+
+.sl006-profile-form input[type='text'] {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+}
+
+.sl006-gender-field {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl006-gender-field label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl006-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sl006-add-profile-actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl006-add-profile-actions .sl001-primary-action,
+.sl006-add-profile-actions .sl003-quiet-button {
+  margin-top: 0;
+}
+
+.sl006-success-banner {
+  margin-top: var(--space-3);
+  margin-bottom: 0;
+  border: 1px solid #bae6fd;
+  background: #f0f9ff;
+  color: var(--color-text-secondary);
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+}
+
+.sl006-progress {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.sl006-onboarding-box {
+  margin-top: var(--space-4);
+}
+
+.sl006-header-action-button {
+  margin-top: 0;
+  padding: 0.5rem 0.95rem;
+}
+
+.sl006-household-list {
+  margin-top: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sl006-household-card {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  background: var(--color-surface-card);
+  display: grid;
+  gap: var(--space-3);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.sl006-household-card.is-active {
+  border-color: #2f8f85;
+  box-shadow: 0 0 0 2px rgba(47, 143, 133, 0.14);
+}
+
+.sl006-household-select {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  display: grid;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.sl006-household-select:focus-visible {
+  outline: 2px solid #2f8f85;
+  outline-offset: 4px;
+  border-radius: var(--radius-card);
+}
+
+.sl006-household-select .sl001-summary-card {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.sl006-household-select .sl001-profile-health-tile {
+  width: clamp(5.3rem, 24vw, 6.6rem);
+  padding: 0.25rem;
+  gap: 0.25rem;
+  border-radius: 0.65rem;
+}
+
+.sl006-household-select .sl001-score-gauge.is-compact .sl001-score-gauge-inner {
+  border-width: 1.5px;
+  padding: 0.35rem;
+}
+
+.sl006-household-select .sl001-score-gauge.is-compact .sl001-score-value {
+  font-size: clamp(0.9rem, 3.4vw, 1.25rem);
+}
+
+.sl006-household-select .sl001-score-gauge.is-compact .sl001-score-caption {
+  display: none;
+}
+
+.sl006-household-meta p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.sl006-household-active-pill {
+  margin: 0;
+  justify-self: start;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #1e3a8a;
+  background: #eff6ff;
+}
+
+.sl006-household-active-pill.is-active {
+  border-color: #99f6e4;
+  color: #115e59;
+  background: #ecfeff;
+}
+
+.sl006-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sl006-summary-row {
+  margin-top: var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sl006-quick-links {
+  margin-top: var(--space-4);
+}
+
+.sl006-preferences-card {
+  margin-top: var(--space-4);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  background: var(--color-surface-card);
+}
+
+.sl006-preferences-card h2 {
+  margin-top: 0;
+}
+
+.sl006-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+@media (min-width: 768px) {
+  .sl006-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .sl006-add-profile-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sl006-add-profile-actions .sl001-primary-action {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .sl006-form-actions,
+  .sl006-link-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

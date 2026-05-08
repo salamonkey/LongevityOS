@@ -63,9 +63,13 @@ function DetailView({ item }) {
     <section className="sl002-detail-view" aria-label={`${item.displayName} details`}>
       <div className="sl002-detail-topline">
         <StatusPill status={item.status} label={item.statusLabel} />
-        <span className="sl002-detail-category">{item.categoryLabel}</span>
+        <span className="sl002-detail-category">{item.interventionTypeLabel ?? item.categoryLabel}</span>
       </div>
-      <p className="sl002-detail-cadence">Recommended cadence: {item.cadenceText}</p>
+
+      <section className="sl002-detail-section" aria-label="Cadence">
+        <h3>Cadence</h3>
+        <p>{item.cadenceText}</p>
+      </section>
 
       <section className="sl002-detail-section" aria-label="Recommendation">
         <h3>Recommendation</h3>
@@ -85,6 +89,7 @@ export default function HealthPlanBrowsingAndItemDetail({
   initialCategory = PLAN_CATEGORIES.checkup,
   initialItemKey,
   initialOrigin = DETAIL_ORIGIN.direct,
+  initialReturnToVaccinationTracker = false,
   onNavigate,
 }) {
   const readModel = useMemo(() => buildHealthPlanReadModel(planSnapshot), [planSnapshot]);
@@ -93,6 +98,7 @@ export default function HealthPlanBrowsingAndItemDetail({
   const [detailState, setDetailState] = useState(initialItemKey ? {
     itemKey: initialItemKey,
     origin: initialOrigin,
+    returnToVaccinationTracker: Boolean(initialReturnToVaccinationTracker),
   } : null);
 
   if (!planSnapshot) {
@@ -112,6 +118,7 @@ export default function HealthPlanBrowsingAndItemDetail({
     setDetailState({
       itemKey,
       origin: activeCategory === PLAN_CATEGORIES.vaccination ? DETAIL_ORIGIN.vaccinations : DETAIL_ORIGIN.checkups,
+      returnToVaccinationTracker: false,
     });
   };
 
@@ -132,6 +139,12 @@ export default function HealthPlanBrowsingAndItemDetail({
     }
 
     if (target.destination === DETAIL_ORIGIN.vaccinations) {
+      if (detailState?.returnToVaccinationTracker && typeof onNavigate === 'function') {
+        onNavigate(target);
+        setDetailState(null);
+        return;
+      }
+
       setActiveCategory(PLAN_CATEGORIES.vaccination);
       setDetailState(null);
       return;

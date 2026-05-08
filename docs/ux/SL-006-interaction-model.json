@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T18:10:31.352Z",
+  "slice_id": "SL-006",
+  "user_goal": "Let users maintain profile basics and limited household settings without expanding the MVP into full account customization.",
+  "entry_points": [
+    "primary_app_flow"
+  ],
+  "screens": [
+    "family"
+  ],
+  "states": [
+    "default",
+    "loading",
+    "empty",
+    "validation_error",
+    "success"
+  ],
+  "transitions": [
+    {
+      "from": "entry",
+      "action": "open",
+      "to": "family"
+    },
+    {
+      "from": "family",
+      "action": "primary_action",
+      "to": "success_or_next_state"
+    },
+    {
+      "from": "family",
+      "action": "invalid_input",
+      "to": "validation_error"
+    }
+  ],
+  "primary_actions": [
+    "primary_action"
+  ],
+  "secondary_actions": [
+    "open_detail",
+    "set_reminder"
+  ],
+  "validation_rules": [
+    "Required user inputs must be validated before transition.",
+    "Errors must be specific and user-facing."
+  ],
+  "recovery_paths": [
+    "Let the user correct invalid or missing input without losing context."
+  ],
+  "trust_constraints": [
+    "Do not imply medical diagnosis.",
+    "Use calm, clear, trustworthy copy."
+  ]
+}

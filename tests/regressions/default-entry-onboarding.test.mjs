@@ -22,7 +22,13 @@ test('default app entry keeps onboarding as fallback surface', () => {
 
   assert.match(
     text,
-    /return\s*\(\s*<SelfOnboardingToFirstDashboardRoute\b[\s\S]*\)\s*;\s*\}/,
-    'App default return should render onboarding route',
+    /let\s+activeSurface\s*=\s*\(\s*<SelfOnboardingToFirstDashboardRoute\b[\s\S]*?\)\s*;/,
+    'App default active surface should render onboarding route',
+  );
+
+  assert.match(
+    text,
+    /\{activeSurface\}/,
+    'App should render the selected active surface',
   );
 });

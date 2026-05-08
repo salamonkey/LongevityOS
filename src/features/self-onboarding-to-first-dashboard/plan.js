@@ -1,4 +1,14 @@
-import { MVP_CATALOG_VERSION, MVP_PREVENTIVE_CATALOG } from './catalog.js';
+import {
+  MVP_CATALOG_VERSION,
+  MVP_PREVENTIVE_CATALOG,
+  getInterventionTypeLabel,
+  resolveInterventionTypeForCatalogItem,
+} from './catalog.js';
+import {
+  resolveBucketFromDueDate,
+  resolveRecurrenceDays,
+  resolveSoonWindowDaysFromRecurrence,
+} from './dashboard.js';
 
 const ALLOWED_CATEGORIES = new Set(['checkup', 'vaccination']);
 
@@ -11,9 +21,12 @@ function findMatchingRuleBand(ruleBands, profile) {
 }
 
 function comparePlanItems(a, b) {
-  if (a.dashboardBucket !== b.dashboardBucket) {
-    const bucketOrder = { today: 0, soon: 1, later: 2 };
-    return bucketOrder[a.dashboardBucket] - bucketOrder[b.dashboardBucket];
+  const bucketOrder = { today: 0, soon: 1, later: 2 };
+  const leftBucket = bucketOrder[a.initialBucket] ?? 2;
+  const rightBucket = bucketOrder[b.initialBucket] ?? 2;
+
+  if (leftBucket !== rightBucket) {
+    return bucketOrder[a.initialBucket] - bucketOrder[b.initialBucket];
   }
 
   if (a.targetAge !== b.targetAge) {
@@ -23,8 +36,46 @@ function comparePlanItems(a, b) {
   return a.priorityOrder - b.priorityOrder;
 }
 
+function startOfDay(date) {
+  const copy = new Date(date.getTime());
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function addDays(date, deltaDays) {
+  const copy = new Date(date.getTime());
+  copy.setDate(copy.getDate() + deltaDays);
+  return copy;
+}
+
+function resolveInitialDueDate({ profileAge, targetAge, now }) {
+  const today = startOfDay(now);
+  const currentAge = Number(profileAge);
+  const target = Number(targetAge);
+
+  if (!Number.isFinite(currentAge) || !Number.isFinite(target) || currentAge >= target) {
+    return today;
+  }
+
+  const yearsUntilTarget = Math.max(0, target - currentAge);
+  return addDays(today, yearsUntilTarget * 365);
+}
+
+function resolveInitialStatus({ initialDueDate, recurrenceDays, now }) {
+  const bucket = resolveBucketFromDueDate({
+    dueDate: initialDueDate,
+    recurrenceDays,
+    today: now,
+  });
+
+  if (bucket === 'today') return 'due';
+  if (bucket === 'soon') return 'soon';
+  return 'pending';
+}
+
 export function generateInitialPlanSnapshot(profile, options = {}) {
-  const nowIso = (options.now ?? new Date()).toISOString();
+  const now = options.now instanceof Date ? new Date(options.now.getTime()) : new Date(options.now ?? Date.now());
+  const nowIso = now.toISOString();
   const catalog = options.catalog ?? MVP_PREVENTIVE_CATALOG;
   const catalogVersion = options.catalogVersion ?? MVP_CATALOG_VERSION;
 
@@ -41,16 +92,42 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       throw new Error(`Unsupported category in catalog: ${catalogItem.category}`);
     }
 
+    const interventionType = resolveInterventionTypeForCatalogItem(catalogItem);
+    const recurrenceDays = resolveRecurrenceDays(catalogItem);
+    const initialDueDate = resolveInitialDueDate({
+      profileAge: profile.age,
+      targetAge: matchedBand.targetAge,
+      now,
+    });
+    const initialBucket = resolveBucketFromDueDate({
+      dueDate: initialDueDate,
+      recurrenceDays,
+      today: now,
+    }) ?? 'later';
+    const initialStatus = resolveInitialStatus({
+      initialDueDate,
+      recurrenceDays,
+      now,
+    });
+
     items.push({
       catalogItemId: catalogItem.itemId,
       name: catalogItem.name,
       category: catalogItem.category,
+      interventionType,
+      interventionTypeLabel: getInterventionTypeLabel(interventionType),
       cadenceLabel: catalogItem.cadenceLabel,
+      recurrence: {
+        intervalDays: recurrenceDays,
+        soonWindowDays: resolveSoonWindowDaysFromRecurrence(recurrenceDays),
+      },
       whyItMatters: catalogItem.whyItMatters,
-      dashboardBucket: matchedBand.dashboardBucket,
       targetAge: matchedBand.targetAge,
       priorityOrder: matchedBand.priorityOrder,
-      status: matchedBand.dashboardBucket === 'today' ? 'due' : 'pending',
+      initialDueDate: initialDueDate.toISOString(),
+      nextDueDate: initialDueDate.toISOString(),
+      initialBucket,
+      status: initialStatus,
     });
   }
 

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-05-05T18:08:22.097Z",
+  "slice_id": "SL-005",
+  "slice_title": "Family Onboarding and Family Overview",
+  "status": "pass",
+  "summary": "Available implementation evidence indicates SL-005 is integrated and satisfies the checklist: family onboarding is added as an optional post-self-profile step, family overview is reachable as a dedicated view, per-profile plans/summaries/navigation are in scope and implemented, the 5-profile limit is covered, and prior-slice carry-forward behavior has explicit invariant test coverage with no clear regression shown in the provided materials.",
+  "llm_status": "pass",
+  "llm_reviewer": "openai/gpt-5.4",
+  "checklist": "docs/testing/SL-005-user-checklist.md",
+  "carry_forward_invariants_count": 4,
+  "carry_forward_regression_evidence": "tests/family-onboarding-and-family-overview/carry-forward-invariants.test.mjs",
+  "findings": []
+}
