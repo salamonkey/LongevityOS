@@ -19,14 +19,19 @@ const PRIORITY_CLASS_MAP = {
   later: 'priority-later',
 };
 
-export function AppShell({ title, headerAction = null, children }) {
+export function AppShell({
+  title,
+  headerAction = null,
+  children,
+  shellClassName = '',
+}) {
   const hasHeaderRow = Boolean(title) || Boolean(headerAction);
+  const appShellClassName = shellClassName ? `app-shell ${shellClassName}` : 'app-shell';
 
   return (
-    <main className="app-shell">
+    <main className={appShellClassName}>
       <section className="app-panel sl001-shell">
         <header className="sl001-header">
-          <p className="sl001-kicker">Longevity Health OS v.{APP_VERSION}</p>
           {hasHeaderRow ? (
             <div className="sl001-header-row">
               {title ? <h1>{title}</h1> : null}
@@ -37,6 +42,9 @@ export function AppShell({ title, headerAction = null, children }) {
           ) : null}
         </header>
         {children}
+        <footer className="sl001-shell-footer">
+          <p className="sl001-kicker">Longevity Health OS v.{APP_VERSION}</p>
+        </footer>
       </section>
     </main>
   );
@@ -121,7 +129,7 @@ function resolveReadiness(score) {
   const hasScore = score !== null && score !== undefined && Number.isFinite(numericScore);
   const normalizedScore = hasScore ? Math.max(0, Math.min(100, Math.round(numericScore))) : 0;
   const scoreText = `${normalizedScore}%`;
-  const arcSpanDegrees = 240;
+  const arcSpanDegrees = 360;
   const arcStartDegrees = -90;
   const radius = 95;
   const circumference = 2 * Math.PI * radius;

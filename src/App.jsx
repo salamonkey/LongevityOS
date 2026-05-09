@@ -47,6 +47,7 @@ function replaceViewInUrl(view) {
 
 export default function App() {
   const [activeView, setActiveView] = useState(() => currentViewFromUrl());
+  const [dashboardReturnScrollY, setDashboardReturnScrollY] = useState(null);
   const [runtimeProfile, setRuntimeProfile] = useState(null);
   const [runtimePlanSnapshot, setRuntimePlanSnapshot] = useState(null);
   const [profileAreaSeed, setProfileAreaSeed] = useState({
@@ -73,6 +74,25 @@ export default function App() {
       setActiveView('onboarding');
     }
   }, [activeView, hasCompletedOnboarding]);
+
+  useEffect(() => {
+    if (activeView !== 'onboarding' || dashboardReturnScrollY === null) {
+      return;
+    }
+
+    const scrollY = Math.max(0, Number(dashboardReturnScrollY) || 0);
+    const restoreScroll = () => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: scrollY, left: 0, behavior: 'auto' });
+      }
+    };
+
+    // Run across frames to ensure restore happens after view/surface mount.
+    restoreScroll();
+    requestAnimationFrame(restoreScroll);
+    setTimeout(restoreScroll, 0);
+    setDashboardReturnScrollY(null);
+  }, [activeView, dashboardReturnScrollY]);
 
   const syncProfileAreaSeedFromRuntime = (profile, planSnapshot) => {
     if (!profile?.profileId) {
@@ -123,6 +143,12 @@ export default function App() {
     initialOrigin,
     initialCategory,
   } = {}) => {
+    if (initialOrigin === DETAIL_ORIGIN.dashboard && typeof window !== 'undefined') {
+      setDashboardReturnScrollY(window.scrollY || window.pageYOffset || 0);
+    } else {
+      setDashboardReturnScrollY(null);
+    }
+
     if (planSnapshot) setRuntimePlanSnapshot(planSnapshot);
     if (profile) setRuntimeProfile(profile);
     if (profile) syncProfileAreaSeedFromRuntime(profile, planSnapshot);

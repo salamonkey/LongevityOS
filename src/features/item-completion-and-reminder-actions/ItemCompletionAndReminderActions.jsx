@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   AppShell,
   StatusPill,
@@ -333,9 +334,92 @@ function ManualEntryForm({
   onSubmit,
   onCancel,
 }) {
+  const visibleDateInputRef = useRef(null);
+  const lastValidDateRef = useRef('');
+  const [forceDateFieldVisible, setForceDateFieldVisible] = useState(false);
+  const showDateField = Boolean(form.entryDate) || forceDateFieldVisible;
+  const canSave = Boolean(String(form.vaccinationKey || '').trim())
+    && Boolean(String(form.entryDate || '').trim());
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const dateMin = form.statusContext === 'planned' ? todayIso : undefined;
+  const dateMax = form.statusContext === 'completed' ? todayIso : undefined;
+
+  const handleEntryDateChange = (nextDate, inputElement) => {
+    if (!nextDate) {
+      onFieldChange('entryDate', '');
+      lastValidDateRef.current = '';
+      if (inputElement) inputElement.setCustomValidity('');
+      return;
+    }
+
+    const isFutureForCompleted = form.statusContext === 'completed' && nextDate > todayIso;
+    const isPastForPlanned = form.statusContext === 'planned' && nextDate < todayIso;
+
+    if (isFutureForCompleted || isPastForPlanned) {
+      const fallbackDate = lastValidDateRef.current || '';
+      onFieldChange('entryDate', fallbackDate);
+      if (inputElement) {
+        inputElement.value = fallbackDate;
+        inputElement.setCustomValidity('');
+      }
+      return;
+    }
+
+    if (inputElement) {
+      inputElement.setCustomValidity('');
+    }
+    lastValidDateRef.current = nextDate;
+    onFieldChange('entryDate', nextDate);
+  };
+
+  const handleStatusContextChange = (statusContext) => {
+    flushSync(() => {
+      onFieldChange('statusContext', statusContext);
+      onFieldChange('entryDate', '');
+      setForceDateFieldVisible(true);
+    });
+
+    const input = visibleDateInputRef.current;
+    if (!input) return;
+
+    // Apply constraints directly before opening the native picker so iOS
+    // receives min/max in the same user interaction.
+    if (statusContext === 'completed') {
+      input.min = '';
+      input.max = todayIso;
+    } else if (statusContext === 'planned') {
+      input.min = todayIso;
+      input.max = '';
+    } else {
+      input.min = '';
+      input.max = '';
+    }
+
+    input.value = '';
+    lastValidDateRef.current = '';
+
+    input.focus();
+
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+        return;
+      } catch {
+        // Some browsers block programmatic picker open.
+      }
+    }
+
+    try {
+      input.click();
+    } catch {
+      // Focus-only fallback remains.
+    }
+  };
+
   return (
     <form className="sl003-manual-form" onSubmit={onSubmit} noValidate>
-      <label htmlFor="sl003-manual-vaccination-item">Vaccination item</label>
+      <label htmlFor="sl003-manual-vaccination-item">Vaccination record</label>
       <select
         id="sl003-manual-vaccination-item"
         value={form.vaccinationKey}
@@ -359,7 +443,7 @@ function ManualEntryForm({
               name="sl003-manual-status-context"
               value={statusContext}
               checked={form.statusContext === statusContext}
-              onChange={(event) => onFieldChange('statusContext', event.target.value)}
+              onChange={(event) => handleStatusContextChange(event.target.value)}
             />
             {MANUAL_ENTRY_STATUS_LABELS[statusContext]}
           </label>
@@ -367,22 +451,32 @@ function ManualEntryForm({
       </fieldset>
       {errors.statusContext ? <p className="sl001-field-error" role="alert">{errors.statusContext}</p> : null}
 
-      <label htmlFor="sl003-manual-entry-date">Date</label>
-      <input
-        id="sl003-manual-entry-date"
-        type="date"
-        value={form.entryDate}
-        onChange={(event) => onFieldChange('entryDate', event.target.value)}
-        disabled={pending}
-        aria-invalid={Boolean(errors.entryDate)}
-      />
+      {showDateField ? <label htmlFor="sl003-manual-entry-date">Date</label> : null}
+      {showDateField ? (
+        <input
+          ref={visibleDateInputRef}
+          id="sl003-manual-entry-date"
+          type="date"
+          value={form.entryDate}
+          min={dateMin}
+          max={dateMax}
+          onChange={(event) => {
+            handleEntryDateChange(event.target.value, event.target);
+            if (event.target.value) {
+              setForceDateFieldVisible(true);
+            }
+          }}
+          disabled={pending}
+          aria-invalid={Boolean(errors.entryDate)}
+        />
+      ) : null}
       {errors.entryDate ? <p className="sl001-field-error" role="alert">{errors.entryDate}</p> : null}
 
       {saveError ? <p className="sl001-error-banner" role="alert">{saveError}</p> : null}
 
       <div className="sl003-manual-form-actions">
-        <button type="submit" className="sl001-primary-action" disabled={pending}>
-          {pending ? 'Saving entry...' : 'Save'}
+        <button type="submit" className="sl001-primary-action" disabled={pending || !canSave}>
+          {pending ? 'Saving entry...' : 'Save record'}
         </button>
         <button type="button" className="sl003-quiet-button" onClick={onCancel} disabled={pending}>
           Cancel
@@ -415,6 +509,7 @@ function DetailView({
   actionError,
   confirmationMessage,
 }) {
+  const actionAreaRef = useRef(null);
   const actionsDisabled = donePending || reminderPending;
   const doneTimeToGo = item.status === 'done' && item.completedOn
     ? buildTimeToGoState({
@@ -422,6 +517,24 @@ function DetailView({
       cadenceText: item.cadenceText,
     })
     : null;
+
+  useEffect(() => {
+    if (!showDoneForm && !showReminderForm) {
+      return;
+    }
+
+    const section = actionAreaRef.current;
+    if (!section) {
+      return;
+    }
+
+    const scrollToActionArea = () => {
+      section.scrollIntoView({ block: 'start', behavior: 'auto' });
+    };
+
+    scrollToActionArea();
+    requestAnimationFrame(scrollToActionArea);
+  }, [showDoneForm, showReminderForm]);
 
   return (
     <section className="sl002-detail-view" aria-label={`${item.displayName} details`}>
@@ -448,7 +561,7 @@ function DetailView({
         <p>{item.whyItMattersText}</p>
       </section>
 
-      <section className="sl003-action-area" aria-label="Item actions">
+      <section ref={actionAreaRef} className="sl003-action-area" aria-label="Item actions">
         <h3>{doneTimeToGo ? 'Time to go' : 'Next step'}</h3>
         {readOnly ? (
           <p className="sl003-complete-message">This item is not currently in your active plan list.</p>
@@ -576,6 +689,9 @@ export default function ItemCompletionAndReminderActions({
   const [manualEntrySaveError, setManualEntrySaveError] = useState('');
   const [manualEntryPending, setManualEntryPending] = useState(false);
   const [manualEntries, setManualEntries] = useState(initialManualEntries);
+  const [pendingListScrollRestoreY, setPendingListScrollRestoreY] = useState(null);
+  const manualEntryFormShellRef = useRef(null);
+  const planListScrollYRef = useRef(0);
 
   const latestSnapshotRef = useRef(planSnapshot);
   latestSnapshotRef.current = planSnapshot;
@@ -622,17 +738,29 @@ export default function ItemCompletionAndReminderActions({
   const detailReadOnly = Boolean(detailItemView && !detailItem);
   const activeItems = activeCategory === PLAN_CATEGORIES.vaccination ? readModel.vaccinations : readModel.checkups;
 
-  if (!planSnapshot) {
-    return (
-      <AppShell title="Your preventive plan">
-        <p className="sl001-support-copy">Loading your preventive plan...</p>
-        <div className="sl002-loading-block" aria-hidden="true" />
-        <div className="sl002-loading-block" aria-hidden="true" />
-      </AppShell>
-    );
-  }
+  useEffect(() => {
+    if (!showManualEntryForm || activeCategory !== PLAN_CATEGORIES.vaccination) {
+      return;
+    }
+
+    const node = manualEntryFormShellRef.current;
+    if (!node) {
+      return;
+    }
+
+    const scrollToForm = () => {
+      node.scrollIntoView({ block: 'start', behavior: 'auto' });
+    };
+
+    scrollToForm();
+    requestAnimationFrame(scrollToForm);
+  }, [activeCategory, showManualEntryForm]);
 
   const handleOpenDetailFromPlan = (itemKey) => {
+    if (typeof window !== 'undefined') {
+      planListScrollYRef.current = window.scrollY || window.pageYOffset || 0;
+    }
+
     const item = readModel.byItemKey[itemKey];
     const categoryForOrigin = item?.category ?? activeCategory;
 
@@ -646,6 +774,41 @@ export default function ItemCompletionAndReminderActions({
     setActionError('');
     setConfirmationMessage('');
   };
+
+  useEffect(() => {
+    if (!detailState) {
+      return;
+    }
+
+    const scrollToTop = () => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+    };
+
+    // iOS Safari can retain prior scroll when surface switches to detail.
+    scrollToTop();
+    requestAnimationFrame(scrollToTop);
+    setTimeout(scrollToTop, 0);
+  }, [detailState]);
+
+  useEffect(() => {
+    if (detailState || pendingListScrollRestoreY === null) {
+      return;
+    }
+
+    const restoreY = Math.max(0, Number(pendingListScrollRestoreY) || 0);
+    const restoreScroll = () => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: restoreY, left: 0, behavior: 'auto' });
+      }
+    };
+
+    restoreScroll();
+    requestAnimationFrame(restoreScroll);
+    setTimeout(restoreScroll, 0);
+    setPendingListScrollRestoreY(null);
+  }, [detailState, pendingListScrollRestoreY]);
 
   const handleBackFromDetail = () => {
     const target = resolveDetailBackTarget({
@@ -686,6 +849,7 @@ export default function ItemCompletionAndReminderActions({
     setShowReminderForm(false);
     setShowDoneForm(false);
     setActionError('');
+    setPendingListScrollRestoreY(planListScrollYRef.current);
   };
 
   const handleDoneSubmit = async (event) => {
@@ -778,6 +942,16 @@ export default function ItemCompletionAndReminderActions({
       setPendingAction(null);
     }
   };
+
+  if (!planSnapshot) {
+    return (
+      <AppShell title="Your preventive plan">
+        <p className="sl001-support-copy">Loading your preventive plan...</p>
+        <div className="sl002-loading-block" aria-hidden="true" />
+        <div className="sl002-loading-block" aria-hidden="true" />
+      </AppShell>
+    );
+  }
 
   if (detailState && !detailItemView) {
     return (
@@ -878,9 +1052,7 @@ export default function ItemCompletionAndReminderActions({
     setShowManualEntryForm(true);
     setManualEntrySaveError('');
     setManualEntryErrors({});
-    setManualEntryForm(createInitialManualEntryForm({
-      vaccinationKey: manualEntryOptions[0]?.value ?? '',
-    }));
+    setManualEntryForm(createInitialManualEntryForm());
   };
 
   const closeManualEntryForm = () => {
@@ -1024,7 +1196,7 @@ export default function ItemCompletionAndReminderActions({
                       >
                         <span className="sl002-plan-row-copy">
                           <span className="sl002-plan-row-title">{row.vaccineName}</span>
-                          <span className="sl002-plan-row-cadence">{row.statusLabel} - Date: {row.entryDateLabel}</span>
+                          <span className="sl002-plan-row-cadence">Date: {row.entryDateLabel}</span>
                         </span>
                         <StatusPill status={row.planStatus} label={row.statusLabel} />
                       </button>
@@ -1041,7 +1213,11 @@ export default function ItemCompletionAndReminderActions({
               </button>
             </section>
             {showManualEntryForm ? (
-              <section className="sl003-manual-entry-form-shell sl002-empty-state" aria-label="Add vaccination entry">
+              <section
+                ref={manualEntryFormShellRef}
+                className="sl003-manual-entry-form-shell sl002-empty-state"
+                aria-label="Add vaccination entry"
+              >
                 <ManualEntryForm
                   form={manualEntryForm}
                   options={manualEntryOptions}

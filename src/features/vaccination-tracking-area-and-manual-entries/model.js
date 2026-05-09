@@ -22,7 +22,7 @@ export const MANUAL_ENTRY_VALIDATION_ERRORS = Object.freeze({
   entryDateMissing: 'Choose a date for this vaccination entry.',
   entryDateInvalid: 'Enter a valid calendar date.',
   entryDateFutureForCompleted: 'Completed vaccinations cannot use a future date.',
-  entryDateFutureForPlanned: 'Planned vaccinations require a future date.',
+  entryDateFutureForPlanned: 'Planned vaccinations cannot use a past date.',
   saveFailed: 'We could not save this vaccination entry. Please try again.',
 });
 
@@ -48,6 +48,13 @@ function resolveNow(options = {}) {
   }
 
   return now;
+}
+
+function toLocalIsoDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function formatVaccinationEntryDate(isoDate, locale = 'en-US') {
@@ -125,7 +132,7 @@ export function validateManualVaccinationEntryInput(input, options = {}) {
   }
 
   const now = resolveNow(options);
-  const todayIso = now.toISOString().slice(0, 10);
+  const todayIso = toLocalIsoDate(now);
 
   if (
     statusContext === MANUAL_ENTRY_STATUS_CONTEXT.completed
@@ -138,7 +145,7 @@ export function validateManualVaccinationEntryInput(input, options = {}) {
   if (
     statusContext === MANUAL_ENTRY_STATUS_CONTEXT.planned
     && normalizedDate
-    && normalizedDate <= todayIso
+    && normalizedDate < todayIso
   ) {
     errors.entryDate = MANUAL_ENTRY_VALIDATION_ERRORS.entryDateFutureForPlanned;
   }
@@ -245,7 +252,7 @@ export function buildManualVaccinationRows(entries, planSnapshot, options = {}) 
 export function createInitialManualEntryForm(options = {}) {
   return {
     vaccinationKey: String(options.vaccinationKey ?? ''),
-    statusContext: MANUAL_ENTRY_STATUS_CONTEXT.completed,
+    statusContext: '',
     entryDate: '',
   };
 }

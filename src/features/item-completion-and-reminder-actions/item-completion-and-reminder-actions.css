@@ -1,5 +1,13 @@
 .sl003-plan-browser {
-  margin-top: var(--space-6);
+  margin-top: 0;
+}
+
+.sl003-plan-browser .sl002-category-switch {
+  margin-top: 0;
+}
+
+.sl003-plan-browser .sl002-tab.is-active {
+  border-color: #34aa9e;
 }
 
 .sl003-manual-entry-box {
@@ -18,6 +26,7 @@
 
 .sl003-manual-entry-form-shell {
   margin-top: var(--space-3);
+  overflow-x: hidden;
 }
 
 .sl003-manual-empty {
@@ -42,6 +51,12 @@
   display: grid;
   gap: var(--space-2);
   min-width: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.sl003-manual-form > * {
+  min-inline-size: 0;
 }
 
 .sl003-manual-form label,
@@ -52,15 +67,62 @@
 
 .sl003-manual-form select,
 .sl003-manual-form input[type='date'] {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 0.75rem;
-  padding: var(--space-3) var(--space-4);
+  block-size: 2.75rem;
+  padding: 0 var(--space-4);
   color: var(--color-text-primary);
   background: var(--color-surface-card);
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+
+.sl003-manual-form input[type='date'] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .sl003-manual-form input[type='date'] {
+    /* iOS Safari can render native date controls wider than their container. */
+    display: block;
+    inline-size: 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-datetime-edit {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-datetime-edit-fields-wrapper {
+    min-width: 0;
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-calendar-picker-indicator {
+    margin: 0;
+    padding: 0;
+    max-width: 1.1em;
+  }
 }
 
 .sl003-manual-status-group {

@@ -30,6 +30,10 @@
   background: var(--color-surface-card);
 }
 
+.app-shell.sl001-dashboard-tight-top .sl001-dashboard-summary-cards {
+  margin-top: 0;
+}
+
 .sl001-header h1 {
   margin: 0;
   color: var(--color-text-primary);
@@ -50,11 +54,17 @@
 }
 
 .sl001-kicker {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.sl001-shell-footer {
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid #e2e8f0;
 }
 
 .sl001-support-copy {
@@ -94,7 +104,7 @@
 .sl001-onboarding-stack {
   display: grid;
   gap: var(--space-4);
-  margin-top: var(--space-4);
+  margin-top: 0;
 }
 
 .sl001-onboarding-intro .sl001-summary-title {
@@ -116,6 +126,7 @@
 .sl001-onboarding-actions {
   display: grid;
   gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .sl001-onboarding-actions .sl001-primary-action,
@@ -129,9 +140,13 @@
 }
 
 .sl001-form label,
-.sl001-form legend {
+.sl001-form-field-title {
   color: var(--color-text-primary);
   font-weight: 600;
+}
+
+.sl001-form-field-title {
+  margin: 0;
 }
 
 .sl001-form input[type='text'] {
@@ -148,11 +163,16 @@
 }
 
 .sl001-gender-field {
-  border: 1px solid #cbd5e1;
-  border-radius: 0.75rem;
-  padding: var(--space-4);
-  display: grid;
-  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.sl001-gender-field .sl001-form-field-title {
+  flex-basis: 100%;
 }
 
 .sl001-gender-field label {
@@ -392,9 +412,13 @@
   position: relative;
   width: 100%;
   max-width: 20rem;
-  aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
+  min-width: 0;
+}
+
+.sl001-score-gauge::before {
+  content: '';
+  display: block;
+  padding-top: 100%;
 }
 
 .sl001-score-gauge svg {
@@ -438,11 +462,16 @@
 }
 
 .sl001-score-gauge-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 72%;
-  aspect-ratio: 1 / 1;
+  height: 72%;
   border-radius: 999px;
   border: 3px solid #34aa9e;
   background: #f3f4f6;
+  overflow: hidden;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -466,6 +495,7 @@
 
 .sl001-score-gauge.is-compact .sl001-score-gauge-inner {
   width: 74%;
+  height: 74%;
   border-width: 2px;
 }
 

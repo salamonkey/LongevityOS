@@ -26,6 +26,7 @@ export default function SelfOnboardingToFirstDashboard({
   const [profile, setProfile] = useState(initialProfile);
   const [planSnapshot, setPlanSnapshot] = useState(initialPlanSnapshot);
   const [fatalIntegrityError, setFatalIntegrityError] = useState(false);
+  const hadProjectionRef = useRef(Boolean(initialProfile && initialPlanSnapshot));
 
   useEffect(() => {
     setProfile(initialProfile);
@@ -42,6 +43,29 @@ export default function SelfOnboardingToFirstDashboard({
 
     return buildDashboardProjection(planSnapshot, profile);
   }, [planSnapshot, profile]);
+
+  useEffect(() => {
+    if (!projection) {
+      hadProjectionRef.current = false;
+      return;
+    }
+
+    if (hadProjectionRef.current) {
+      return;
+    }
+
+    const scrollToTop = () => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+    };
+
+    // iOS Safari can preserve previous scroll offset during same-view surface swaps.
+    scrollToTop();
+    requestAnimationFrame(scrollToTop);
+    setTimeout(scrollToTop, 0);
+    hadProjectionRef.current = true;
+  }, [projection]);
 
   const handleFieldChange = (field, value) => {
     setForm((previous) => ({
@@ -151,7 +175,7 @@ export default function SelfOnboardingToFirstDashboard({
     const dueTodayCount = projection.sections.find((section) => section.priority === 'today')?.items.length ?? 0;
 
     return (
-      <AppShell title={null}>
+      <AppShell title={null} shellClassName="sl001-dashboard-tight-top">
         <div className="sl001-dashboard-summary-cards">
           <FamilyProfileCard
             name={projection.profileName}
@@ -186,8 +210,7 @@ export default function SelfOnboardingToFirstDashboard({
     <AppShell title={null}>
       <div className="sl001-onboarding-stack">
         <section className="sl001-summary-card sl001-onboarding-intro" aria-label="Onboarding overview">
-          <p className="sl001-label">Onboarding</p>
-          <h1 className="sl001-summary-title">Build your first preventive plan</h1>
+          <h1 className="sl001-summary-title">Build your preventive plan</h1>
           <p className="sl001-summary-meta">
             Share your age and gender so we can create a personalized plan with clear next steps.
           </p>
@@ -211,25 +234,22 @@ export default function SelfOnboardingToFirstDashboard({
               onChange={(event) => handleFieldChange('age', event.target.value)}
               readOnly={isSubmitting}
               aria-invalid={Boolean(errors.age)}
-              aria-describedby="sl001-age-help sl001-age-error"
+              aria-describedby="sl001-age-error"
             />
-            <p className="sl001-helper" id="sl001-age-help">We use your age to generate your first plan.</p>
             {errors.age && (
               <p className="sl001-field-error" id="sl001-age-error" role="alert">{errors.age}</p>
             )}
 
-            <fieldset ref={genderRef} aria-describedby="sl001-gender-error" className="sl001-gender-field" disabled={isSubmitting}>
-              <legend>Gender</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="gender"
-                  value="female"
-                  checked={form.gender === 'female'}
-                  onChange={(event) => handleFieldChange('gender', event.target.value)}
-                />
-                Female
-              </label>
+            <div
+              ref={genderRef}
+              role="radiogroup"
+              aria-labelledby="sl001-gender-label"
+              aria-describedby="sl001-gender-error"
+              aria-disabled={isSubmitting ? 'true' : undefined}
+              className="sl001-gender-field"
+              tabIndex={-1}
+            >
+              <p id="sl001-gender-label" className="sl001-form-field-title">Gender</p>
               <label>
                 <input
                   type="radio"
@@ -237,10 +257,22 @@ export default function SelfOnboardingToFirstDashboard({
                   value="male"
                   checked={form.gender === 'male'}
                   onChange={(event) => handleFieldChange('gender', event.target.value)}
+                  disabled={isSubmitting}
                 />
                 Male
               </label>
-            </fieldset>
+              <label>
+                <input
+                  type="radio"
+                  name="gender"
+                  value="female"
+                  checked={form.gender === 'female'}
+                  onChange={(event) => handleFieldChange('gender', event.target.value)}
+                  disabled={isSubmitting}
+                />
+                Female
+              </label>
+            </div>
             {errors.gender && (
               <p className="sl001-field-error" id="sl001-gender-error" role="alert">{errors.gender}</p>
             )}
