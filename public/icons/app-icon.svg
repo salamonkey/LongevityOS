@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Longevity Health OS</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b3a57" />
+      <stop offset="100%" stop-color="#34aa9e" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <circle cx="256" cy="228" r="122" fill="#ffffff" opacity="0.95" />
+  <path d="M256 137c-22 0-39 17-39 39v56h-56c-22 0-39 17-39 39s17 39 39 39h56v56c0 22 17 39 39 39s39-17 39-39v-56h56c22 0 39-17 39-39s-17-39-39-39h-56v-56c0-22-17-39-39-39z" fill="#0b3a57" />
+</svg>

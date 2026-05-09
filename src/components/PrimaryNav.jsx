@@ -48,14 +48,19 @@ export default function PrimaryNav({
         <div className="desktop-top-nav-inner">
           {NAV_ITEMS.map((item) => {
             const isActive = showActiveSelection && activeView === item.view;
+            const isDisabled = navLocked;
             return (
               <button
                 key={`desktop-${item.view}`}
                 type="button"
-                className={`desktop-top-nav-button${isActive ? ' is-active' : ''}`}
+                className={`desktop-top-nav-button${isActive ? ' is-active' : ''}${isDisabled ? ' is-disabled' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
-                disabled={navLocked}
-                onClick={() => onNavigate(item.view)}
+                aria-disabled={isDisabled ? 'true' : undefined}
+                tabIndex={isDisabled ? -1 : 0}
+                onClick={() => {
+                  if (isDisabled) return;
+                  onNavigate(item.view);
+                }}
               >
                 <span className="desktop-top-nav-icon">{NAV_ICON_BY_VIEW[item.view]}</span>
                 <span className="desktop-top-nav-label">{item.label}</span>
@@ -68,14 +73,19 @@ export default function PrimaryNav({
       <nav className={`mobile-bottom-nav${navLocked ? ' is-locked' : ''}`} aria-label="Primary navigation">
         {NAV_ITEMS.map((item) => {
           const isActive = showActiveSelection && activeView === item.view;
+          const isDisabled = navLocked;
           return (
             <button
               key={`mobile-${item.view}`}
               type="button"
-              className={`mobile-bottom-nav-button${isActive ? ' is-active' : ''}`}
+              className={`mobile-bottom-nav-button${isActive ? ' is-active' : ''}${isDisabled ? ' is-disabled' : ''}`}
               aria-current={isActive ? 'page' : undefined}
-              disabled={navLocked}
-              onClick={() => onNavigate(item.view)}
+              aria-disabled={isDisabled ? 'true' : undefined}
+              tabIndex={isDisabled ? -1 : 0}
+              onClick={() => {
+                if (isDisabled) return;
+                onNavigate(item.view);
+              }}
             >
               <span className="mobile-bottom-nav-icon">{NAV_ICON_BY_VIEW[item.view]}</span>
               <span className="mobile-bottom-nav-label">{item.label}</span>
