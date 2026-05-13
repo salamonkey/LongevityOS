@@ -37,6 +37,43 @@ const HEALTH_READINESS_STATUS_CREDITS = {
   due_soon: 0.4,
   overdue: 0.0,
 };
+const EFFORT_SORT_RANKS = Object.freeze({
+  low: 0,
+  medium: 1,
+  high: 2,
+});
+const DEFAULT_FOCUS_BUCKET_LIMITS = Object.freeze({
+  today: 3,
+  soon: 6,
+});
+
+function normalizeNonNegativeInteger(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return fallback;
+  }
+
+  return Math.floor(numeric);
+}
+
+function resolveFocusBucketLimits(options = {}) {
+  const explicitToday = options.todayFocusLimit ?? options.focusBucketLimits?.today;
+  const explicitSoon = options.soonFocusLimit ?? options.focusBucketLimits?.soon;
+
+  return {
+    today: normalizeNonNegativeInteger(explicitToday, DEFAULT_FOCUS_BUCKET_LIMITS.today),
+    soon: normalizeNonNegativeInteger(explicitSoon, DEFAULT_FOCUS_BUCKET_LIMITS.soon),
+  };
+}
+
+function isOutstandingItem(item) {
+  return String(item?.status || '').trim().toLowerCase() !== 'done';
+}
+
+function resolveEffortSortRank(item) {
+  const effort = String(item?.effortLevel ?? '').trim().toLowerCase();
+  return EFFORT_SORT_RANKS[effort] ?? EFFORT_SORT_RANKS.medium;
+}
 
 function sortWithinBucket(a, b) {
   const isDoneA = String(a?.status || '').trim().toLowerCase() === 'done';
@@ -53,11 +90,17 @@ function sortWithinBucket(a, b) {
   if (dueDateA && !dueDateB) return -1;
   if (!dueDateA && dueDateB) return 1;
 
-  if (a.targetAge !== b.targetAge) {
-    return a.targetAge - b.targetAge;
+  const effortRankA = resolveEffortSortRank(a);
+  const effortRankB = resolveEffortSortRank(b);
+  if (effortRankA !== effortRankB) {
+    return effortRankA - effortRankB;
   }
 
-  return a.priorityOrder - b.priorityOrder;
+  if (a.priorityOrder !== b.priorityOrder) {
+    return a.priorityOrder - b.priorityOrder;
+  }
+
+  return a.targetAge - b.targetAge;
 }
 
 function resolveSortDueDate(item) {
@@ -97,6 +140,8 @@ export function groupItemsByPriority(items, options = {}) {
     later: [],
   };
   const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
+  const focusLimits = resolveFocusBucketLimits(options);
+  const stagedUrgentItems = [];
 
   for (const item of items) {
     const displayBucket = resolveDashboardBucketForDisplay(item, { today });
@@ -104,7 +149,28 @@ export function groupItemsByPriority(items, options = {}) {
       continue;
     }
 
-    buckets[displayBucket].push(mapDisplayItem(item));
+    const displayItem = mapDisplayItem(item);
+    const shouldStageUrgent = displayBucket === 'today' && isOutstandingItem(displayItem);
+
+    if (shouldStageUrgent) {
+      stagedUrgentItems.push(displayItem);
+      continue;
+    }
+
+    buckets[displayBucket].push(displayItem);
+  }
+
+  stagedUrgentItems.sort(sortWithinBucket);
+
+  for (let index = 0; index < stagedUrgentItems.length; index += 1) {
+    const item = stagedUrgentItems[index];
+    if (index < focusLimits.today) {
+      buckets.today.push(item);
+    } else if (index < focusLimits.today + focusLimits.soon) {
+      buckets.soon.push(item);
+    } else {
+      buckets.later.push(item);
+    }
   }
 
   for (const bucket of BUCKET_ORDER) {

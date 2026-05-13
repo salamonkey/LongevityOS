@@ -49,3 +49,42 @@ test('async generation completes within 5 seconds under normal conditions', asyn
   const elapsed = Date.now() - start;
   assert.ok(elapsed < 5000);
 });
+
+test('hiv screening is not included by default without explicit risk context', () => {
+  const snapshot = generateInitialPlanSnapshot(
+    { profileId: 'self', age: 45, gender: 'female' },
+    { now: new Date('2026-05-05T08:00:00.000Z') },
+  );
+
+  assert.equal(
+    snapshot.items.some((item) => item.catalogItemId === 'hiv-screening'),
+    false,
+  );
+});
+
+test('hiv screening is included when hiv risk context is explicitly present', () => {
+  const snapshot = generateInitialPlanSnapshot(
+    { profileId: 'self', age: 45, gender: 'female', riskFlags: ['hiv'] },
+    { now: new Date('2026-05-05T08:00:00.000Z') },
+  );
+
+  assert.equal(
+    snapshot.items.some((item) => item.catalogItemId === 'hiv-screening'),
+    true,
+  );
+});
+
+test('items with recurrence longer than one year are not initialized in Today at onboarding', () => {
+  const snapshot = generateInitialPlanSnapshot(
+    { profileId: 'self', age: 45, gender: 'female' },
+    { now: new Date('2026-05-05T08:00:00.000Z') },
+  );
+
+  const violatingItems = snapshot.items.filter((item) => (
+    item.initialBucket === 'today'
+    && Number.isFinite(Number(item?.recurrence?.intervalDays))
+    && Number(item.recurrence.intervalDays) > 365
+  ));
+
+  assert.equal(violatingItems.length, 0);
+});

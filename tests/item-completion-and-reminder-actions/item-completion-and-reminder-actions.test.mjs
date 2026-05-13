@@ -226,6 +226,37 @@ test('highlighted next item recomputes with Today-then-Soon and health score use
   assert.equal(calculateHealthScoreDoneVsOutstanding(afterDone), 67);
 });
 
+test('slice dashboard also stages large overdue queues into Today, Soon, and Later', () => {
+  const snapshot = {
+    planId: 'plan-self',
+    profileId: 'self',
+    generatedAt: '2026-05-05T08:00:00.000Z',
+    items: Array.from({ length: 10 }, (_, index) => ({
+      catalogItemId: `urgent-${index + 1}`,
+      name: `Urgent ${index + 1}`,
+      category: 'checkup',
+      cadenceLabel: 'Every year',
+      recurrence: { intervalDays: 365 },
+      whyItMatters: `Reason ${index + 1}`,
+      nextDueDate: '2026-05-01',
+      initialDueDate: '2026-05-01',
+      targetAge: 30 + index,
+      priorityOrder: index + 1,
+      status: 'due',
+    })),
+  };
+
+  const projection = buildDashboardProjectionForSlice(snapshot, createProfile());
+  const today = projection.sections.find((section) => section.priority === 'today')?.items ?? [];
+  const soon = projection.sections.find((section) => section.priority === 'soon')?.items ?? [];
+  const later = projection.sections.find((section) => section.priority === 'later')?.items ?? [];
+
+  assert.equal(today.length, 3);
+  assert.equal(soon.length, 6);
+  assert.equal(later.length, 1);
+  assert.equal(projection.dueTodayCount, 3);
+});
+
 test('plan read model orders checkups and vaccinations by urgency', () => {
   const snapshot = {
     planId: 'plan-self',

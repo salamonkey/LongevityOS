@@ -1,4 +1,5 @@
 import {
+  EFFORT_LEVELS,
   MVP_CATALOG_VERSION,
   MVP_PREVENTIVE_CATALOG,
   getInterventionTypeLabel,
@@ -11,6 +12,26 @@ import {
 } from './dashboard.js';
 
 const ALLOWED_CATEGORIES = new Set(['checkup', 'vaccination']);
+const ALLOWED_RULE_GENDERS = new Set(['female', 'male']);
+const EFFORT_SORT_RANKS = Object.freeze({
+  [EFFORT_LEVELS.low]: 0,
+  [EFFORT_LEVELS.medium]: 1,
+  [EFFORT_LEVELS.high]: 2,
+});
+
+function normalizeProfileForRules(profile = {}) {
+  const ageNumber = Number(profile.age);
+  const normalizedAge = Number.isFinite(ageNumber) ? Math.floor(ageNumber) : NaN;
+  const normalizedGender = String(profile.gender ?? profile.sex ?? '')
+    .trim()
+    .toLowerCase();
+
+  return {
+    ...profile,
+    age: normalizedAge,
+    gender: normalizedGender,
+  };
+}
 
 function findMatchingRuleBand(ruleBands, profile) {
   return ruleBands.find((band) => (
@@ -18,6 +39,57 @@ function findMatchingRuleBand(ruleBands, profile) {
     && profile.age >= band.minAge
     && profile.age <= band.maxAge
   ));
+}
+
+function normalizeProfileRiskFlags(profile = {}) {
+  const flags = new Set();
+
+  if (Array.isArray(profile.riskFlags)) {
+    for (const value of profile.riskFlags) {
+      const normalized = String(value ?? '').trim().toLowerCase();
+      if (normalized) {
+        flags.add(normalized);
+      }
+    }
+  }
+
+  const riskFactors = profile.riskFactors;
+  if (riskFactors && typeof riskFactors === 'object') {
+    for (const [key, value] of Object.entries(riskFactors)) {
+      if (!value) continue;
+      const normalized = String(key ?? '').trim().toLowerCase();
+      if (normalized) {
+        flags.add(normalized);
+      }
+    }
+  }
+
+  return flags;
+}
+
+function hasRequiredRiskFlags(catalogItem, profileRiskFlags) {
+  const required = Array.isArray(catalogItem?.requiredRiskFlags)
+    ? catalogItem.requiredRiskFlags
+    : [];
+  if (required.length === 0) {
+    return true;
+  }
+
+  return required.every((flag) => profileRiskFlags.has(String(flag ?? '').trim().toLowerCase()));
+}
+
+function normalizeEffortLevel(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if (normalized === EFFORT_LEVELS.low || normalized === EFFORT_LEVELS.medium || normalized === EFFORT_LEVELS.high) {
+    return normalized;
+  }
+
+  return EFFORT_LEVELS.medium;
+}
+
+function resolveEffortSortRank(item) {
+  const effort = normalizeEffortLevel(item?.effortLevel);
+  return EFFORT_SORT_RANKS[effort] ?? EFFORT_SORT_RANKS[EFFORT_LEVELS.medium];
 }
 
 function comparePlanItems(a, b) {
@@ -29,11 +101,17 @@ function comparePlanItems(a, b) {
     return bucketOrder[a.initialBucket] - bucketOrder[b.initialBucket];
   }
 
-  if (a.targetAge !== b.targetAge) {
-    return a.targetAge - b.targetAge;
+  const effortRankLeft = resolveEffortSortRank(a);
+  const effortRankRight = resolveEffortSortRank(b);
+  if (effortRankLeft !== effortRankRight) {
+    return effortRankLeft - effortRankRight;
   }
 
-  return a.priorityOrder - b.priorityOrder;
+  if (a.priorityOrder !== b.priorityOrder) {
+    return a.priorityOrder - b.priorityOrder;
+  }
+
+  return a.targetAge - b.targetAge;
 }
 
 function startOfDay(date) {
@@ -48,12 +126,22 @@ function addDays(date, deltaDays) {
   return copy;
 }
 
-function resolveInitialDueDate({ profileAge, targetAge, now }) {
+function resolveInitialDueDate({ profileAge, targetAge, recurrenceDays, now }) {
   const today = startOfDay(now);
   const currentAge = Number(profileAge);
   const target = Number(targetAge);
+  const recurrence = Number(recurrenceDays);
 
-  if (!Number.isFinite(currentAge) || !Number.isFinite(target) || currentAge >= target) {
+  if (!Number.isFinite(currentAge) || !Number.isFinite(target)) {
+    return today;
+  }
+
+  // At onboarding, avoid treating long-cadence items as immediately due.
+  if (currentAge >= target) {
+    if (Number.isFinite(recurrence) && recurrence > 365) {
+      return addDays(today, recurrence);
+    }
+
     return today;
   }
 
@@ -78,11 +166,27 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
   const nowIso = now.toISOString();
   const catalog = options.catalog ?? MVP_PREVENTIVE_CATALOG;
   const catalogVersion = options.catalogVersion ?? MVP_CATALOG_VERSION;
+  const normalizedProfile = normalizeProfileForRules(profile);
+  const profileRiskFlags = normalizeProfileRiskFlags(profile);
 
   const items = [];
 
+  if (!Number.isFinite(normalizedProfile.age) || !ALLOWED_RULE_GENDERS.has(normalizedProfile.gender)) {
+    return {
+      planId: `plan-${profile.profileId}`,
+      profileId: profile.profileId,
+      catalogVersion,
+      generatedAt: nowIso,
+      items,
+    };
+  }
+
   for (const catalogItem of catalog) {
-    const matchedBand = findMatchingRuleBand(catalogItem.ruleBands, profile);
+    if (!hasRequiredRiskFlags(catalogItem, profileRiskFlags)) {
+      continue;
+    }
+
+    const matchedBand = findMatchingRuleBand(catalogItem.ruleBands, normalizedProfile);
 
     if (!matchedBand) {
       continue;
@@ -95,8 +199,9 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
     const interventionType = resolveInterventionTypeForCatalogItem(catalogItem);
     const recurrenceDays = resolveRecurrenceDays(catalogItem);
     const initialDueDate = resolveInitialDueDate({
-      profileAge: profile.age,
+      profileAge: normalizedProfile.age,
       targetAge: matchedBand.targetAge,
+      recurrenceDays,
       now,
     });
     const initialBucket = resolveBucketFromDueDate({
@@ -116,6 +221,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       category: catalogItem.category,
       interventionType,
       interventionTypeLabel: getInterventionTypeLabel(interventionType),
+      effortLevel: normalizeEffortLevel(catalogItem.effortLevel),
       cadenceLabel: catalogItem.cadenceLabel,
       recurrence: {
         intervalDays: recurrenceDays,

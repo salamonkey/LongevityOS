@@ -97,6 +97,31 @@ test('each profile receives a separate plan, overview score, and due summary', a
   assert.ok(samOverview.dueSummary.length > 0);
 });
 
+test('14-year-old male plan stays consistent between self baseline and family profile generation', async () => {
+  const now = new Date('2026-05-05T08:00:00.000Z');
+  const baselineSelf = generateInitialPlanSnapshot({
+    profileId: 'self',
+    age: 14,
+    gender: 'male',
+  }, { now });
+
+  const session = createSession();
+  await session.createSelfProfile({ age: '42', gender: 'female' });
+
+  const result = await session.addFamilyProfile({
+    displayLabel: 'Teen',
+    age: '14',
+    gender: 'male',
+  }, { profileId: 'profile-teen' });
+
+  assert.equal(result.isValid, true);
+  assert.deepEqual(
+    result.plan.items.map((item) => item.catalogItemId),
+    baselineSelf.items.map((item) => item.catalogItemId),
+  );
+  assert.equal(result.plan.items.length, 0);
+});
+
 test('family overview navigation opens profile-scoped dashboard, plan, and vaccinations', async () => {
   const session = createSession();
 

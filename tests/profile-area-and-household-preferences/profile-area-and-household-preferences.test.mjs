@@ -195,3 +195,27 @@ test('household creation enforces the five-profile maximum without delete or arc
     new RegExp(PROFILE_AREA_ERRORS.profileLimitReached, 'i'),
   );
 });
+
+test('profile-area family creation matches self baseline for 14-year-old male inputs', async () => {
+  const now = new Date('2026-05-05T10:00:00.000Z');
+  const baselineSelf = generateInitialPlanSnapshot({
+    profileId: 'self',
+    age: 14,
+    gender: 'male',
+  }, { now });
+
+  const session = createSession();
+  await session.createProfile({ displayLabel: 'You', age: '40', gender: 'female' }, { profileId: 'self' });
+
+  const result = await session.createProfile(
+    { displayLabel: 'Teen', age: '14', gender: 'male' },
+    { profileId: 'profile-teen' },
+  );
+
+  assert.equal(result.isValid, true);
+  assert.deepEqual(
+    result.plan.items.map((item) => item.catalogItemId),
+    baselineSelf.items.map((item) => item.catalogItemId),
+  );
+  assert.equal(result.plan.items.length, 0);
+});

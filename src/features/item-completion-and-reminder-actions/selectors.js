@@ -21,13 +21,52 @@ const BUCKET_LABELS = Object.freeze({
   soon: 'Soon',
   later: 'Later',
 });
+const DEFAULT_FOCUS_BUCKET_LIMITS = Object.freeze({
+  today: 3,
+  soon: 6,
+});
+const EFFORT_SORT_RANKS = Object.freeze({
+  low: 0,
+  medium: 1,
+  high: 2,
+});
 
-function sortWithinBucket(a, b) {
-  if (a.targetAge !== b.targetAge) {
-    return a.targetAge - b.targetAge;
+function normalizeNonNegativeInteger(value, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    return fallback;
   }
 
-  return a.priorityOrder - b.priorityOrder;
+  return Math.floor(numeric);
+}
+
+function resolveFocusBucketLimits(options = {}) {
+  const explicitToday = options.todayFocusLimit ?? options.focusBucketLimits?.today;
+  const explicitSoon = options.soonFocusLimit ?? options.focusBucketLimits?.soon;
+
+  return {
+    today: normalizeNonNegativeInteger(explicitToday, DEFAULT_FOCUS_BUCKET_LIMITS.today),
+    soon: normalizeNonNegativeInteger(explicitSoon, DEFAULT_FOCUS_BUCKET_LIMITS.soon),
+  };
+}
+
+function resolveEffortSortRank(item) {
+  const effort = String(item?.effortLevel ?? '').trim().toLowerCase();
+  return EFFORT_SORT_RANKS[effort] ?? EFFORT_SORT_RANKS.medium;
+}
+
+function sortWithinBucket(a, b) {
+  const effortRankA = resolveEffortSortRank(a);
+  const effortRankB = resolveEffortSortRank(b);
+  if (effortRankA !== effortRankB) {
+    return effortRankA - effortRankB;
+  }
+
+  if (a.priorityOrder !== b.priorityOrder) {
+    return a.priorityOrder - b.priorityOrder;
+  }
+
+  return a.targetAge - b.targetAge;
 }
 
 function toDisplayItem(item) {
@@ -119,6 +158,12 @@ function sortByUrgencyWithinCategory(a, b, sourceByItemKey) {
   if (dueDateA && !dueDateB) return -1;
   if (!dueDateA && dueDateB) return 1;
 
+  const effortRankA = resolveEffortSortRank(sourceA ?? a);
+  const effortRankB = resolveEffortSortRank(sourceB ?? b);
+  if (effortRankA !== effortRankB) {
+    return effortRankA - effortRankB;
+  }
+
   const targetAgeA = Number(sourceA?.targetAge);
   const targetAgeB = Number(sourceB?.targetAge);
   if (Number.isFinite(targetAgeA) && Number.isFinite(targetAgeB) && targetAgeA !== targetAgeB) {
@@ -138,12 +183,14 @@ function isOutstanding(item) {
   return item?.status !== PLAN_STATUSES.done;
 }
 
-export function groupItemsByPriorityForSlice(planSnapshot) {
+export function groupItemsByPriorityForSlice(planSnapshot, options = {}) {
   const buckets = {
     today: [],
     soon: [],
     later: [],
   };
+  const focusLimits = resolveFocusBucketLimits(options);
+  const stagedUrgentItems = [];
 
   for (const item of toItems(planSnapshot)) {
     const displayBucket = resolveDashboardBucketForDisplay(item);
@@ -151,7 +198,26 @@ export function groupItemsByPriorityForSlice(planSnapshot) {
       continue;
     }
 
+    const shouldStageUrgent = displayBucket === 'today' && isOutstanding(item);
+    if (shouldStageUrgent) {
+      stagedUrgentItems.push(item);
+      continue;
+    }
+
     buckets[displayBucket].push(item);
+  }
+
+  stagedUrgentItems.sort(sortWithinBucket);
+
+  for (let index = 0; index < stagedUrgentItems.length; index += 1) {
+    const item = stagedUrgentItems[index];
+    if (index < focusLimits.today) {
+      buckets.today.push(item);
+    } else if (index < focusLimits.today + focusLimits.soon) {
+      buckets.soon.push(item);
+    } else {
+      buckets.later.push(item);
+    }
   }
 
   for (const bucket of BUCKET_ORDER) {
