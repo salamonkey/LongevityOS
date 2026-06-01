@@ -1,0 +1,56 @@
+itemId,name,category,interventionType,interventionTypeLabel,effortLevel,cadenceLabel,whyItMatters,requiredRiskFlags,gender,minAge,maxAge,targetAge,priorityOrder
+annual-wellness-visit,Annual wellness visit,checkup,preventive-visit,Preventive visit,medium,Every year,Regular checkups help catch changes early and keep your prevention plan current.,,female,18,120,18,1
+annual-wellness-visit,Annual wellness visit,checkup,preventive-visit,Preventive visit,medium,Every year,Regular checkups help catch changes early and keep your prevention plan current.,,male,18,120,18,1
+blood-pressure-check,Blood pressure check,checkup,screening,Screening,low,At least every year,Blood pressure checks can identify heart risk factors before symptoms appear.,,female,18,120,18,2
+blood-pressure-check,Blood pressure check,checkup,screening,Screening,low,At least every year,Blood pressure checks can identify heart risk factors before symptoms appear.,,male,18,120,18,2
+cholesterol-screening,Cholesterol screening,checkup,screening,Screening,medium,Every 4 to 6 years,This screening helps track cardiovascular risk and guide timely prevention.,,female,20,120,20,1
+cholesterol-screening,Cholesterol screening,checkup,screening,Screening,medium,Every 4 to 6 years,This screening helps track cardiovascular risk and guide timely prevention.,,male,20,120,20,1
+diabetes-screening,Diabetes screening,checkup,screening,Screening,medium,Every 3 years,Screening can catch blood sugar changes early and support prevention decisions.,,female,35,120,35,2
+diabetes-screening,Diabetes screening,checkup,screening,Screening,medium,Every 3 years,Screening can catch blood sugar changes early and support prevention decisions.,,male,35,120,35,2
+cervical-cancer-screening,Cervical cancer screening,checkup,screening,Screening,medium,Every 3 to 5 years,Routine screening can detect cell changes early and support effective follow-up.,,female,25,65,25,1
+prostate-health-discussion,Prostate health discussion,checkup,shared-decision,Shared decision,low,Discuss around age 50,A timely discussion helps you decide with your clinician which screening path fits you.,,male,45,120,50,1
+influenza-vaccine,Flu vaccine,vaccination,vaccination,Vaccination,low,Every year,Yearly vaccination lowers the risk of severe seasonal illness.,,female,18,120,18,3
+influenza-vaccine,Flu vaccine,vaccination,vaccination,Vaccination,low,Every year,Yearly vaccination lowers the risk of severe seasonal illness.,,male,18,120,18,3
+tdap-booster,+s.replace(/"/g,)+,vaccination,vaccination,Vaccination,low,Every 10 years,Boosters help maintain protection against serious bacterial infections.,,female,18,120,18,2
+tdap-booster,+s.replace(/"/g,)+,vaccination,vaccination,Vaccination,low,Every 10 years,Boosters help maintain protection against serious bacterial infections.,,male,18,120,18,2
+shingles-vaccine,Shingles vaccine,vaccination,vaccination,Vaccination,high,2-dose series after age 50,Vaccination reduces the chance of shingles and long-lasting nerve pain.,,female,50,120,50,3
+shingles-vaccine,Shingles vaccine,vaccination,vaccination,Vaccination,high,2-dose series after age 50,Vaccination reduces the chance of shingles and long-lasting nerve pain.,,male,50,120,50,3
+covid-19-booster,COVID-19 booster,vaccination,vaccination,Vaccination,low,Seasonal booster guidance,Boosters help reduce the risk of severe respiratory illness and hospitalization.,,female,18,120,18,4
+covid-19-booster,COVID-19 booster,vaccination,vaccination,Vaccination,low,Seasonal booster guidance,Boosters help reduce the risk of severe respiratory illness and hospitalization.,,male,18,120,18,4
+hepatitis-b-vaccine,Hepatitis B vaccine,vaccination,vaccination,Vaccination,high,Series based on risk and history,Vaccination protects against hepatitis B infection and long-term liver complications.,,female,18,120,18,4
+hepatitis-b-vaccine,Hepatitis B vaccine,vaccination,vaccination,Vaccination,high,Series based on risk and history,Vaccination protects against hepatitis B infection and long-term liver complications.,,male,18,120,18,4
+colorectal-cancer-screening,Colorectal cancer screening,checkup,screening,Screening,high,Every year to every 10 years (method-dependent),Routine colorectal screening helps detect precancerous changes and cancer earlier.,,female,45,75,45,1
+colorectal-cancer-screening,Colorectal cancer screening,checkup,screening,Screening,high,Every year to every 10 years (method-dependent),Routine colorectal screening helps detect precancerous changes and cancer earlier.,,male,45,75,45,1
+breast-cancer-screening,Breast cancer screening (mammogram),checkup,screening,Screening,medium,Every 2 years,Regular mammography can lower the risk of dying from breast cancer through earlier detection.,,female,40,74,40,1
+lung-cancer-screening,Lung cancer screening discussion,checkup,screening,Screening,low,Every year when high-risk criteria are met,+s.replace(/"/g,)+,,female,50,80,50,2
+lung-cancer-screening,Lung cancer screening discussion,checkup,screening,Screening,low,Every year when high-risk criteria are met,+s.replace(/"/g,)+,,male,50,80,50,2
+osteoporosis-screening,Osteoporosis screening,checkup,screening,Screening,medium,+s.replace(/"/g,)+,Bone-density screening helps identify fracture risk early and supports prevention.,,female,65,120,65,2
+abdominal-aortic-aneurysm-screening,Abdominal aortic aneurysm screening discussion,checkup,screening,Screening,low,One-time around age 65 to 75 if indicated,A one-time ultrasound can detect aneurysms before rupture in eligible adults.,,male,65,75,65,3
+depression-screening,Depression screening,checkup,screening,Screening,low,Periodic screening,Routine screening can identify depression earlier so treatment can start sooner.,,female,18,120,18,3
+depression-screening,Depression screening,checkup,screening,Screening,low,Periodic screening,Routine screening can identify depression earlier so treatment can start sooner.,,male,18,120,18,3
+anxiety-screening,Anxiety screening,checkup,screening,Screening,low,Periodic screening,Early screening can surface anxiety symptoms and connect you to evidence-based care.,,female,18,64,18,3
+anxiety-screening,Anxiety screening,checkup,screening,Screening,low,Periodic screening,Early screening can surface anxiety symptoms and connect you to evidence-based care.,,male,18,64,18,3
+hiv-screening,HIV screening,checkup,screening,Screening,medium,+s.replace(/"/g,)+,+s.replace(/"/g,)+,hiv,female,15,65,15,4
+hiv-screening,HIV screening,checkup,screening,Screening,medium,+s.replace(/"/g,)+,+s.replace(/"/g,)+,hiv,male,15,65,15,4
+hepatitis-c-screening,Hepatitis C screening,checkup,screening,Screening,medium,At least once for ages 18 to 79,One-time hepatitis C screening can find silent infection and prevent long-term liver harm.,,female,18,79,18,4
+hepatitis-c-screening,Hepatitis C screening,checkup,screening,Screening,medium,At least once for ages 18 to 79,One-time hepatitis C screening can find silent infection and prevent long-term liver harm.,,male,18,79,18,4
+tobacco-cessation-support,Tobacco use screening and quit support,checkup,counseling,Counseling,low,At each routine visit,Asking about tobacco use and offering support increases successful quitting.,,female,18,120,18,5
+tobacco-cessation-support,Tobacco use screening and quit support,checkup,counseling,Counseling,low,At each routine visit,Asking about tobacco use and offering support increases successful quitting.,,male,18,120,18,5
+alcohol-use-screening,Alcohol use screening,checkup,screening,Screening,low,Periodic screening,Screening can identify risky alcohol use early and guide brief counseling.,,female,18,120,18,5
+alcohol-use-screening,Alcohol use screening,checkup,screening,Screening,low,Periodic screening,Screening can identify risky alcohol use early and guide brief counseling.,,male,18,120,18,5
+pneumococcal-vaccine,Pneumococcal vaccine,vaccination,vaccination,Vaccination,medium,+s.replace(/"/g,)+,Pneumococcal vaccination helps prevent serious pneumonia and bloodstream infections.,,female,50,120,50,4
+pneumococcal-vaccine,Pneumococcal vaccine,vaccination,vaccination,Vaccination,medium,+s.replace(/"/g,)+,Pneumococcal vaccination helps prevent serious pneumonia and bloodstream infections.,,male,50,120,50,4
+rsv-vaccine,RSV vaccine discussion,vaccination,vaccination,Vaccination,medium,Single-season dose by age/risk guidance,RSV vaccination can reduce severe lower respiratory infection risk in older adults.,,female,60,120,60,5
+rsv-vaccine,RSV vaccine discussion,vaccination,vaccination,Vaccination,medium,Single-season dose by age/risk guidance,RSV vaccination can reduce severe lower respiratory infection risk in older adults.,,male,60,120,60,5
+hpv-vaccine,HPV vaccine,vaccination,vaccination,Vaccination,high,2 to 3 dose series by age/history,HPV vaccination lowers risk of several cancers and genital warts.,,female,18,45,18,5
+hpv-vaccine,HPV vaccine,vaccination,vaccination,Vaccination,high,2 to 3 dose series by age/history,HPV vaccination lowers risk of several cancers and genital warts.,,male,18,45,18,5
+mmr-vaccine,MMR vaccine,vaccination,vaccination,Vaccination,medium,Catch-up doses if not immune,+s.replace(/"/g,)+,,female,18,120,18,6
+mmr-vaccine,MMR vaccine,vaccination,vaccination,Vaccination,medium,Catch-up doses if not immune,+s.replace(/"/g,)+,,male,18,120,18,6
+varicella-vaccine,Varicella vaccine,vaccination,vaccination,Vaccination,high,2-dose series if not immune,Varicella vaccination reduces risk of primary chickenpox infection and complications.,,female,18,120,18,6
+varicella-vaccine,Varicella vaccine,vaccination,vaccination,Vaccination,high,2-dose series if not immune,Varicella vaccination reduces risk of primary chickenpox infection and complications.,,male,18,120,18,6
+hepatitis-a-vaccine,Hepatitis A vaccine,vaccination,vaccination,Vaccination,high,2-dose series when indicated,+s.replace(/"/g,)+,,female,18,120,18,6
+hepatitis-a-vaccine,Hepatitis A vaccine,vaccination,vaccination,Vaccination,high,2-dose series when indicated,+s.replace(/"/g,)+,,male,18,120,18,6
+meningococcal-vaccine,Meningococcal vaccine discussion,vaccination,vaccination,Vaccination,medium,By risk factors and exposure,+s.replace(/"/g,)+,,female,18,120,18,6
+meningococcal-vaccine,Meningococcal vaccine discussion,vaccination,vaccination,Vaccination,medium,By risk factors and exposure,+s.replace(/"/g,)+,,male,18,120,18,6
+polio-vaccine,Polio vaccine catch-up,vaccination,vaccination,Vaccination,high,Complete series if incomplete,Polio catch-up vaccination can protect adults who were not fully immunized earlier in life.,,female,18,120,18,6
+polio-vaccine,Polio vaccine catch-up,vaccination,vaccination,Vaccination,high,Complete series if incomplete,Polio catch-up vaccination can protect adults who were not fully immunized earlier in life.,,male,18,120,18,6

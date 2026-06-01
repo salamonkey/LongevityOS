@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ItemCompletionAndReminderActionsRoute from './routes/item-completion-and-reminder-actions.jsx';
 import PlanTimelineRoute from './routes/plan-timeline.jsx';
 import ProfileAreaAndHouseholdPreferencesRoute from './routes/profile-area-and-household-preferences.jsx';
@@ -6,6 +6,11 @@ import SelfOnboardingToFirstDashboardRoute from './routes/self-onboarding-to-fir
 import { generateInitialPlanSnapshot } from './features/self-onboarding-to-first-dashboard/plan.js';
 import { DETAIL_ORIGIN, PLAN_CATEGORIES } from './features/health-plan-browsing-and-item-detail/model.js';
 import { createProfileAreaAndHouseholdPreferencesSession } from './features/profile-area-and-household-preferences/service.js';
+import {
+  isSupabasePersistenceConfigured,
+  loadAppRuntimeState,
+  saveAppRuntimeState,
+} from './lib/persistence/supabaseAppState.js';
 import PrimaryNav from './components/PrimaryNav.jsx';
 import './primary-nav.css';
 
@@ -17,6 +22,34 @@ const DEMO_PROFILE = Object.freeze({
 });
 
 const demoPlanSnapshot = generateInitialPlanSnapshot(DEMO_PROFILE, { now: new Date() });
+const PROFILE_AREA_SEED_DEFAULT = Object.freeze({
+  profiles: [],
+  plansByProfileId: {},
+  manualEntriesByProfileId: {},
+  reminderSettings: null,
+  activeProfileId: null,
+});
+const APP_RUNTIME_STATE_SCHEMA_VERSION = 1;
+
+function normalizeSeedFromPersistence(value) {
+  if (!value || typeof value !== 'object') {
+    return { ...PROFILE_AREA_SEED_DEFAULT };
+  }
+
+  return {
+    profiles: Array.isArray(value.profiles) ? value.profiles : [],
+    plansByProfileId: value.plansByProfileId && typeof value.plansByProfileId === 'object'
+      ? value.plansByProfileId
+      : {},
+    manualEntriesByProfileId: value.manualEntriesByProfileId && typeof value.manualEntriesByProfileId === 'object'
+      ? value.manualEntriesByProfileId
+      : {},
+    reminderSettings: value.reminderSettings && typeof value.reminderSettings === 'object'
+      ? value.reminderSettings
+      : null,
+    activeProfileId: typeof value.activeProfileId === 'string' ? value.activeProfileId : null,
+  };
+}
 
 function normalizeView(value) {
   const normalized = String(value || '').toLowerCase();
@@ -46,17 +79,15 @@ function replaceViewInUrl(view) {
 }
 
 export default function App() {
+  const persistenceEnabled = isSupabasePersistenceConfigured();
+  const hasHydratedPersistenceRef = useRef(false);
+  const saveTimeoutRef = useRef(null);
   const [activeView, setActiveView] = useState(() => currentViewFromUrl());
   const [dashboardReturnScrollY, setDashboardReturnScrollY] = useState(null);
   const [runtimeProfile, setRuntimeProfile] = useState(null);
   const [runtimePlanSnapshot, setRuntimePlanSnapshot] = useState(null);
-  const [profileAreaSeed, setProfileAreaSeed] = useState({
-    profiles: [],
-    plansByProfileId: {},
-    manualEntriesByProfileId: {},
-    reminderSettings: null,
-    activeProfileId: null,
-  });
+  const [profileAreaSeed, setProfileAreaSeed] = useState({ ...PROFILE_AREA_SEED_DEFAULT });
+  const [persistenceReady, setPersistenceReady] = useState(!persistenceEnabled);
   const [runtimePlanEntry, setRuntimePlanEntry] = useState({
     initialItemKey: undefined,
     initialOrigin: undefined,
@@ -68,6 +99,78 @@ export default function App() {
   useEffect(() => {
     replaceViewInUrl(activeView);
   }, [activeView]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!persistenceEnabled) {
+      setPersistenceReady(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    async function hydrateFromSupabase() {
+      try {
+        const persisted = await loadAppRuntimeState();
+        if (cancelled || !persisted || typeof persisted !== 'object') {
+          return;
+        }
+
+        if (persisted.runtimeProfile && typeof persisted.runtimeProfile === 'object') {
+          setRuntimeProfile(persisted.runtimeProfile);
+        }
+
+        if (persisted.runtimePlanSnapshot && typeof persisted.runtimePlanSnapshot === 'object') {
+          setRuntimePlanSnapshot(persisted.runtimePlanSnapshot);
+        }
+
+        setProfileAreaSeed(normalizeSeedFromPersistence(persisted.profileAreaSeed));
+      } catch (error) {
+        // Keep app usable even if persistence fails.
+        console.warn('Failed to load runtime state from Supabase.', error);
+      } finally {
+        if (!cancelled) {
+          hasHydratedPersistenceRef.current = true;
+          setPersistenceReady(true);
+        }
+      }
+    }
+
+    hydrateFromSupabase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [persistenceEnabled]);
+
+  useEffect(() => {
+    if (!persistenceEnabled || !persistenceReady || !hasHydratedPersistenceRef.current) {
+      return undefined;
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      saveAppRuntimeState({
+        schemaVersion: APP_RUNTIME_STATE_SCHEMA_VERSION,
+        updatedAt: new Date().toISOString(),
+        runtimeProfile,
+        runtimePlanSnapshot,
+        profileAreaSeed: normalizeSeedFromPersistence(profileAreaSeed),
+      }).catch((error) => {
+        console.warn('Failed to save runtime state to Supabase.', error);
+      });
+    }, 250);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [persistenceEnabled, persistenceReady, profileAreaSeed, runtimePlanSnapshot, runtimeProfile]);
 
   useEffect(() => {
     if (!hasCompletedOnboarding && activeView !== 'onboarding') {
