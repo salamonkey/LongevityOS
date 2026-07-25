@@ -15,5 +15,5 @@
 }
 
 .vds-logo-word--reversed {
-  color: #fff;
+  color: var(--white);
 }

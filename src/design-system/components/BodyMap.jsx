@@ -41,7 +41,7 @@ export function BodyMap({
             draggable={false}
             className="vds-bodymap-image"
           />
-          {points.map((point) => {
+          {points.map((point, index) => {
             const statusClass = STATUS_CLASS[point.status] || STATUS_CLASS.ok;
             const isSelected = point.id === selectedId;
             return (
@@ -50,7 +50,7 @@ export function BodyMap({
                 type="button"
                 aria-label={point.label}
                 className={`vds-bodymap-dot ${statusClass}${isSelected ? ' is-selected' : ''}`}
-                style={{ left: `${point.x}%`, top: `${point.y}%` }}
+                style={{ left: `${point.x}%`, top: `${point.y}%`, animationDelay: `${120 + index * 80}ms` }}
                 onClick={() => select(point.id)}
               >
                 {point.status === 'action' ? <span className="vds-bodymap-dot-ping" /> : null}

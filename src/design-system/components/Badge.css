@@ -9,11 +9,8 @@
   border-radius: var(--radius-full);
 }
 
-/* These foreground colors are darkened, contrast-adjusted variants of the base
-   status hues for text on a soft/light badge background — not duplicates of
-   the status-* tokens, which are tuned for icon chips/borders instead. */
 .vds-badge--due { background: var(--status-due-soft); color: var(--color-primary-ink); }
-.vds-badge--done { background: var(--status-done-soft); color: #1d6b48; }
-.vds-badge--upcoming { background: var(--status-upcoming-soft); color: #9a6a1c; }
-.vds-badge--overdue { background: var(--status-overdue-soft); color: #b23a2a; }
+.vds-badge--done { background: var(--status-done-soft); color: var(--status-done-ink); }
+.vds-badge--upcoming { background: var(--status-upcoming-soft); color: var(--status-upcoming-ink); }
+.vds-badge--overdue { background: var(--status-overdue-soft); color: var(--status-overdue-ink); }
 .vds-badge--neutral { background: var(--surface-sunken); color: var(--slate-600); }

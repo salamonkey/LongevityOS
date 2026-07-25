@@ -42,15 +42,15 @@
 
 .sl002-detail-section p {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .sl002-empty-state,
 .sl002-not-found {
-  border: 1px solid #e2e8f0;
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
-  background: #ffffff;
+  background: var(--surface-card);
 }
 
 .sl002-empty-state h3,
@@ -60,12 +60,12 @@
 
 .sl002-empty-state p,
 .sl002-not-found p {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .sl002-loading-block {
   height: 4.5rem;
   border-radius: 0.75rem;
-  background: var(--color-surface-subtle);
+  background: var(--surface-sunken);
   margin-top: var(--space-3);
 }

@@ -1,27 +1,10 @@
-:root {
-  --color-surface-card: #ffffff;
-  --color-surface-subtle: #f8fafc;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
-
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-
-  --radius-card: 1rem;
-  --radius-pill: 999px;
-}
-
 .sl001-shell {
   background: var(--surface-app);
 }
 
 .sl001-header h1 {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--text-primary);
 }
 
 .sl001-header-row {
@@ -43,13 +26,13 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: var(--text-secondary);
 }
 
 .sl001-shell-footer {
   margin-top: var(--space-8);
   padding-top: var(--space-4);
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .sl001-shell-footer--centered {
@@ -58,20 +41,20 @@
 }
 
 .sl001-support-copy {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   margin: var(--space-3) 0 var(--space-6);
 }
 
 .sl001-field-error,
 .sl001-error-banner {
   margin: 0;
-  color: #9a3412;
+  color: var(--status-overdue);
   font-weight: 600;
 }
 
 .sl001-error-banner {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  background: var(--status-overdue-soft);
+  border: 1px solid var(--status-overdue);
   border-radius: 0.75rem;
   padding: var(--space-3);
   margin-bottom: var(--space-2);
@@ -79,7 +62,7 @@
 
 .sl001-label {
   margin: 0;
-  color: var(--color-text-muted);
+  color: var(--text-secondary);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -87,7 +70,7 @@
 
 .sl001-summary-meta {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .vitalis-dash-header {
@@ -180,11 +163,11 @@
 
 .vitalis-dash-hero-ring-card {
   position: relative;
-  background: #fff;
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: 20px;
   padding: 11px 13px 8px;
-  box-shadow: 0 12px 26px -12px rgba(31, 94, 138, 0.30), 0 2px 6px rgba(30, 42, 54, 0.05);
+  box-shadow: var(--shadow-medallion);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -331,7 +314,7 @@
   border-radius: 50%;
   background: var(--color-primary);
   opacity: 0.4;
-  animation: vitalis-rail-halo 2s ease-out infinite;
+  animation: v-halo 2s ease-out infinite;
 }
 
 .vitalis-rail-node-core {
@@ -340,7 +323,7 @@
   height: 20px;
   border-radius: 50%;
   background: var(--color-primary);
-  border: 3px solid #fff;
+  border: 3px solid var(--surface-card);
   box-shadow: var(--shadow-md);
 }
 
@@ -356,11 +339,6 @@
   line-height: 1.2;
   height: 26px;
   overflow: hidden;
-}
-
-@keyframes vitalis-rail-halo {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.5); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -433,7 +411,7 @@
   background: var(--surface-app);
   display: flex;
   flex-direction: column;
-  animation: vitalis-region-detail-slide-in 0.26s ease;
+  animation: v-slidein 0.26s ease;
   overflow-y: auto;
 }
 
@@ -488,11 +466,6 @@
 
 .vitalis-region-detail-cta {
   margin-top: 20px;
-}
-
-@keyframes vitalis-region-detail-slide-in {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

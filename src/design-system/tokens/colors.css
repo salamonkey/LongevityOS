@@ -62,5 +62,11 @@
   --status-overdue:var(--red-500);     --status-overdue-soft:var(--red-100);
   --status-upcoming:var(--amber-500);  --status-upcoming-soft:var(--amber-100);
 
+  /* Darker "ink" variants for text sitting on a -soft badge background,
+     needed to clear the 4.5:1 contrast rule (the base status hue alone does not). */
+  --status-done-ink:#1D6B48;
+  --status-upcoming-ink:#9A6A1C;
+  --status-overdue-ink:#B23A2A;
+
   --focus-ring:rgba(43,127,184,.35);
 }

@@ -16,7 +16,7 @@
 
 .sl003-manual-empty {
   margin-top: var(--space-2);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .sl003-manual-form {
@@ -33,7 +33,7 @@
 
 .sl003-manual-form label,
 .sl003-manual-form legend {
-  color: var(--color-text-primary);
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -43,12 +43,12 @@
   inline-size: 100%;
   min-inline-size: 0;
   max-inline-size: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 0.75rem;
   block-size: 2.75rem;
   padding: 0 var(--space-4);
-  color: var(--color-text-primary);
-  background: var(--color-surface-card);
+  color: var(--text-primary);
+  background: var(--surface-card);
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -100,7 +100,7 @@
 }
 
 .sl003-manual-status-group {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-strong);
   border-radius: 0.75rem;
   padding: var(--space-3);
   display: grid;
@@ -166,8 +166,8 @@
 }
 
 .sl003-reminder-fieldset {
-  border: 1px solid var(--color-surface-subtle);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
   display: grid;
   gap: var(--space-2);
@@ -186,8 +186,8 @@
 }
 
 .sl003-custom-date input {
-  border: 1px solid var(--color-surface-subtle);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   padding: var(--space-2) var(--space-3);
 }
 
@@ -201,16 +201,19 @@
 .sl003-complete-message,
 .sl003-confirmation {
   margin: var(--space-2) 0 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .sl003-shared-decision-note {
   margin: var(--space-2) 0 0;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid #4338ca;
-  border-radius: var(--radius-card);
-  background: rgba(67, 56, 202, 0.08);
-  color: #4338ca;
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.55;
   font-weight: 500;
 }
 
@@ -236,7 +239,7 @@
 }
 
 .sl003-time-to-go-due {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.88rem;
 }
 

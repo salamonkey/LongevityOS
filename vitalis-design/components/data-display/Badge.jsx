@@ -2,9 +2,9 @@ import React from 'react';
 
 const MAP = {
   due:      { bg: 'var(--status-due-soft)',      fg: 'var(--color-primary-ink)' },
-  done:     { bg: 'var(--status-done-soft)',     fg: '#1d6b48' },
-  upcoming: { bg: 'var(--status-upcoming-soft)', fg: '#9a6a1c' },
-  overdue:  { bg: 'var(--status-overdue-soft)',  fg: '#b23a2a' },
+  done:     { bg: 'var(--status-done-soft)',     fg: 'var(--status-done-ink)' },
+  upcoming: { bg: 'var(--status-upcoming-soft)', fg: 'var(--status-upcoming-ink)' },
+  overdue:  { bg: 'var(--status-overdue-soft)',  fg: 'var(--status-overdue-ink)' },
   neutral:  { bg: 'var(--surface-sunken)',       fg: 'var(--slate-600)' },
 };
 

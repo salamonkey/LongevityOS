@@ -34,6 +34,7 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+  animation: v-dot 0.5s var(--ease-spring) both;
 }
 
 .vds-bodymap-dot-ping {
@@ -44,7 +45,7 @@
   border-radius: 50%;
   border: 2px solid currentColor;
   opacity: 0.5;
-  animation: vds-bodymap-ping 1.9s ease-out infinite;
+  animation: v-ping 1.9s ease-out infinite;
 }
 
 .vds-bodymap-dot-halo {
@@ -63,7 +64,7 @@
   height: 11px;
   border-radius: 50%;
   background: currentColor;
-  border: 2px solid #fff;
+  border: 2px solid var(--surface-card);
   box-shadow: 0 1px 3px rgba(30, 42, 54, 0.35);
 }
 
@@ -80,11 +81,6 @@
 .vds-bodymap-dot--action { color: var(--status-overdue); }
 .vds-bodymap-dot--soon { color: var(--status-upcoming); }
 .vds-bodymap-dot--ok { color: var(--status-done); }
-
-@keyframes vds-bodymap-ping {
-  0% { transform: scale(1); opacity: 0.55; }
-  70%, 100% { transform: scale(2.3); opacity: 0; }
-}
 
 .vds-bodymap-list {
   flex: 1;
@@ -165,6 +161,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vds-bodymap-dot-ping {
+    animation: none;
+  }
+
+  .vds-bodymap-dot {
     animation: none;
   }
 }
