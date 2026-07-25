@@ -164,10 +164,10 @@ export default function SettingsScreen({
         </div>
         <div className="vitalis-seg">
           <button type="button" className={locale === 'de' ? 'is-active' : ''} onClick={() => onSetLocale('de')}>
-            Deutsch
+            {t('settings.languageGerman')}
           </button>
           <button type="button" className={locale === 'en' ? 'is-active' : ''} onClick={() => onSetLocale('en')}>
-            English
+            {t('settings.languageEnglish')}
           </button>
         </div>
       </Card>

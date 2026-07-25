@@ -86,10 +86,10 @@ export function buildTimelineItems(planSnapshot, options = {}) {
 
       return {
         itemKey: item.catalogItemId,
-        name: liveCopy?.name || definition?.displayName || item.name || 'Preventive item',
+        name: liveCopy?.name || definition?.displayName || item.name || item.catalogItemId,
         category: item.category,
         categoryLabelKey: getCategoryLabelKey(item.category, 'singular'),
-        cadenceText: liveCopy?.cadenceLabel || definition?.cadenceText || item.cadenceLabel || 'By recommendation',
+        cadenceText: liveCopy?.cadenceLabel || definition?.cadenceText || item.cadenceLabel || '',
         status,
         statusLabelKey: getStatusLabelKey(status),
         date,

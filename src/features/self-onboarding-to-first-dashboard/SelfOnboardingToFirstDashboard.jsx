@@ -313,6 +313,14 @@ export default function SelfOnboardingToFirstDashboard({
     }
 
     const target = Math.round(projection.healthScore);
+    const prefersReducedMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      setAnimatedScore(target);
+      return undefined;
+    }
+
     let current = 0;
     setAnimatedScore(0);
     const id = setInterval(() => {
@@ -424,7 +432,7 @@ export default function SelfOnboardingToFirstDashboard({
   }
 
   const now = new Date();
-  const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const dateLabel = new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric' }).format(now);
   const sex = profile?.gender === 'male' ? 'm' : 'w';
   const dueTodayCount = projection.sections.find((section) => section.priority === 'today')?.items.length ?? 0;
 
@@ -461,7 +469,7 @@ export default function SelfOnboardingToFirstDashboard({
                 stroke={9}
                 label={
                   <span className="vitalis-dash-hero-ring-value">
-                    {projection.healthScore === null || projection.healthScore === undefined ? 'N/A' : animatedScore}
+                    {projection.healthScore === null || projection.healthScore === undefined ? t('dashboard.scoreUnavailable') : animatedScore}
                   </span>
                 }
               />

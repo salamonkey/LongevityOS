@@ -18,7 +18,7 @@ export function BodyMap({
   showLegend = true,
   onOpen,
   style,
-  legend = { action: 'Act now', soon: 'Coming up', ok: 'Done' },
+  legend = {},
 }) {
   const first = points.find((point) => point.status === 'action') || points[0] || null;
   const [selectedId, setSelectedId] = useState(first ? first.id : null);

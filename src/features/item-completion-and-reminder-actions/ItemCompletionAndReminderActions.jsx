@@ -122,7 +122,7 @@ function PlanRow({ item, onOpen }) {
       icon={getCategoryIcon(item.category)}
       tone={getStatusTone(item.status)}
       title={item.displayName}
-      subtitle={item.requiresSharedDecision ? `${item.cadenceText} · Discuss with clinician` : item.cadenceText}
+      subtitle={item.requiresSharedDecision ? t('detail.sharedDecisionSubtitle', { cadence: item.cadenceText }) : item.cadenceText}
       badge={t(getStatusLabelKey(item.status))}
       badgeStatus={getStatusBadgeStatus(item.status)}
       onClick={() => onOpen(item.itemKey)}
@@ -190,7 +190,7 @@ function ReminderForm({
   }, [selectedTiming]);
 
   return (
-    <div className="sl003-reminder-form" role="group" aria-label="Set a reminder">
+    <div className="sl003-reminder-form" role="group" aria-label={t('reminderForm.ariaLabel')}>
       <fieldset className="sl003-reminder-fieldset" disabled={pending}>
         <legend>{t('reminderForm.legend')}</legend>
         <label>
@@ -554,7 +554,7 @@ function DetailView({
   const [heroChipBg, heroChipFg] = getToneColors(getStatusTone(item.status));
 
   return (
-    <section className="sl002-detail-view" aria-label={`${item.displayName} details`}>
+    <section className="sl002-detail-view" aria-label={t('detail.viewAriaLabel', { name: item.displayName })}>
       <Card padding={16} className="vitalis-detail-hero">
         <span className="vitalis-detail-hero-icon" style={{ background: heroChipBg, color: heroChipFg }}>
           <Icon name={getCategoryIcon(item.category)} size={26} />
@@ -566,30 +566,36 @@ function DetailView({
         <Badge status={getStatusBadgeStatus(item.status)}>{t(getStatusLabelKey(item.status))}</Badge>
       </Card>
       {item.reminderDateLabel ? (
-        <p className="sl003-reminder-note">Planned for {item.reminderDateLabel}</p>
+        <p className="sl003-reminder-note">{t('detail.plannedFor', { date: item.reminderDateLabel })}</p>
       ) : null}
       {item.requiresSharedDecision ? (
         <p className="sl003-shared-decision-note" role="note">
-          Worth discussing with your clinician — this is a personal choice, not something you're behind on.
+          {t('detail.sharedDecisionNote')}
         </p>
       ) : null}
 
-      <Card className="sl002-detail-section" aria-label="Cadence">
+      <Card className="sl002-detail-section" aria-label={t('detail.cadence')}>
         <h3>{t('detail.cadence')}</h3>
         <p>{item.cadenceText}</p>
       </Card>
 
-      <Card className="sl002-detail-section" aria-label="Recommendation">
+      <Card className="sl002-detail-section" aria-label={t('detail.recommendation')}>
         <h3>{t('detail.recommendation')}</h3>
         <p>{item.recommendationText}</p>
       </Card>
 
-      <Card className="sl002-detail-section" aria-label="Why it matters">
+      <Card className="sl002-detail-section" aria-label={t('detail.whyItMatters')}>
         <h3>{t('detail.whyItMatters')}</h3>
         <p>{item.whyItMattersText}</p>
       </Card>
 
-      <section ref={actionAreaRef} className="sl003-action-area vds-card vds-card--elevated" aria-label="Item actions">
+      {item.category !== PLAN_CATEGORIES.vaccination ? (
+        <Card elevated={false} className="sl003-guidance-disclaimer">
+          <p>{t('checkups.disclaimer')}</p>
+        </Card>
+      ) : null}
+
+      <section ref={actionAreaRef} className="sl003-action-area vds-card vds-card--elevated" aria-label={t('detail.itemActionsAriaLabel')}>
         <h3>{doneTimeToGo ? t('detail.timeToGo') : t('detail.nextStep')}</h3>
         {readOnly ? (
           <p className="sl003-complete-message">{t('detail.notInPlan')}</p>
@@ -1172,8 +1178,8 @@ export default function ItemCompletionAndReminderActions({
 
   return (
     <AppShell title={null}>
-      <section className="sl003-plan-browser" aria-label="Browse your plan">
-        <div className="vitalis-seg" role="tablist" aria-label="Plan categories">
+      <section className="sl003-plan-browser" aria-label={t('plan.browseAriaLabel')}>
+        <div className="vitalis-seg" role="tablist" aria-label={t('plan.categoriesAriaLabel')}>
           {[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination, PLAN_CATEGORIES.counseling]
             .filter((category) => visibleCategories.includes(category))
             .map((category) => {
@@ -1195,13 +1201,13 @@ export default function ItemCompletionAndReminderActions({
           })}
         </div>
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
-          <Card className="sl003-vaccination-guidance" aria-label="Due guidance">
+          <Card className="sl003-vaccination-guidance" aria-label={t('vaccinations.dueGuidanceTitle')}>
             <p className="sl001-label">{t('vaccinations.dueGuidanceTitle')}</p>
             <p className="sl001-summary-meta">{t('vaccinations.dueGuidanceBody')}</p>
             {activeItems.length === 0 ? (
               <p className="sl001-summary-meta">{t('vaccinations.noGuidance')}</p>
             ) : (
-              <div className="rows" aria-label="Vaccination guidance list">
+              <div className="rows" aria-label={t('vaccinations.guidanceListAriaLabel')}>
                 {activeItems.map((item) => (
                   <PlanRow key={item.itemKey} item={item} onOpen={handleOpenDetailFromPlan} />
                 ))}
@@ -1213,7 +1219,7 @@ export default function ItemCompletionAndReminderActions({
           <ListEmptyState activeCategory={activeCategory} onSwitchCategory={setActiveCategory} visibleCategories={visibleCategories} />
         ) : null}
         {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length > 0 ? (
-          <div className="rows" aria-label={`${t(getCategoryLabelKey(activeCategory))} list`}>
+          <div className="rows" aria-label={t('plan.categoryListAriaLabel', { category: t(getCategoryLabelKey(activeCategory)) })}>
             {activeItems.map((item) => (
               <PlanRow key={item.itemKey} item={item} onOpen={handleOpenDetailFromPlan} />
             ))}
@@ -1226,19 +1232,19 @@ export default function ItemCompletionAndReminderActions({
         ) : null}
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
           <>
-            <Card className="sl003-manual-entry-box" aria-label="Manual vaccination records">
+            <Card className="sl003-manual-entry-box" aria-label={t('vaccinations.recordsAriaLabel')}>
               <h3>{t('vaccinations.recordsTitle')}</h3>
               {manualEntryRows.length === 0 ? (
                 <p className="sl003-manual-empty">{t('vaccinations.noRecords')}</p>
               ) : (
-                <div className="rows" aria-label="Manual vaccination entries">
+                <div className="rows" aria-label={t('vaccinations.entriesAriaLabel')}>
                   {manualEntryRows.map((row) => (
                     <ListRow
                       key={row.id}
                       icon="syringe"
                       tone={getStatusTone(row.planStatus)}
                       title={row.vaccineName}
-                      subtitle={`Date: ${row.entryDateLabel}`}
+                      subtitle={t('vaccinations.entryDateSubtitle', { date: row.entryDateLabel })}
                       badge={t(getStatusLabelKey(row.planStatus))}
                       badgeStatus={getStatusBadgeStatus(row.planStatus)}
                       onClick={() => handleOpenDetailFromPlan(row.relatedItemKey ?? row.vaccinationKey)}
