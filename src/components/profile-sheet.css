@@ -23,12 +23,36 @@
   border-color: transparent;
 }
 
-.vitalis-profile-sheet-name {
+.vitalis-profile-sheet-row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.vitalis-profile-sheet-copy {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.vitalis-profile-sheet-name {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.vitalis-profile-sheet-role {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}
+
+.vitalis-profile-sheet-section-label {
+  margin: 10px 2px 2px;
+}
+
+.vitalis-profile-sheet-section-label:first-child {
+  margin-top: 0;
 }
 
 .vitalis-profile-sheet-add {
@@ -46,6 +70,11 @@
   font-weight: 600;
   font-size: 14px;
   margin-top: 2px;
+}
+
+.vitalis-profile-sheet-add:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .vitalis-profile-sheet-add-icon {

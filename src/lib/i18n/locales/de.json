@@ -73,9 +73,14 @@
   "settings.manageProfiles": "Profile verwalten",
   "settings.notifications": "Benachrichtigungen",
   "settings.privacy": "Datenschutz & Sicherheit",
+  "settings.saving": "Wird gespeichert...",
+  "settings.savedConfirmation": "Gespeichert.",
 
   "profileSheet.title": "Profil wechseln",
   "profileSheet.addProfile": "Profil hinzufügen",
+  "profileSheet.you": "Du",
+  "profileSheet.managedProfiles": "Verwaltete Profile · {count} von {cap} Profilen",
+  "profileSheet.ageYears": "{age} Jahre",
 
   "vaccinations.dueGuidanceTitle": "Fällige Impfungen",
   "vaccinations.dueGuidanceBody": "Die Empfehlung basiert auf deinem Vorsorgeprofil und hilft dir zu erkennen, was als Nächstes ansteht.",
@@ -263,6 +268,7 @@
   "appError.catalogTimedOut": "Zeitüberschreitung beim Laden des Vorsorgekatalogs.",
   "appError.enrollFailed": "Wir konnten diesen Nutzer gerade nicht anlegen. Bitte versuche es erneut.",
   "appError.riskProfileSaveFailed": "Wir konnten dein Risikoprofil gerade nicht speichern. Bitte versuche es erneut.",
+  "appError.profileDetailsSaveFailed": "Wir konnten deine Änderungen gerade nicht speichern. Bitte versuche es erneut.",
   "appError.signInFailed": "Anmeldung gerade nicht möglich. Bitte versuche es erneut.",
   "appError.signUpFailed": "Kontoerstellung gerade nicht möglich. Bitte versuche es erneut.",
   "appError.accountCreatedConfirmEmail": "Konto erstellt. Bestätige deine E-Mail-Adresse und melde dich dann an.",

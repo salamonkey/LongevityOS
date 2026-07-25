@@ -18,6 +18,7 @@ import {
   signUpLiveUserWithPassword,
   saveLivePlanForProfile,
   setLiveActiveProfile,
+  updateHealthProfile,
   updateHealthProfileRiskFlags,
 } from './lib/persistence/supabaseLivePlans.js';
 import {
@@ -198,6 +199,8 @@ export default function App() {
   const [showRiskProfileStep, setShowRiskProfileStep] = useState(false);
   const [riskProfilePending, setRiskProfilePending] = useState(false);
   const [riskProfileError, setRiskProfileError] = useState('');
+  const [profileDetailsPending, setProfileDetailsPending] = useState(false);
+  const [profileDetailsError, setProfileDetailsError] = useState('');
 
   const hasCompletedOnboarding = Boolean(runtimeProfile && runtimePlanSnapshot);
 
@@ -627,6 +630,48 @@ export default function App() {
     setShowRiskProfileStep(false);
   };
 
+  const handleSaveProfileDetails = async (updates) => {
+    if (!runtimeProfile?.profileId) {
+      return false;
+    }
+
+    setProfileDetailsPending(true);
+    setProfileDetailsError('');
+
+    try {
+      const updatedProfile = await updateHealthProfile(runtimeProfile.profileId, updates);
+      const mergedProfile = { ...runtimeProfile, ...updatedProfile, riskFlags: runtimeProfile.riskFlags };
+
+      const affectsPlanGeneration = updates.birthdate !== undefined || updates.gender !== undefined;
+      if (affectsPlanGeneration) {
+        const resolvedCatalog = await ensureCatalogReady();
+        const regeneratedPlan = generateInitialPlanSnapshot(mergedProfile, {
+          catalog: resolvedCatalog.catalog,
+          catalogVersion: resolvedCatalog.catalogVersion,
+        });
+        handlePlanSnapshotChange(regeneratedPlan);
+      }
+
+      setRuntimeProfile(mergedProfile);
+      setLiveState((previous) => ({
+        ...previous,
+        profiles: previous.profiles.map((profile) => (
+          String(profile.profileId) === String(mergedProfile.profileId) ? mergedProfile : profile
+        )),
+      }));
+
+      return true;
+    } catch (error) {
+      setProfileDetailsError(resolveErrorMessage(
+        error,
+        t('appError.profileDetailsSaveFailed'),
+      ));
+      return false;
+    } finally {
+      setProfileDetailsPending(false);
+    }
+  };
+
   const handleAuthSignIn = async ({ email, password }) => {
     setLiveState((previous) => ({
       ...previous,
@@ -986,6 +1031,9 @@ export default function App() {
           onSignOut={handleLiveSignOut}
           onBack={() => handlePrimaryNavNavigate('start')}
           signOutPending={liveState.signOutPending}
+          onSaveProfileDetails={handleSaveProfileDetails}
+          profileDetailsPending={profileDetailsPending}
+          profileDetailsError={profileDetailsError}
         />
       );
     } else if (activeView === 'termine' || activeView === 'safe') {

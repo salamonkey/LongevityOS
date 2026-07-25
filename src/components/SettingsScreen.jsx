@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppShell } from '../features/self-onboarding-to-first-dashboard/components.jsx';
 import { Card, Input, Button, Avatar, Icon } from '../design-system/components/index.js';
 import { useTranslation } from '../lib/i18n/index.js';
@@ -10,6 +10,8 @@ const COUNTRY_LABEL_KEY_BY_CODE = Object.freeze({
   CH: 'enrollment.countrySwitzerland',
   OTHER: 'enrollment.countryOther',
 });
+
+const COUNTRY_CODES = Object.freeze(['DE', 'AT', 'CH', 'OTHER']);
 
 function SettingsRow({ icon, label, onClick, trailing }) {
   return (
@@ -23,6 +25,16 @@ function SettingsRow({ icon, label, onClick, trailing }) {
   );
 }
 
+function buildFormFromProfile(profile) {
+  return {
+    firstName: profile?.firstName ?? '',
+    lastName: profile?.lastName ?? '',
+    birthdate: profile?.birthdate ?? '',
+    countryCode: profile?.countryCode ?? '',
+    gender: profile?.gender ?? '',
+  };
+}
+
 export default function SettingsScreen({
   profile,
   locale,
@@ -31,12 +43,49 @@ export default function SettingsScreen({
   onSignOut,
   onBack,
   signOutPending = false,
+  onSaveProfileDetails,
+  profileDetailsPending = false,
+  profileDetailsError = '',
 }) {
   const { t } = useTranslation();
   const displayName = profile?.name || profile?.displayLabel || '';
-  const countryLabel = profile?.countryCode
-    ? t(COUNTRY_LABEL_KEY_BY_CODE[profile.countryCode] ?? 'enrollment.countryOther')
-    : '';
+  const [form, setForm] = useState(() => buildFormFromProfile(profile));
+  const [savedAt, setSavedAt] = useState(0);
+
+  useEffect(() => {
+    setForm(buildFormFromProfile(profile));
+  }, [profile]);
+
+  const isDirty = profile ? (
+    form.firstName !== (profile.firstName ?? '')
+    || form.lastName !== (profile.lastName ?? '')
+    || form.birthdate !== (profile.birthdate ?? '')
+    || form.countryCode !== (profile.countryCode ?? '')
+    || form.gender !== (profile.gender ?? '')
+  ) : false;
+
+  const setField = (field) => (value) => {
+    setForm((previous) => ({ ...previous, [field]: value }));
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    if (!isDirty || typeof onSaveProfileDetails !== 'function') {
+      return;
+    }
+
+    const updates = {};
+    if (form.firstName !== (profile.firstName ?? '')) updates.firstName = form.firstName;
+    if (form.lastName !== (profile.lastName ?? '')) updates.lastName = form.lastName;
+    if (form.birthdate !== (profile.birthdate ?? '')) updates.birthdate = form.birthdate;
+    if (form.countryCode !== (profile.countryCode ?? '')) updates.countryCode = form.countryCode;
+    if (form.gender !== (profile.gender ?? '')) updates.gender = form.gender;
+
+    const succeeded = await onSaveProfileDetails(updates);
+    if (succeeded) {
+      setSavedAt(Date.now());
+    }
+  };
 
   return (
     <AppShell title={t('dashboard.settingsLabel')} onBack={onBack} backLabel={t('common.back')}>
@@ -46,22 +95,64 @@ export default function SettingsScreen({
       </div>
 
       <p className="sec-label">{t('settings.personalData')}</p>
-      <div className="vitalis-settings-personal">
-        <Input label={t('enrollment.firstName')} icon="user" value={displayName} disabled onChange={() => {}} />
-        <Input label={t('enrollment.birthdate')} icon="calendar" value={profile?.birthdate ?? ''} disabled onChange={() => {}} />
-        <Input label={t('enrollment.countryOfResidence')} icon="map-pin" value={countryLabel} disabled onChange={() => {}} />
+      <form className="vitalis-settings-personal" onSubmit={handleSave}>
+        <Input
+          label={t('enrollment.firstName')}
+          icon="user"
+          value={form.firstName}
+          onChange={(event) => setField('firstName')(event.target.value)}
+        />
+        <Input
+          label={t('enrollment.lastName')}
+          icon="user"
+          value={form.lastName}
+          onChange={(event) => setField('lastName')(event.target.value)}
+        />
+        <Input
+          label={t('enrollment.birthdate')}
+          icon="calendar"
+          type="date"
+          value={form.birthdate}
+          onChange={(event) => setField('birthdate')(event.target.value)}
+        />
+        <label className="vds-input">
+          <span className="vds-input-label">{t('enrollment.countryOfResidence')}</span>
+          <span className="vds-input-field">
+            <Icon name="map-pin" size={18} color="var(--text-muted)" />
+            <select value={form.countryCode} onChange={(event) => setField('countryCode')(event.target.value)}>
+              {COUNTRY_CODES.map((code) => (
+                <option key={code} value={code}>{t(COUNTRY_LABEL_KEY_BY_CODE[code])}</option>
+              ))}
+            </select>
+          </span>
+        </label>
         <div className="vds-input">
           <span className="vds-input-label">{t('enrollment.gender')}</span>
           <div className="vitalis-seg">
-            <button type="button" className={profile?.gender === 'female' ? 'is-active' : ''} disabled>
+            <button
+              type="button"
+              className={form.gender === 'female' ? 'is-active' : ''}
+              onClick={() => setField('gender')('female')}
+            >
               {t('enrollment.genderFemale')}
             </button>
-            <button type="button" className={profile?.gender === 'male' ? 'is-active' : ''} disabled>
+            <button
+              type="button"
+              className={form.gender === 'male' ? 'is-active' : ''}
+              onClick={() => setField('gender')('male')}
+            >
               {t('enrollment.genderMale')}
             </button>
           </div>
         </div>
-      </div>
+
+        {profileDetailsError ? <p className="sl001-field-error" role="alert">{profileDetailsError}</p> : null}
+        {isDirty ? (
+          <Button type="submit" variant="primary" disabled={profileDetailsPending}>
+            {profileDetailsPending ? t('settings.saving') : t('common.save')}
+          </Button>
+        ) : (savedAt ? <p className="vitalis-settings-saved" role="status">{t('settings.savedConfirmation')}</p> : null)}
+      </form>
 
       <p className="sec-label">{t('settings.preferences')}</p>
       <Card padding={14} className="vitalis-settings-language-card">

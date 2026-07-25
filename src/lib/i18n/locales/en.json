@@ -73,9 +73,14 @@
   "settings.manageProfiles": "Manage profiles",
   "settings.notifications": "Notifications",
   "settings.privacy": "Privacy & security",
+  "settings.saving": "Saving...",
+  "settings.savedConfirmation": "Saved.",
 
   "profileSheet.title": "Switch profile",
   "profileSheet.addProfile": "Add profile",
+  "profileSheet.you": "You",
+  "profileSheet.managedProfiles": "Managed profiles · {count} of {cap}",
+  "profileSheet.ageYears": "{age} years old",
 
   "vaccinations.dueGuidanceTitle": "Due guidance",
   "vaccinations.dueGuidanceBody": "Guidance is based on your preventive plan profile and helps you spot what may need attention next.",
@@ -263,6 +268,7 @@
   "appError.catalogTimedOut": "Timed out while loading hosted preventive catalog.",
   "appError.enrollFailed": "We could not enroll this user right now. Please try again.",
   "appError.riskProfileSaveFailed": "We could not save your risk profile right now. Please try again.",
+  "appError.profileDetailsSaveFailed": "We could not save your changes right now. Please try again.",
   "appError.signInFailed": "Could not sign in right now. Please try again.",
   "appError.signUpFailed": "Could not create account right now. Please try again.",
   "appError.accountCreatedConfirmEmail": "Account created. Confirm your email, then sign in.",

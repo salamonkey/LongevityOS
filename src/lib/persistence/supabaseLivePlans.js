@@ -68,6 +68,8 @@ function toRuntimeProfile(row) {
     profileId: String(row.id),
     displayLabel: fullName,
     name: fullName,
+    firstName: row.first_name,
+    lastName: row.last_name,
     age,
     gender: row.gender,
     birthdate: row.birthdate,
@@ -495,6 +497,67 @@ export async function updateHealthProfileRiskFlags(profileId, riskFlags) {
   }
 
   return normalizedRiskFlags;
+}
+
+export async function updateHealthProfile(profileId, updates = {}, options = {}) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const normalizedProfileId = parseProfileId(profileId);
+  const now = options.now instanceof Date ? new Date(options.now.getTime()) : new Date(options.now ?? Date.now());
+  const patch = { updated_at: new Date().toISOString() };
+
+  if (updates.firstName !== undefined) {
+    const firstName = String(updates.firstName ?? '').trim();
+    if (!firstName) throw new Error('First name is required.');
+    patch.first_name = firstName;
+  }
+
+  if (updates.lastName !== undefined) {
+    const lastName = String(updates.lastName ?? '').trim();
+    if (!lastName) throw new Error('Last name is required.');
+    patch.last_name = lastName;
+  }
+
+  if (updates.birthdate !== undefined) {
+    const birthdate = String(updates.birthdate ?? '').trim();
+    const age = resolveAgeInYearsFromBirthdate(birthdate, now);
+    if (!birthdate || !Number.isFinite(age) || age < 0 || age > 120) {
+      throw new Error('Birthdate is out of range.');
+    }
+    patch.birthdate = birthdate;
+  }
+
+  if (updates.gender !== undefined) {
+    const gender = String(updates.gender ?? '').trim().toLowerCase();
+    if (!['female', 'male'].includes(gender)) {
+      throw new Error('Invalid gender.');
+    }
+    patch.gender = gender;
+  }
+
+  if (updates.countryCode !== undefined) {
+    const countryCode = String(updates.countryCode ?? '').trim().toUpperCase();
+    if (!ALLOWED_COUNTRY_CODES.includes(countryCode)) {
+      throw new Error('Invalid country of residence.');
+    }
+    patch.country_code = countryCode;
+  }
+
+  const { data: profileRow, error } = await client
+    .from('health_profiles')
+    .update(patch)
+    .eq('id', normalizedProfileId)
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return toRuntimeProfile(profileRow);
 }
 
 export async function createLiveEnrollmentAndPlan(input, options = {}) {
