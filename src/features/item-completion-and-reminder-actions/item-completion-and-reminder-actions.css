@@ -44,7 +44,7 @@
   min-inline-size: 0;
   max-inline-size: 100%;
   border: 1px solid var(--border-strong);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
   block-size: 2.75rem;
   padding: 0 var(--space-4);
   color: var(--text-primary);
@@ -101,7 +101,7 @@
 
 .sl003-manual-status-group {
   border: 1px solid var(--border-strong);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
   padding: var(--space-3);
   display: grid;
   gap: var(--space-2);
