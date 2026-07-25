@@ -8,6 +8,7 @@ import {
   getCategoryLabelKey,
   getStatusLabelKey,
 } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
+import { resolveEffectiveItemStatus } from '../self-onboarding-to-first-dashboard/dashboard.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 
@@ -41,8 +42,8 @@ function addDays(date, days) {
   return copy;
 }
 
-function resolveTimelineDate(item) {
-  if (item?.status === 'done') {
+function resolveTimelineDate(item, status) {
+  if (status === 'done') {
     return parseDateValue(item.completedOn || item.nextDueDate || item.initialDueDate);
   }
 
@@ -53,11 +54,12 @@ function resolveTimelineDate(item) {
   );
 }
 
-function resolveDateKind(item) {
-  if (item?.status === 'done') return 'Completed';
+function resolveDateKind(item, status) {
+  if (status === 'done') return 'Completed';
+  if (status === 'overdue') return 'Overdue';
   if (item?.reminder?.scheduledFor) return 'Reminder';
-  if (item?.status === 'due') return 'Due';
-  if (item?.status === 'soon') return 'Coming up';
+  if (status === 'due') return 'Due';
+  if (status === 'soon') return 'Coming up';
   return 'Target';
 }
 
@@ -81,8 +83,8 @@ export function buildTimelineItems(planSnapshot, options = {}) {
     .map((item) => {
       const definition = PREVENTIVE_ITEM_DEFINITION_INDEX[item.catalogItemId];
       const liveCopy = resolveCatalogCopyForItemKey(item.catalogItemId);
-      const date = resolveTimelineDate(item);
-      const status = item.status === 'planned' ? 'pending' : item.status;
+      const status = resolveEffectiveItemStatus(item, { today });
+      const date = resolveTimelineDate(item, status);
 
       return {
         itemKey: item.catalogItemId,
@@ -95,7 +97,7 @@ export function buildTimelineItems(planSnapshot, options = {}) {
         date,
         dateIso: date ? toIsoDate(date) : '',
         dateLabel: date ? formatDateLabel(date, locale) : '',
-        dateKind: resolveDateKind(item),
+        dateKind: resolveDateKind(item, status),
         group: date ? resolveTimelineGroup(date, today) : 'Later',
         priorityOrder: Number(item.priorityOrder),
         targetAge: Number(item.targetAge),

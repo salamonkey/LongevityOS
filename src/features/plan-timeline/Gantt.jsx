@@ -3,6 +3,7 @@ import { Card, Icon } from '../../design-system/components/index.js';
 import { PREVENTIVE_ITEM_DEFINITION_INDEX } from '../health-plan-browsing-and-item-detail/definitions.js';
 import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
 import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
+import { resolveEffectiveItemStatus } from '../self-onboarding-to-first-dashboard/dashboard.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 
 const LABEL_COL_W = 118;
@@ -36,18 +37,18 @@ function formatShortDate(date, locale) {
  * (a completed, recurring item's completedOn -> recomputed nextDueDate); everything
  * else — one-time completions, and anything not yet done — is a single-moment marker,
  * per the spec's own bar-vs-marker distinction. */
-export function buildGanttRows(planSnapshot) {
+export function buildGanttRows(planSnapshot, options = {}) {
+  const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
   const items = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
 
   return items.map((item) => {
     const definition = PREVENTIVE_ITEM_DEFINITION_INDEX[item.catalogItemId];
     const liveCopy = resolveCatalogCopyForItemKey(item.catalogItemId);
     const name = liveCopy?.name || definition?.displayName || item.name || item.catalogItemId;
-    const status = item.status === 'planned' ? 'pending' : item.status;
-    const isDone = status === 'done';
+    const status = resolveEffectiveItemStatus(item, { today });
     const intervalDays = Number(item.recurrence?.intervalDays);
     const isRecurring = Number.isFinite(intervalDays) && intervalDays > 0;
-    const completedOn = isDone ? parseDateValue(item.completedOn) : null;
+    const completedOn = parseDateValue(item.completedOn);
     const nextDue = parseDateValue(item.nextDueDate || item.initialDueDate);
 
     let kind;
@@ -55,11 +56,15 @@ export function buildGanttRows(planSnapshot) {
     let endDate = null;
     let pointDate = null;
 
-    if (isDone && isRecurring && completedOn && nextDue) {
+    if (completedOn && isRecurring && nextDue) {
+      // A real coverage window exists (completed once, recurs) — always show
+      // it as a bar, whether that window is still active (status 'done') or
+      // has since lapsed (status due/soon/overdue): the bar is a historical
+      // fact; the marker at its end reflects the item's current live status.
       kind = 'bar';
       startDate = completedOn;
       endDate = nextDue;
-    } else if (isDone) {
+    } else if (status === 'done') {
       kind = 'done-point';
       pointDate = completedOn || nextDue;
     } else if (status === 'due' || status === 'overdue') {
@@ -230,7 +235,7 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
   const todayPos = resolveDatePosition(today, columns, colWidth);
   const todayTime = todayPos.px ?? 0;
 
-  const rows = useMemo(() => buildGanttRows(planSnapshot), [planSnapshot]);
+  const rows = useMemo(() => buildGanttRows(planSnapshot, { today }), [planSnapshot, today]);
   const lanes = LANE_ORDER
     .map((lane) => ({ lane, rows: rows.filter((row) => row.lane === lane) }))
     .filter((group) => group.rows.length > 0);

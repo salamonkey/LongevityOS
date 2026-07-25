@@ -46,6 +46,11 @@ const HEALTH_READINESS_STATUS_CREDITS = {
   due_soon: 0.4,
   overdue: 0.0,
 };
+// Grace window between an item's due date and it being treated as genuinely
+// "overdue" rather than just "due now" — flat, not scaled by recurrence,
+// since it needs to stay explainable regardless of a screening's cadence.
+const OVERDUE_GRACE_DAYS = 30;
+
 const EFFORT_SORT_RANKS = Object.freeze({
   low: 0,
   medium: 1,
@@ -131,9 +136,10 @@ function resolveSortDueDate(item) {
   );
 }
 
-function mapDisplayItem(item) {
+function mapDisplayItem(item, options = {}) {
   const fallbackInterventionLabel = item.category === 'vaccination' ? 'Vaccination' : 'Preventive care';
   const liveCopy = resolveCatalogCopyForItemKey(item.catalogItemId);
+  const liveStatus = resolveEffectiveItemStatus(item, options);
 
   return {
     ...item,
@@ -143,7 +149,8 @@ function mapDisplayItem(item) {
     recommendationText: liveCopy?.recommendationText ?? item.recommendationText,
     categoryLabel: CATEGORY_LABELS[item.category] ?? 'Preventive item',
     interventionTypeLabel: item.interventionTypeLabel ?? fallbackInterventionLabel,
-    statusLabel: STATUS_LABELS[item.status] ?? 'Pending',
+    status: liveStatus,
+    statusLabel: STATUS_LABELS[liveStatus] ?? 'Pending',
   };
 }
 
@@ -163,7 +170,7 @@ export function groupItemsByPriority(items, options = {}) {
       continue;
     }
 
-    const displayItem = mapDisplayItem(item);
+    const displayItem = mapDisplayItem(item, { today });
     const shouldStageUrgent = displayBucket === 'today' && isOutstandingItem(displayItem);
 
     if (shouldStageUrgent) {
@@ -213,14 +220,14 @@ export function selectHighlightedItem(bucketed) {
   return null;
 }
 
-function normalizeScoreStatus(item) {
+function normalizeScoreStatus(item, today) {
   const explicit = String(item?.scoreStatus || '').trim().toLowerCase();
   if (explicit === 'up_to_date' || explicit === 'planned' || explicit === 'due_soon' || explicit === 'overdue') {
     return explicit;
   }
 
-  const status = String(item?.status || '').trim().toLowerCase();
-  if (status === 'done' || status === 'up_to_date') return 'up_to_date';
+  const status = resolveEffectiveItemStatus(item, { today });
+  if (status === 'done') return 'up_to_date';
   if (status === 'planned') return 'planned';
   if (status === 'due' || status === 'overdue') return 'overdue';
   if (status === 'soon' || status === 'pending') return 'due_soon';
@@ -329,6 +336,74 @@ export function resolveBucketFromDueDate({ dueDate, recurrenceDays, today }) {
   return 'later';
 }
 
+function resolveStatusFromDueDate(dueDate, recurrenceDays, today) {
+  if (!(dueDate instanceof Date) || Number.isNaN(dueDate.getTime())) {
+    return 'pending';
+  }
+
+  const dueDay = startOfDay(dueDate);
+  const overdueThreshold = addDays(dueDay, OVERDUE_GRACE_DAYS);
+
+  if (today.getTime() >= overdueThreshold.getTime()) {
+    return 'overdue';
+  }
+  if (today.getTime() >= dueDay.getTime()) {
+    return 'due';
+  }
+
+  const soonWindowDays = resolveSoonWindowDaysFromRecurrence(recurrenceDays);
+  const soonStart = addDays(dueDay, -soonWindowDays);
+  if (today.getTime() >= soonStart.getTime()) {
+    return 'soon';
+  }
+
+  return 'pending';
+}
+
+/**
+ * The single source of truth for an item's user-facing status. Persisted
+ * status (written at plan generation, or by markItemDone/scheduleReminder)
+ * is a snapshot at the moment it was written — it never advances on its own
+ * as time passes. This recomputes the true status fresh from today's date
+ * every time, so "due"/"soon"/"pending"/"overdue" can never drift out of
+ * sync with the item's actual due date, "done" naturally lapses back to
+ * needing action once a recurring item's coverage window ends, and
+ * "planned" naturally expires once its reminder date arrives.
+ */
+export function resolveEffectiveItemStatus(item, options = {}) {
+  const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
+  const now = startOfDay(today);
+  const recurrenceDays = resolveRecurrenceDays(item);
+  const completedOn = parseDateValue(item?.completedOn);
+
+  if (completedOn) {
+    if (!recurrenceDays) {
+      return 'done';
+    }
+
+    const coverageEndsAt = startOfDay(
+      parseDateValue(item?.nextDueDate || item?.nextDueAt) ?? addDays(completedOn, recurrenceDays),
+    );
+
+    if (now.getTime() < coverageEndsAt.getTime()) {
+      return 'done';
+    }
+
+    return resolveStatusFromDueDate(coverageEndsAt, recurrenceDays, now);
+  }
+
+  const reminderDate = parseDateValue(item?.reminder?.scheduledFor || item?.reminderDate);
+  if (reminderDate && now.getTime() < startOfDay(reminderDate).getTime()) {
+    return 'planned';
+  }
+
+  const dueDate = reminderDate || parseDateValue(
+    item?.dueDate || item?.dueAt || item?.nextDueDate || item?.nextDueAt || item?.initialDueDate || item?.initialDueAt,
+  );
+
+  return resolveStatusFromDueDate(dueDate, recurrenceDays, now);
+}
+
 function resolveDoneItemDueDate(item) {
   const explicitDueDate = parseDateValue(
     item?.dueDate
@@ -376,11 +451,9 @@ function resolveItemDueDate(item) {
 }
 
 export function resolveDashboardBucketForDisplay(item, options = {}) {
-  const normalizedStatus = String(item?.status || '').trim().toLowerCase();
   const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
-  const dueDate = normalizedStatus === 'done'
-    ? resolveDoneItemDueDate(item)
-    : resolveItemDueDate(item);
+  const liveStatus = resolveEffectiveItemStatus(item, { today });
+  const dueDate = resolveItemDueDate(item);
   const recurrenceDays = resolveRecurrenceDays(item);
   const derivedBucket = resolveBucketFromDueDate({
     dueDate,
@@ -391,10 +464,10 @@ export function resolveDashboardBucketForDisplay(item, options = {}) {
     return derivedBucket;
   }
 
-  if (normalizedStatus === 'due' || normalizedStatus === 'overdue') {
+  if (liveStatus === 'due' || liveStatus === 'overdue') {
     return 'today';
   }
-  if (normalizedStatus === 'soon') {
+  if (liveStatus === 'soon') {
     return 'soon';
   }
 
@@ -492,7 +565,7 @@ export function calculateHealthScore(items, options = {}) {
       ? (baseWeight / categoryTotal) * categoryShare
       : 0;
 
-    const scoreStatus = normalizeScoreStatus(item);
+    const scoreStatus = normalizeScoreStatus(item, today);
     const bucket = resolveScoreBucket(item, scoreStatus, today);
     const bucketMultiplier = HEALTH_READINESS_BUCKET_MULTIPLIERS[bucket] ?? 1.0;
     const statusCredit = HEALTH_READINESS_STATUS_CREDITS[scoreStatus] ?? 0;

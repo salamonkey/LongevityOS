@@ -8,6 +8,7 @@ import { buildHealthPlanReadModel } from '../health-plan-browsing-and-item-detai
 import {
   calculateHealthScore as calculateWeightedHealthScore,
   resolveDashboardBucketForDisplay,
+  resolveEffectiveItemStatus,
 } from '../self-onboarding-to-first-dashboard/dashboard.js';
 import {
   formatDateForConfirmation,
@@ -69,17 +70,19 @@ function sortWithinBucket(a, b) {
   return a.targetAge - b.targetAge;
 }
 
-function toDisplayItem(item) {
+function toDisplayItem(item, options = {}) {
   const categoryLabel = CATEGORY_LABELS[item.category]?.singular ?? 'Preventive item';
   const interventionTypeLabel = item?.interventionTypeLabel
     ?? (item?.category === PLAN_CATEGORIES.vaccination ? 'Vaccination' : 'Preventive care');
   const reminderDate = item?.reminder?.scheduledFor;
+  const status = toDisplayStatus(resolveEffectiveItemStatus(item, options), reminderDate);
 
   return {
     ...item,
     categoryLabel,
     interventionTypeLabel,
-    statusLabel: getSafeStatusLabel(item.status),
+    status,
+    statusLabel: getSafeStatusLabel(status),
     reminderDate,
     reminderDateLabel: reminderDate ? formatDateForConfirmation(reminderDate) : null,
   };
@@ -93,8 +96,8 @@ function toDisplayStatus(status, reminderDate) {
   return status;
 }
 
-function toItems(snapshot) {
-  return Array.isArray(snapshot?.items) ? snapshot.items.map(toDisplayItem) : [];
+function toItems(snapshot, options = {}) {
+  return Array.isArray(snapshot?.items) ? snapshot.items.map((item) => toDisplayItem(item, options)) : [];
 }
 
 function parseDateValue(rawValue) {
@@ -134,18 +137,18 @@ function toUrgencyRank(bucket) {
   return 2;
 }
 
-function sortByUrgencyWithinCategory(a, b, sourceByItemKey) {
+function sortByUrgencyWithinCategory(a, b, sourceByItemKey, options = {}) {
   const sourceA = sourceByItemKey[a.itemKey] ?? null;
   const sourceB = sourceByItemKey[b.itemKey] ?? null;
-  const isDoneA = String(sourceA?.status || a?.status || '').trim().toLowerCase() === PLAN_STATUSES.done;
-  const isDoneB = String(sourceB?.status || b?.status || '').trim().toLowerCase() === PLAN_STATUSES.done;
+  const isDoneA = resolveEffectiveItemStatus(sourceA ?? a, options) === PLAN_STATUSES.done;
+  const isDoneB = resolveEffectiveItemStatus(sourceB ?? b, options) === PLAN_STATUSES.done;
 
   if (isDoneA !== isDoneB) {
     return isDoneA ? 1 : -1;
   }
 
-  const urgencyA = toUrgencyRank(resolveDashboardBucketForDisplay(sourceA ?? a));
-  const urgencyB = toUrgencyRank(resolveDashboardBucketForDisplay(sourceB ?? b));
+  const urgencyA = toUrgencyRank(resolveDashboardBucketForDisplay(sourceA ?? a, options));
+  const urgencyB = toUrgencyRank(resolveDashboardBucketForDisplay(sourceB ?? b, options));
   if (urgencyA !== urgencyB) {
     return urgencyA - urgencyB;
   }
@@ -192,8 +195,8 @@ export function groupItemsByPriorityForSlice(planSnapshot, options = {}) {
   const focusLimits = resolveFocusBucketLimits(options);
   const stagedUrgentItems = [];
 
-  for (const item of toItems(planSnapshot)) {
-    const displayBucket = resolveDashboardBucketForDisplay(item);
+  for (const item of toItems(planSnapshot, options)) {
+    const displayBucket = resolveDashboardBucketForDisplay(item, options);
     if (!buckets[displayBucket]) {
       continue;
     }
@@ -227,8 +230,8 @@ export function groupItemsByPriorityForSlice(planSnapshot, options = {}) {
   return buckets;
 }
 
-export function selectHighlightedItemTodayThenSoon(planSnapshot) {
-  const grouped = groupItemsByPriorityForSlice(planSnapshot);
+export function selectHighlightedItemTodayThenSoon(planSnapshot, options = {}) {
+  const grouped = groupItemsByPriorityForSlice(planSnapshot, options);
   const todayOutstanding = grouped.today.filter(isOutstanding);
 
   if (todayOutstanding.length > 0) {
@@ -243,21 +246,21 @@ export function selectHighlightedItemTodayThenSoon(planSnapshot) {
   return null;
 }
 
-export function calculateHealthScoreDoneVsOutstanding(planSnapshot) {
-  const items = toItems(planSnapshot);
-  return calculateWeightedHealthScore(items);
+export function calculateHealthScoreDoneVsOutstanding(planSnapshot, options = {}) {
+  const items = toItems(planSnapshot, options);
+  return calculateWeightedHealthScore(items, options);
 }
 
-export function buildDashboardProjectionForSlice(planSnapshot, profile = null) {
-  const grouped = groupItemsByPriorityForSlice(planSnapshot);
-  const highlightedItem = selectHighlightedItemTodayThenSoon(planSnapshot);
+export function buildDashboardProjectionForSlice(planSnapshot, profile = null, options = {}) {
+  const grouped = groupItemsByPriorityForSlice(planSnapshot, options);
+  const highlightedItem = selectHighlightedItemTodayThenSoon(planSnapshot, options);
   const profileName = profile?.name?.trim() || 'Me';
   const dueTodayCount = grouped.today.filter(isOutstanding).length;
 
   return {
     profileName,
     dueTodayCount,
-    healthScore: calculateHealthScoreDoneVsOutstanding(planSnapshot),
+    healthScore: calculateHealthScoreDoneVsOutstanding(planSnapshot, options),
     highlightedItem,
     sections: BUCKET_ORDER.map((priority) => ({
       priority,
@@ -267,7 +270,7 @@ export function buildDashboardProjectionForSlice(planSnapshot, profile = null) {
   };
 }
 
-export function buildPlanReadModelForSlice(planSnapshot) {
+export function buildPlanReadModelForSlice(planSnapshot, options = {}) {
   const baseReadModel = buildHealthPlanReadModel(planSnapshot);
   const sourceByItemKey = Array.isArray(planSnapshot?.items)
     ? planSnapshot.items.reduce((index, source) => {
@@ -282,7 +285,8 @@ export function buildPlanReadModelForSlice(planSnapshot) {
     const source = planSnapshot?.items?.find((sourceItem) => sourceItem.catalogItemId === item.itemKey);
     const reminderDate = source?.reminder?.scheduledFor ?? null;
     const completedOn = source?.completedOn ?? null;
-    const status = toDisplayStatus(source?.status ?? item.status, reminderDate);
+    const liveStatus = resolveEffectiveItemStatus(source ?? item, options);
+    const status = toDisplayStatus(liveStatus, reminderDate);
 
     return {
       ...item,
@@ -297,13 +301,13 @@ export function buildPlanReadModelForSlice(planSnapshot) {
 
   const checkups = baseReadModel.checkups
     .map(withReminderDetails)
-    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey));
+    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey, options));
   const vaccinations = baseReadModel.vaccinations
     .map(withReminderDetails)
-    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey));
+    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey, options));
   const counseling = baseReadModel.counseling
     .map(withReminderDetails)
-    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey));
+    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey, options));
   const allItems = [...checkups, ...vaccinations, ...counseling];
 
   const byItemKey = allItems.reduce((index, item) => {

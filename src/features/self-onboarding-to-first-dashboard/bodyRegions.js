@@ -1,4 +1,4 @@
-import { resolveDashboardBucketForDisplay } from './dashboard.js';
+import { resolveDashboardBucketForDisplay, resolveEffectiveItemStatus } from './dashboard.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 
 // Five real clinical-domain regions covering every current EviPrev catalog
@@ -89,12 +89,12 @@ function groupItemsByRegion(planItems) {
   return itemsByRegion;
 }
 
-function toRegionDisplayItem(item) {
+function toRegionDisplayItem(item, options = {}) {
   const liveCopy = resolveCatalogCopyForItemKey(item.catalogItemId);
   return {
     itemKey: item.catalogItemId,
     category: item.category,
-    status: item.status,
+    status: resolveEffectiveItemStatus(item, options),
     name: liveCopy?.name ?? item.name,
     cadenceLabel: liveCopy?.cadenceLabel ?? item.cadenceLabel,
   };
@@ -164,13 +164,14 @@ export function buildRegionDetailData(regionId, planItems, { t, today } = {}) {
 
   for (const item of regionItems) {
     const bucket = resolveDashboardBucketForDisplay(item, { today });
-    const displayItem = toRegionDisplayItem(item);
+    const liveStatus = resolveEffectiveItemStatus(item, { today });
+    const displayItem = toRegionDisplayItem(item, { today });
 
     if (bucket === 'today') {
       dueItems.push(displayItem);
     } else if (bucket === 'soon') {
       soonItems.push(displayItem);
-    } else if (item.status === 'done') {
+    } else if (liveStatus === 'done') {
       historyItems.push(displayItem);
     }
   }

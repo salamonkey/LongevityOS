@@ -37,17 +37,18 @@ test('marking an item done updates detail, dashboard, and plan views in the same
   const profile = createProfile();
   const snapshot = createSnapshot();
   const target = pickTargetItem(snapshot);
+  const fixedNow = () => new Date('2026-05-05T10:15:00.000Z');
 
   const result = markItemDoneInSnapshot(
     snapshot,
     profile.profileId,
     target.catalogItemId,
     {},
-    () => new Date('2026-05-05T10:15:00.000Z'),
+    fixedNow,
   );
-  const readModel = buildPlanReadModelForSlice(result.planSnapshot);
+  const readModel = buildPlanReadModelForSlice(result.planSnapshot, { today: fixedNow() });
   const detail = readModel.byItemKey[target.catalogItemId];
-  const dashboard = buildDashboardProjectionForSlice(result.planSnapshot, profile);
+  const dashboard = buildDashboardProjectionForSlice(result.planSnapshot, profile, { today: fixedNow() });
   const dashboardItem = dashboard.sections
     .flatMap((section) => section.items)
     .find((item) => item.catalogItemId === target.catalogItemId);
@@ -158,18 +159,19 @@ test('reminder creation is reflected as pending status across plan and dashboard
   const profile = createProfile();
   const snapshot = createSnapshot();
   const target = pickTargetItem(snapshot);
+  const fixedNow = () => new Date('2026-05-05T10:15:00.000Z');
 
   const result = scheduleItemReminderInSnapshot(
     snapshot,
     profile.profileId,
     target.catalogItemId,
     { timingType: REMINDER_TIMING_TYPES.one_month },
-    () => new Date('2026-05-05T10:15:00.000Z'),
+    fixedNow,
   );
 
-  const readModel = buildPlanReadModelForSlice(result.planSnapshot);
+  const readModel = buildPlanReadModelForSlice(result.planSnapshot, { today: fixedNow() });
   const detail = readModel.byItemKey[target.catalogItemId];
-  const dashboard = buildDashboardProjectionForSlice(result.planSnapshot, profile);
+  const dashboard = buildDashboardProjectionForSlice(result.planSnapshot, profile, { today: fixedNow() });
   const dashboardItem = dashboard.sections
     .flatMap((section) => section.items)
     .find((item) => item.catalogItemId === target.catalogItemId);
@@ -216,17 +218,19 @@ test('highlighted next item recomputes with Today-then-Soon and health score use
     ],
   };
 
-  const initialHighlighted = selectHighlightedItemTodayThenSoon(baseSnapshot);
-  assert.equal(initialHighlighted.catalogItemId, 'today-one');
-  assert.equal(calculateHealthScoreDoneVsOutstanding(baseSnapshot), 18);
+  const fixedNow = () => new Date('2026-05-05T10:15:00.000Z');
 
-  const afterDone = markItemDoneInSnapshot(baseSnapshot, profile.profileId, 'today-one').planSnapshot;
-  const nextHighlighted = selectHighlightedItemTodayThenSoon(afterDone);
-  const projection = buildDashboardProjectionForSlice(afterDone, profile);
+  const initialHighlighted = selectHighlightedItemTodayThenSoon(baseSnapshot, { today: fixedNow() });
+  assert.equal(initialHighlighted.catalogItemId, 'today-one');
+  assert.equal(calculateHealthScoreDoneVsOutstanding(baseSnapshot, { today: fixedNow() }), 18);
+
+  const afterDone = markItemDoneInSnapshot(baseSnapshot, profile.profileId, 'today-one', {}, fixedNow).planSnapshot;
+  const nextHighlighted = selectHighlightedItemTodayThenSoon(afterDone, { today: fixedNow() });
+  const projection = buildDashboardProjectionForSlice(afterDone, profile, { today: fixedNow() });
 
   assert.equal(nextHighlighted.catalogItemId, 'soon-one');
   assert.equal(projection.highlightedItem.catalogItemId, 'soon-one');
-  assert.equal(calculateHealthScoreDoneVsOutstanding(afterDone), 67);
+  assert.equal(calculateHealthScoreDoneVsOutstanding(afterDone, { today: fixedNow() }), 67);
 });
 
 test('slice dashboard also stages large overdue queues into Today, Soon, and Later', () => {
