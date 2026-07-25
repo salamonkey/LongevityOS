@@ -2,6 +2,7 @@
   "nav.start": "Start",
   "nav.vaccinations": "Impfen",
   "nav.checkups": "Vorsorge",
+  "nav.timeline": "Zeitstrahl",
   "nav.appointments": "Termine",
   "nav.documents": "Safe",
   "nav.primaryNavigationAriaLabel": "Hauptnavigation",
@@ -71,6 +72,12 @@
   "dashboard.riskProfileNotReviewed": "Risikoprofil nicht geprüft",
   "dashboard.riskProfileReviewed": "Risikoprofil: {count} Faktoren erfasst",
 
+  "timeline.viewsAriaLabel": "Zeitstrahl-Ansichten",
+  "timeline.tabGantt": "Gantt",
+  "timeline.tabUpcoming": "Termine",
+  "timeline.upcomingEmptyTitle": "Noch keine Termine",
+  "timeline.upcomingEmptyBody": "Die Terminverwaltung ist noch nicht fertig – sobald sie da ist, erscheint hier alles, was du einträgst, zusammen mit dem Gantt-Diagramm.",
+
   "profileOverview.title": "Dein Profil",
   "profileOverview.subtitle": "Alles, was deinen Plan bestimmt, an einem Ort",
   "profileOverview.strengthGood": "Profilstärke: gut",
@@ -138,6 +145,7 @@
   "reminderForm.ariaLabel": "Erinnerung festlegen",
   "plan.browseAriaLabel": "Deinen Plan durchsuchen",
   "plan.categoriesAriaLabel": "Plankategorien",
+  "plan.categoryAll": "Alle",
   "plan.categoryListAriaLabel": "Liste: {category}",
   "plan.summaryDueCount": "{count} von {total} fällig",
   "plan.summaryAllCovered": "Alles erledigt",

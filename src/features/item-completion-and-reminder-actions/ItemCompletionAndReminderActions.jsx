@@ -41,6 +41,7 @@ import { ListRow, IconButton, Card, Badge, Button, Icon, ProgressRing } from '..
 import { getCategoryIcon, getCategoryLabelKey, getInterventionTypeLabelKey, getStatusBadgeStatus, getStatusLabelKey, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
+import { BODY_REGIONS, resolveRegionIdForItemKey } from '../self-onboarding-to-first-dashboard/bodyRegions.js';
 
 const DONE_COMPLETION_TIMING_TYPES = Object.freeze({
   today: 'today',
@@ -115,21 +116,6 @@ function buildTimeToGoState({ completedOn, cadenceText, now = new Date() }) {
   };
 }
 
-function PlanRow({ item, onOpen }) {
-  const { t } = useTranslation();
-  return (
-    <ListRow
-      icon={getCategoryIcon(item.category)}
-      tone={getStatusTone(item.status)}
-      title={item.displayName}
-      subtitle={item.requiresSharedDecision ? t('detail.sharedDecisionSubtitle', { cadence: item.cadenceText }) : item.cadenceText}
-      badge={t(getStatusLabelKey(item.status))}
-      badgeStatus={getStatusBadgeStatus(item.status)}
-      onClick={() => onOpen(item.itemKey)}
-    />
-  );
-}
-
 const DUE_BUCKET_STATUSES = new Set(['due', 'overdue']);
 const DONE_BUCKET_STATUSES = new Set(['done']);
 
@@ -149,6 +135,105 @@ function groupPlanItemsByStatus(items) {
   });
 
   return { due, upcoming, done };
+}
+
+// Percent of the way through the current recurrence cycle (previous due date
+// -> next due date), so a row can show "how soon" at a glance rather than
+// just a status word. One-time items (no recurrence) have no cycle to show
+// progress through, so this returns null for them.
+function resolveCoverageProgressPercent(item, today = new Date()) {
+  const recurrenceDays = Number(item?.recurrenceIntervalDays);
+  const nextDue = item?.nextDueDate ? new Date(item.nextDueDate) : null;
+
+  if (!Number.isFinite(recurrenceDays) || recurrenceDays <= 0 || !nextDue || Number.isNaN(nextDue.getTime())) {
+    return null;
+  }
+
+  const cycleStart = new Date(nextDue.getTime() - recurrenceDays * 24 * 60 * 60 * 1000);
+  const totalMs = nextDue.getTime() - cycleStart.getTime();
+  const elapsedMs = today.getTime() - cycleStart.getTime();
+  const ratio = totalMs > 0 ? elapsedMs / totalMs : 1;
+
+  return Math.round(clamp(ratio, 0, 1) * 100);
+}
+
+function PlanRowWithProgress({ item, onOpen }) {
+  const { t } = useTranslation();
+  const progressPercent = resolveCoverageProgressPercent(item);
+  const [, toneColor] = getToneColors(getStatusTone(item.status));
+
+  return (
+    <ListRow
+      icon={getCategoryIcon(item.category)}
+      tone={getStatusTone(item.status)}
+      title={item.displayName}
+      subtitle={item.requiresSharedDecision ? t('detail.sharedDecisionSubtitle', { cadence: item.cadenceText }) : item.cadenceText}
+      badge={t(getStatusLabelKey(item.status))}
+      badgeStatus={getStatusBadgeStatus(item.status)}
+      beforeBadge={progressPercent === null ? null : (
+        <span className="vitalis-row-progress" aria-hidden="true">
+          <span className="vitalis-row-progress-track">
+            <span className="vitalis-row-progress-fill" style={{ width: `${progressPercent}%`, background: toneColor }} />
+          </span>
+        </span>
+      )}
+      onClick={() => onOpen(item.itemKey)}
+    />
+  );
+}
+
+const URGENCY_RANK_BY_STATUS = Object.freeze({
+  overdue: 0,
+  due: 0,
+  soon: 1,
+  pending: 2,
+  planned: 2,
+  done: 3,
+});
+
+function sortItemsByUrgency(a, b) {
+  const rankA = URGENCY_RANK_BY_STATUS[a.status] ?? 2;
+  const rankB = URGENCY_RANK_BY_STATUS[b.status] ?? 2;
+  if (rankA !== rankB) return rankA - rankB;
+  return String(a.displayName).localeCompare(String(b.displayName));
+}
+
+function RegionGroupedList({ items, onOpen, t }) {
+  const groups = useMemo(() => {
+    const byRegion = new Map();
+    for (const item of items) {
+      const regionId = resolveRegionIdForItemKey(item.itemKey);
+      if (!byRegion.has(regionId)) {
+        byRegion.set(regionId, []);
+      }
+      byRegion.get(regionId).push(item);
+    }
+
+    return BODY_REGIONS
+      .map((region) => ({
+        region,
+        items: (byRegion.get(region.id) ?? []).slice().sort(sortItemsByUrgency),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [items]);
+
+  return (
+    <>
+      {groups.map(({ region, items: regionItems }) => (
+        <div key={region.id} className="vitalis-region-block">
+          <p className="vitalis-region-head">
+            <Icon name={region.icon} size={14} color="var(--text-secondary)" />
+            <span>{t(region.labelKey)}</span>
+          </p>
+          <div className="rows">
+            {regionItems.map((item) => (
+              <PlanRowWithProgress key={item.itemKey} item={item} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
 }
 
 function PlanStatusSummary({ title, groups, t }) {
@@ -181,46 +266,6 @@ function PlanStatusSummary({ title, groups, t }) {
         <span><i className="is-done" />{t('status.done')}</span>
       </div>
     </div>
-  );
-}
-
-function PlanStatusGroups({ groups, onOpen }) {
-  const { t } = useTranslation();
-  const { due, upcoming, done } = groups;
-
-  return (
-    <>
-      {due.length > 0 ? (
-        <>
-          <p className="sec-label">{t('status.due')}</p>
-          <div className="rows">
-            {due.map((item) => (
-              <PlanRow key={item.itemKey} item={item} onOpen={onOpen} />
-            ))}
-          </div>
-        </>
-      ) : null}
-      {upcoming.length > 0 ? (
-        <>
-          <p className="sec-label">{t('status.pending')}</p>
-          <div className="rows">
-            {upcoming.map((item) => (
-              <PlanRow key={item.itemKey} item={item} onOpen={onOpen} />
-            ))}
-          </div>
-        </>
-      ) : null}
-      {done.length > 0 ? (
-        <>
-          <p className="sec-label">{t('status.done')}</p>
-          <div className="rows">
-            {done.map((item) => (
-              <PlanRow key={item.itemKey} item={item} onOpen={onOpen} />
-            ))}
-          </div>
-        </>
-      ) : null}
-    </>
   );
 }
 
@@ -865,9 +910,11 @@ export default function ItemCompletionAndReminderActions({
     reminderDateLabel: null,
   } : null);
   const detailReadOnly = Boolean(detailItemView && !detailItem);
-  const activeItems = activeCategory === PLAN_CATEGORIES.vaccination
-    ? readModel.vaccinations
-    : (activeCategory === PLAN_CATEGORIES.counseling ? readModel.counseling : readModel.checkups);
+  const activeItems = activeCategory === null
+    ? [...readModel.checkups, ...readModel.vaccinations, ...readModel.counseling]
+    : (activeCategory === PLAN_CATEGORIES.vaccination
+      ? readModel.vaccinations
+      : (activeCategory === PLAN_CATEGORIES.counseling ? readModel.counseling : readModel.checkups));
   const activeItemsGrouped = useMemo(() => groupPlanItemsByStatus(activeItems), [activeItems]);
 
   const handleOpenDetailFromPlan = (itemKey) => {
@@ -1274,7 +1321,16 @@ export default function ItemCompletionAndReminderActions({
   return (
     <AppShell title={null}>
       <section className="sl003-plan-browser" aria-label={t('plan.browseAriaLabel')}>
-        <div className="vitalis-seg" role="tablist" aria-label={t('plan.categoriesAriaLabel')}>
+        <div className="vitalis-seg vitalis-seg--with-icons" role="tablist" aria-label={t('plan.categoriesAriaLabel')}>
+          <button
+            type="button"
+            role="tab"
+            className={activeCategory === null ? 'is-active' : ''}
+            aria-selected={activeCategory === null}
+            onClick={() => setActiveCategory(null)}
+          >
+            {t('plan.categoryAll')}
+          </button>
           {[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination, PLAN_CATEGORIES.counseling]
             .filter((category) => visibleCategories.includes(category))
             .map((category) => {
@@ -1290,35 +1346,27 @@ export default function ItemCompletionAndReminderActions({
                 aria-selected={isActive}
                 onClick={() => setActiveCategory(category)}
               >
+                <Icon name={getCategoryIcon(category)} size={14} />
                 {label}
               </button>
             );
           })}
         </div>
-        {activeCategory === PLAN_CATEGORIES.vaccination ? (
-          activeItems.length === 0 ? (
-            <p className="sl001-summary-meta">{t('vaccinations.noGuidance')}</p>
-          ) : (
-            <div aria-label={t('vaccinations.guidanceListAriaLabel')}>
-              <PlanStatusSummary title={t(getCategoryLabelKey(activeCategory))} groups={activeItemsGrouped} t={t} />
-              <PlanStatusGroups groups={activeItemsGrouped} onOpen={handleOpenDetailFromPlan} />
-            </div>
-          )
-        ) : null}
-        {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length === 0 ? (
+        {activeItems.length === 0 ? (
           <ListEmptyState activeCategory={activeCategory} onSwitchCategory={setActiveCategory} visibleCategories={visibleCategories} />
-        ) : null}
-        {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length > 0 ? (
-          <div aria-label={t('plan.categoryListAriaLabel', { category: t(getCategoryLabelKey(activeCategory)) })}>
-            <PlanStatusSummary title={t(getCategoryLabelKey(activeCategory))} groups={activeItemsGrouped} t={t} />
-            <PlanStatusGroups groups={activeItemsGrouped} onOpen={handleOpenDetailFromPlan} />
+        ) : (
+          <div aria-label={t('plan.categoryListAriaLabel', { category: activeCategory === null ? t('plan.categoryAll') : t(getCategoryLabelKey(activeCategory)) })}>
+            <PlanStatusSummary
+              title={activeCategory === null ? t('plan.categoryAll') : t(getCategoryLabelKey(activeCategory))}
+              groups={activeItemsGrouped}
+              t={t}
+            />
+            <RegionGroupedList items={activeItems} onOpen={handleOpenDetailFromPlan} t={t} />
           </div>
-        ) : null}
-        {activeCategory !== PLAN_CATEGORIES.vaccination ? (
-          <Card elevated={false} className="sl003-guidance-disclaimer">
-            <p>{t('checkups.disclaimer')}</p>
-          </Card>
-        ) : null}
+        )}
+        <Card elevated={false} className="sl003-guidance-disclaimer">
+          <p>{t('checkups.disclaimer')}</p>
+        </Card>
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
           <>
             <Card className="sl003-manual-entry-box" aria-label={t('vaccinations.recordsAriaLabel')}>

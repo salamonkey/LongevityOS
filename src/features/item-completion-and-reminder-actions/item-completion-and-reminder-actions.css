@@ -121,6 +121,47 @@
   gap: var(--space-2);
 }
 
+.vitalis-seg--with-icons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.vitalis-region-block {
+  margin-top: var(--space-4);
+}
+
+.vitalis-region-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.vitalis-row-progress {
+  display: block;
+  width: 44px;
+  flex: none;
+}
+
+.vitalis-row-progress-track {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.vitalis-row-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
 .sl003-guidance-disclaimer {
   margin-top: var(--space-4);
   background: var(--surface-sunken);

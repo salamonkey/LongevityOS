@@ -1,7 +1,8 @@
 {
   "nav.start": "Home",
   "nav.vaccinations": "Vaccines",
-  "nav.checkups": "Checkups",
+  "nav.checkups": "Preventive care",
+  "nav.timeline": "Timeline",
   "nav.appointments": "Appointments",
   "nav.documents": "Documents",
   "nav.primaryNavigationAriaLabel": "Primary navigation",
@@ -71,6 +72,12 @@
   "dashboard.riskProfileNotReviewed": "Risk profile not reviewed",
   "dashboard.riskProfileReviewed": "Risk profile: {count} factors noted",
 
+  "timeline.viewsAriaLabel": "Timeline views",
+  "timeline.tabGantt": "Gantt",
+  "timeline.tabUpcoming": "Upcoming",
+  "timeline.upcomingEmptyTitle": "No appointments yet",
+  "timeline.upcomingEmptyBody": "Appointment tracking isn't built yet - once it lands, anything you schedule will show up here alongside the Gantt.",
+
   "profileOverview.title": "Your Profile",
   "profileOverview.subtitle": "Everything that shapes your plan, in one place",
   "profileOverview.strengthGood": "Profile strength: good",
@@ -138,6 +145,7 @@
   "reminderForm.ariaLabel": "Set a reminder",
   "plan.browseAriaLabel": "Browse your plan",
   "plan.categoriesAriaLabel": "Plan categories",
+  "plan.categoryAll": "All",
   "plan.categoryListAriaLabel": "{category} list",
   "plan.summaryDueCount": "{count} of {total} due",
   "plan.summaryAllCovered": "All covered",

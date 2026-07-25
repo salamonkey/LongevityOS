@@ -42,9 +42,9 @@ import './primary-nav.css';
 function normalizeView(value) {
   const normalized = String(value || '').toLowerCase();
   if (normalized === 'start' || normalized === 'onboarding' || normalized === 'dashboard') return 'start';
-  if (normalized === 'vaccinations' || normalized === 'impfen') return 'vaccinations';
+  if (normalized === 'vaccinations' || normalized === 'impfen') return 'checkups';
   if (normalized === 'checkups' || normalized === 'vorsorge' || normalized === 'plan' || normalized === 'actions') return 'checkups';
-  if (normalized === 'termine' || normalized === 'appointments') return 'termine';
+  if (normalized === 'termine' || normalized === 'appointments') return 'timeline';
   if (normalized === 'safe' || normalized === 'documents' || normalized === 'dokumentensafe') return 'safe';
   if (normalized === 'timeline') return 'timeline';
   if (normalized === 'settings') return 'settings';
@@ -430,7 +430,7 @@ export default function App() {
       initialCategory,
       initialReturnToVaccinationTracker: false,
     });
-    setActiveView(initialCategory === PLAN_CATEGORIES.vaccination ? 'vaccinations' : 'checkups');
+    setActiveView('checkups');
   };
 
   const handlePlanNavigate = (target) => {
@@ -452,7 +452,7 @@ export default function App() {
         initialCategory: PLAN_CATEGORIES.vaccination,
         initialReturnToVaccinationTracker: false,
       });
-      setActiveView('vaccinations');
+      setActiveView('checkups');
       return;
     }
 
@@ -514,7 +514,7 @@ export default function App() {
       initialCategory: PLAN_CATEGORIES.vaccination,
       initialReturnToVaccinationTracker: false,
     });
-    setActiveView('vaccinations');
+    setActiveView('checkups');
   };
 
   const openTimelineItem = (item) => {
@@ -530,7 +530,7 @@ export default function App() {
       initialCategory: category,
       initialReturnToVaccinationTracker: false,
     });
-    setActiveView(category === PLAN_CATEGORIES.vaccination ? 'vaccinations' : 'checkups');
+    setActiveView('checkups');
   };
 
   const handleLiveEnrollment = async (payload, options = {}) => {
@@ -982,22 +982,6 @@ export default function App() {
           requireAdult={false}
         />
       );
-    } else if (activeView === 'vaccinations') {
-      activeSurface = (
-        <ItemCompletionAndReminderActionsRoute
-          key="vaccinations"
-          profile={runtimeProfile}
-          initialPlanSnapshot={runtimePlanSnapshot}
-          initialItemKey={runtimePlanEntry.initialItemKey}
-          initialOrigin={runtimePlanEntry.initialOrigin}
-          initialCategory={PLAN_CATEGORIES.vaccination}
-          visibleCategories={[PLAN_CATEGORIES.vaccination]}
-          initialReturnToVaccinationTracker={runtimePlanEntry.initialReturnToVaccinationTracker}
-          onNavigate={handlePlanNavigate}
-          onPlanSnapshotChange={handlePlanSnapshotChange}
-          catalogGeneration={catalogGeneration}
-        />
-      );
     } else if (activeView === 'checkups') {
       activeSurface = (
         <ItemCompletionAndReminderActionsRoute
@@ -1006,12 +990,8 @@ export default function App() {
           initialPlanSnapshot={runtimePlanSnapshot}
           initialItemKey={runtimePlanEntry.initialItemKey}
           initialOrigin={runtimePlanEntry.initialOrigin}
-          initialCategory={
-            runtimePlanEntry.initialCategory === PLAN_CATEGORIES.vaccination
-              ? PLAN_CATEGORIES.checkup
-              : (runtimePlanEntry.initialCategory ?? PLAN_CATEGORIES.checkup)
-          }
-          visibleCategories={[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.counseling]}
+          initialCategory={runtimePlanEntry.initialCategory ?? null}
+          visibleCategories={[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination, PLAN_CATEGORIES.counseling]}
           initialReturnToVaccinationTracker={runtimePlanEntry.initialReturnToVaccinationTracker}
           onNavigate={handlePlanNavigate}
           onPlanSnapshotChange={handlePlanSnapshotChange}
@@ -1024,7 +1004,6 @@ export default function App() {
           profile={runtimeProfile}
           planSnapshot={runtimePlanSnapshot}
           onOpenItem={openTimelineItem}
-          onBack={() => handlePrimaryNavNavigate('start')}
           catalogGeneration={catalogGeneration}
         />
       );
@@ -1055,7 +1034,7 @@ export default function App() {
           onReviewRiskProfile={() => setShowRiskProfileStep(true)}
         />
       );
-    } else if (activeView === 'termine' || activeView === 'safe') {
+    } else if (activeView === 'safe') {
       activeSurface = <ComingSoonSurface />;
     }
   }

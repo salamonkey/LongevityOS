@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AppShell } from '../self-onboarding-to-first-dashboard/components.jsx';
+import { Icon } from '../../design-system/components/index.js';
 import Gantt from './Gantt.jsx';
 import {
   PREVENTIVE_ITEM_DEFINITION_INDEX,
@@ -137,17 +138,47 @@ export default function PlanTimeline({
   catalogGeneration = 0,
 }) {
   const { t, locale: uiLocale } = useTranslation();
+  const [timelineTab, setTimelineTab] = useState('gantt');
 
   return (
     <AppShell title={t('dashboard.timelineTitle')} onBack={onBack} backLabel={t('common.back')}>
-      <Gantt
-        key={catalogGeneration}
-        planSnapshot={planSnapshot}
-        onOpenItem={onOpenItem}
-        clock={clock}
-        uiLocale={uiLocale}
-        t={t}
-      />
+      <div className="vitalis-seg vitalis-timeline-seg" role="tablist" aria-label={t('timeline.viewsAriaLabel')}>
+        <button
+          type="button"
+          role="tab"
+          className={timelineTab === 'gantt' ? 'is-active' : ''}
+          aria-selected={timelineTab === 'gantt'}
+          onClick={() => setTimelineTab('gantt')}
+        >
+          {t('timeline.tabGantt')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={timelineTab === 'upcoming' ? 'is-active' : ''}
+          aria-selected={timelineTab === 'upcoming'}
+          onClick={() => setTimelineTab('upcoming')}
+        >
+          {t('timeline.tabUpcoming')}
+        </button>
+      </div>
+
+      {timelineTab === 'gantt' ? (
+        <Gantt
+          key={catalogGeneration}
+          planSnapshot={planSnapshot}
+          onOpenItem={onOpenItem}
+          clock={clock}
+          uiLocale={uiLocale}
+          t={t}
+        />
+      ) : (
+        <div className="vitalis-timeline-upcoming-empty">
+          <Icon name="calendar" size={26} color="var(--text-muted)" />
+          <h3>{t('timeline.upcomingEmptyTitle')}</h3>
+          <p>{t('timeline.upcomingEmptyBody')}</p>
+        </div>
+      )}
     </AppShell>
   );
 }

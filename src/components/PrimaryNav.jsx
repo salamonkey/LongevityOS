@@ -2,21 +2,19 @@ import React from 'react';
 import { TabBar } from '../design-system/components/index.js';
 import { useTranslation } from '../lib/i18n/index.js';
 
-const TAB_VIEWS = ['start', 'vaccinations', 'checkups', 'termine', 'safe'];
+const TAB_VIEWS = ['start', 'timeline', 'checkups', 'safe'];
 
 const TAB_ICON_BY_VIEW = {
   start: 'layout-grid',
-  vaccinations: 'syringe',
+  timeline: 'trending-up',
   checkups: 'shield-check',
-  termine: 'calendar',
   safe: 'lock',
 };
 
 const TAB_LABEL_KEY_BY_VIEW = {
   start: 'nav.start',
-  vaccinations: 'nav.vaccinations',
+  timeline: 'nav.timeline',
   checkups: 'nav.checkups',
-  termine: 'nav.appointments',
   safe: 'nav.documents',
 };
 

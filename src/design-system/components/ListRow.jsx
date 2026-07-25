@@ -10,6 +10,7 @@ export function ListRow({
   subtitle,
   badge,
   badgeStatus = 'due',
+  beforeBadge,
   trailingChevron = true,
   selected = false,
   onClick,
@@ -47,6 +48,7 @@ export function ListRow({
         <div className="vds-list-row-title">{title}</div>
         {subtitle ? <div className="vds-list-row-subtitle">{subtitle}</div> : null}
       </div>
+      {beforeBadge}
       {badge ? <Badge status={badgeStatus}>{badge}</Badge> : null}
       {!badge && selected ? <Icon name="check" size={18} color="var(--color-primary)" /> : null}
       {!badge && !selected && trailingChevron ? <Icon name="chevron-right" size={18} color="var(--text-muted)" /> : null}

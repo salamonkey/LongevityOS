@@ -296,6 +296,8 @@ export function buildPlanReadModelForSlice(planSnapshot, options = {}) {
       completedOnLabel: completedOn ? formatDateForConfirmation(completedOn) : null,
       statusLabel: getSafeStatusLabel(status),
       status,
+      nextDueDate: source?.nextDueDate ?? null,
+      recurrenceIntervalDays: source?.recurrence?.intervalDays ?? null,
     };
   };
 
