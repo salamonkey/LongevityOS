@@ -130,6 +130,100 @@ function PlanRow({ item, onOpen }) {
   );
 }
 
+const DUE_BUCKET_STATUSES = new Set(['due', 'overdue']);
+const DONE_BUCKET_STATUSES = new Set(['done']);
+
+function groupPlanItemsByStatus(items) {
+  const due = [];
+  const upcoming = [];
+  const done = [];
+
+  items.forEach((item) => {
+    if (DONE_BUCKET_STATUSES.has(item.status)) {
+      done.push(item);
+    } else if (DUE_BUCKET_STATUSES.has(item.status)) {
+      due.push(item);
+    } else {
+      upcoming.push(item);
+    }
+  });
+
+  return { due, upcoming, done };
+}
+
+function PlanStatusSummary({ title, groups, t }) {
+  const { due, upcoming, done } = groups;
+  const total = due.length + upcoming.length + done.length;
+  if (total === 0) {
+    return null;
+  }
+
+  const pct = (count) => `${(count / total) * 100}%`;
+
+  return (
+    <div className="sl003-status-summary">
+      <div className="sl003-status-summary-top">
+        <span className="sl003-status-summary-title">{title}</span>
+        <span className="sl003-status-summary-count">
+          {due.length > 0
+            ? t('plan.summaryDueCount', { count: due.length, total })
+            : t('plan.summaryAllCovered')}
+        </span>
+      </div>
+      <div className="sl003-status-summary-bar" role="presentation">
+        {due.length > 0 ? <span className="is-due" style={{ width: pct(due.length) }} /> : null}
+        {upcoming.length > 0 ? <span className="is-upcoming" style={{ width: pct(upcoming.length) }} /> : null}
+        {done.length > 0 ? <span className="is-done" style={{ width: pct(done.length) }} /> : null}
+      </div>
+      <div className="sl003-status-summary-legend">
+        <span><i className="is-due" />{t('status.due')}</span>
+        <span><i className="is-upcoming" />{t('status.pending')}</span>
+        <span><i className="is-done" />{t('status.done')}</span>
+      </div>
+    </div>
+  );
+}
+
+function PlanStatusGroups({ groups, onOpen }) {
+  const { t } = useTranslation();
+  const { due, upcoming, done } = groups;
+
+  return (
+    <>
+      {due.length > 0 ? (
+        <>
+          <p className="sec-label">{t('status.due')}</p>
+          <div className="rows">
+            {due.map((item) => (
+              <PlanRow key={item.itemKey} item={item} onOpen={onOpen} />
+            ))}
+          </div>
+        </>
+      ) : null}
+      {upcoming.length > 0 ? (
+        <>
+          <p className="sec-label">{t('status.pending')}</p>
+          <div className="rows">
+            {upcoming.map((item) => (
+              <PlanRow key={item.itemKey} item={item} onOpen={onOpen} />
+            ))}
+          </div>
+        </>
+      ) : null}
+      {done.length > 0 ? (
+        <>
+          <p className="sec-label">{t('status.done')}</p>
+          <div className="rows">
+            {done.map((item) => (
+              <PlanRow key={item.itemKey} item={item} onOpen={onOpen} />
+            ))}
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}
+
 const EMPTY_STATE_NEXT_CATEGORY = Object.freeze({
   [PLAN_CATEGORIES.checkup]: PLAN_CATEGORIES.vaccination,
   [PLAN_CATEGORIES.vaccination]: PLAN_CATEGORIES.counseling,
@@ -774,6 +868,7 @@ export default function ItemCompletionAndReminderActions({
   const activeItems = activeCategory === PLAN_CATEGORIES.vaccination
     ? readModel.vaccinations
     : (activeCategory === PLAN_CATEGORIES.counseling ? readModel.counseling : readModel.checkups);
+  const activeItemsGrouped = useMemo(() => groupPlanItemsByStatus(activeItems), [activeItems]);
 
   const handleOpenDetailFromPlan = (itemKey) => {
     if (typeof window !== 'undefined') {
@@ -1201,28 +1296,22 @@ export default function ItemCompletionAndReminderActions({
           })}
         </div>
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
-          <Card className="sl003-vaccination-guidance" aria-label={t('vaccinations.dueGuidanceTitle')}>
-            <p className="sl001-label">{t('vaccinations.dueGuidanceTitle')}</p>
-            <p className="sl001-summary-meta">{t('vaccinations.dueGuidanceBody')}</p>
-            {activeItems.length === 0 ? (
-              <p className="sl001-summary-meta">{t('vaccinations.noGuidance')}</p>
-            ) : (
-              <div className="rows" aria-label={t('vaccinations.guidanceListAriaLabel')}>
-                {activeItems.map((item) => (
-                  <PlanRow key={item.itemKey} item={item} onOpen={handleOpenDetailFromPlan} />
-                ))}
-              </div>
-            )}
-          </Card>
+          activeItems.length === 0 ? (
+            <p className="sl001-summary-meta">{t('vaccinations.noGuidance')}</p>
+          ) : (
+            <div aria-label={t('vaccinations.guidanceListAriaLabel')}>
+              <PlanStatusSummary title={t(getCategoryLabelKey(activeCategory))} groups={activeItemsGrouped} t={t} />
+              <PlanStatusGroups groups={activeItemsGrouped} onOpen={handleOpenDetailFromPlan} />
+            </div>
+          )
         ) : null}
         {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length === 0 ? (
           <ListEmptyState activeCategory={activeCategory} onSwitchCategory={setActiveCategory} visibleCategories={visibleCategories} />
         ) : null}
         {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length > 0 ? (
-          <div className="rows" aria-label={t('plan.categoryListAriaLabel', { category: t(getCategoryLabelKey(activeCategory)) })}>
-            {activeItems.map((item) => (
-              <PlanRow key={item.itemKey} item={item} onOpen={handleOpenDetailFromPlan} />
-            ))}
+          <div aria-label={t('plan.categoryListAriaLabel', { category: t(getCategoryLabelKey(activeCategory)) })}>
+            <PlanStatusSummary title={t(getCategoryLabelKey(activeCategory))} groups={activeItemsGrouped} t={t} />
+            <PlanStatusGroups groups={activeItemsGrouped} onOpen={handleOpenDetailFromPlan} />
           </div>
         ) : null}
         {activeCategory !== PLAN_CATEGORIES.vaccination ? (

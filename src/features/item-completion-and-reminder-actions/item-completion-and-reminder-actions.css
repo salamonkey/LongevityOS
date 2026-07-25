@@ -133,10 +133,77 @@
   line-height: 1.5;
 }
 
-.sl003-vaccination-guidance {
+.sl003-status-summary {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 14px 12px;
   margin-top: var(--space-4);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-1);
 }
+
+.sl003-status-summary-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 10px;
+}
+
+.sl003-status-summary-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sl003-status-summary-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.sl003-status-summary-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-sunken);
+  gap: 1.5px;
+}
+
+.sl003-status-summary-bar span {
+  height: 100%;
+}
+
+.sl003-status-summary-bar .is-due { background: var(--status-due); }
+.sl003-status-summary-bar .is-upcoming { background: var(--status-upcoming); }
+.sl003-status-summary-bar .is-done { background: var(--status-done); }
+
+.sl003-status-summary-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 9px;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.sl003-status-summary-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sl003-status-summary-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.sl003-status-summary-legend i.is-due { background: var(--status-due); }
+.sl003-status-summary-legend i.is-upcoming { background: var(--status-upcoming); }
+.sl003-status-summary-legend i.is-done { background: var(--status-done); }
 
 .sl003-action-area {
   margin-top: var(--space-3);

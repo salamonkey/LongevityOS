@@ -126,6 +126,8 @@
   "plan.browseAriaLabel": "Deinen Plan durchsuchen",
   "plan.categoriesAriaLabel": "Plankategorien",
   "plan.categoryListAriaLabel": "Liste: {category}",
+  "plan.summaryDueCount": "{count} von {total} fällig",
+  "plan.summaryAllCovered": "Alles erledigt",
 
   "interventionType.preventiveVisit": "Vorsorgetermin",
   "interventionType.screening": "Screening",

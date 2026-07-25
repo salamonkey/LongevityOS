@@ -126,6 +126,8 @@
   "plan.browseAriaLabel": "Browse your plan",
   "plan.categoriesAriaLabel": "Plan categories",
   "plan.categoryListAriaLabel": "{category} list",
+  "plan.summaryDueCount": "{count} of {total} due",
+  "plan.summaryAllCovered": "All covered",
 
   "interventionType.preventiveVisit": "Preventive visit",
   "interventionType.screening": "Screening",
