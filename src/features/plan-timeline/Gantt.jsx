@@ -16,10 +16,11 @@ const QUARTER_ANCHOR_COLS = 3; // ~108px (3 * 36), closest whole-quarter anchor 
 const TODAY_ANCHOR_PX = 96;
 const AXIS_HEAD_H = 30;
 
-const LANE_ORDER = ['vaccination', 'preventive'];
+const LANE_ORDER = ['vaccination', 'preventive', 'appointments'];
 const LANE_LABEL_KEY = Object.freeze({
   vaccination: 'timeline.laneVaccination',
   preventive: 'timeline.lanePreventive',
+  appointments: 'timeline.laneAppointments',
 });
 
 function parseDateValue(value) {
@@ -90,6 +91,27 @@ export function buildGanttRows(planSnapshot, options = {}) {
       isRecurring,
     };
   });
+}
+
+// Unlinked appointments (no matching plan item) get their own synthetic row
+// in a dedicated lane, rendered as a simple point marker at their scheduled
+// date -- same visual language as a plan item's due marker, teal-toned so it
+// reads as "a real-world event" rather than a plan status.
+function buildStandaloneAppointmentRows(appointments) {
+  return appointments
+    .filter((appointment) => !appointment.catalogItemId)
+    .map((appointment) => ({
+      itemKey: `appt-${appointment.id}`,
+      name: appointment.title,
+      lane: 'appointments',
+      status: 'planned',
+      tone: 'teal',
+      icon: 'calendar',
+      kind: 'appointment-point',
+      pointDate: parseDateValue(appointment.scheduledFor),
+      isRecurring: false,
+      isAppointment: true,
+    }));
 }
 
 function buildMonthColumns(today, colsBeforeToday) {
@@ -164,7 +186,27 @@ function GanttGhost({ date, tone, side = 'after', t, uiLocale }) {
   );
 }
 
-function GanttRowTime({ row, columns, colWidth, todayTime, t, uiLocale }) {
+function GanttAppointmentMarkers({ appointments, columns, colWidth }) {
+  return appointments.map((appointment) => {
+    const pos = resolveDatePosition(parseDateValue(appointment.scheduledFor), columns, colWidth);
+    if (pos.px === null || pos.offRange) {
+      return null;
+    }
+    return (
+      <GanttMarker key={appointment.id} x={pos.px} size={18} tone="teal" icon="calendar" />
+    );
+  });
+}
+
+function GanttRowPrimaryContent({ row, columns, colWidth, todayTime, t, uiLocale }) {
+  if (row.kind === 'appointment-point') {
+    const pos = resolveDatePosition(row.pointDate, columns, colWidth);
+    if (pos.offRange) {
+      return <GanttGhost date={row.pointDate} tone={row.tone} side={pos.offRange} t={t} uiLocale={uiLocale} />;
+    }
+    return <GanttMarker x={pos.px} size={26} tone={row.tone} icon={row.icon} />;
+  }
+
   if (row.kind === 'bar') {
     const startPos = resolveDatePosition(row.startDate, columns, colWidth);
     const endPos = resolveDatePosition(row.endDate, columns, colWidth);
@@ -216,7 +258,18 @@ function GanttRowTime({ row, columns, colWidth, todayTime, t, uiLocale }) {
   return <GanttMarker x={pos.px} size={26} tone={row.tone} icon={row.icon} />;
 }
 
-export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date(), uiLocale = 'en-US', t }) {
+function GanttRowTime({ row, columns, colWidth, todayTime, t, uiLocale, linkedAppointments = [] }) {
+  return (
+    <>
+      <GanttRowPrimaryContent row={row} columns={columns} colWidth={colWidth} todayTime={todayTime} t={t} uiLocale={uiLocale} />
+      {linkedAppointments.length > 0 ? (
+        <GanttAppointmentMarkers appointments={linkedAppointments} columns={columns} colWidth={colWidth} />
+      ) : null}
+    </>
+  );
+}
+
+export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date(), uiLocale = 'en-US', t, appointments = [] }) {
   const [scope, setScope] = useState('months');
   const scrollRef = useRef(null);
   const today = useMemo(() => {
@@ -235,7 +288,26 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
   const todayPos = resolveDatePosition(today, columns, colWidth);
   const todayTime = todayPos.px ?? 0;
 
-  const rows = useMemo(() => buildGanttRows(planSnapshot, { today }), [planSnapshot, today]);
+  const planRows = useMemo(() => buildGanttRows(planSnapshot, { today }), [planSnapshot, today]);
+  const standaloneAppointmentRows = useMemo(
+    () => buildStandaloneAppointmentRows(appointments),
+    [appointments],
+  );
+  const rows = useMemo(
+    () => [...planRows, ...standaloneAppointmentRows],
+    [planRows, standaloneAppointmentRows],
+  );
+  const linkedAppointmentsByItemKey = useMemo(() => {
+    const index = new Map();
+    for (const appointment of appointments) {
+      if (!appointment.catalogItemId) continue;
+      if (!index.has(appointment.catalogItemId)) {
+        index.set(appointment.catalogItemId, []);
+      }
+      index.get(appointment.catalogItemId).push(appointment);
+    }
+    return index;
+  }, [appointments]);
   const lanes = LANE_ORDER
     .map((lane) => ({ lane, rows: rows.filter((row) => row.lane === lane) }))
     .filter((group) => group.rows.length > 0);
@@ -307,19 +379,22 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
                 </div>
                 {group.rows.map((row) => {
                   const [, rowDotSolid] = getToneColors(row.tone);
+                  const interactiveProps = row.isAppointment ? {} : {
+                    role: 'button',
+                    tabIndex: 0,
+                    onClick: () => onOpenItem?.(row),
+                    onKeyDown: (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onOpenItem?.(row);
+                      }
+                    },
+                  };
                   return (
                     <div
                       key={row.itemKey}
                       className="vitalis-gantt-row"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onOpenItem?.(row)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onOpenItem?.(row);
-                        }
-                      }}
+                      {...interactiveProps}
                     >
                       <span className="vitalis-gantt-lab">
                         <span className="vitalis-gantt-lab-dot" style={{ background: rowDotSolid }} />
@@ -333,7 +408,15 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
                         </span>
                       </span>
                       <div className="vitalis-gantt-time">
-                        <GanttRowTime row={row} columns={columns} colWidth={colWidth} todayTime={todayTime} t={t} uiLocale={uiLocale} />
+                        <GanttRowTime
+                          row={row}
+                          columns={columns}
+                          colWidth={colWidth}
+                          todayTime={todayTime}
+                          t={t}
+                          uiLocale={uiLocale}
+                          linkedAppointments={linkedAppointmentsByItemKey.get(row.itemKey) ?? []}
+                        />
                       </div>
                     </div>
                   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppShell } from '../self-onboarding-to-first-dashboard/components.jsx';
-import { Icon } from '../../design-system/components/index.js';
+import { Icon, Button } from '../../design-system/components/index.js';
 import Gantt from './Gantt.jsx';
 import {
   PREVENTIVE_ITEM_DEFINITION_INDEX,
@@ -130,18 +130,187 @@ export function buildTimelineGroups(items) {
     .filter((group) => group.items.length > 0);
 }
 
+function formatAgendaDate(dateValue, locale = 'en-US') {
+  const parsed = parseDateValue(dateValue);
+  if (!parsed) return { day: '--', month: '' };
+  return {
+    day: new Intl.DateTimeFormat(locale, { day: '2-digit' }).format(parsed),
+    month: new Intl.DateTimeFormat(locale, { month: 'short' }).format(parsed),
+  };
+}
+
+function formatAgendaTime(dateValue, locale = 'en-US') {
+  const parsed = parseDateValue(dateValue);
+  if (!parsed) return '';
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(parsed);
+}
+
+function AddAppointmentForm({ planItems, onSubmit, onCancel, pending, errorMessage, t }) {
+  const [linkMode, setLinkMode] = useState(planItems.length > 0 ? 'linked' : 'standalone');
+  const [catalogItemId, setCatalogItemId] = useState(planItems[0]?.catalogItemId ?? '');
+  const [title, setTitle] = useState('');
+  const [scheduledFor, setScheduledFor] = useState('');
+  const [provider, setProvider] = useState('');
+  const [location, setLocation] = useState('');
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const selectedItem = linkMode === 'linked' ? planItems.find((item) => item.catalogItemId === catalogItemId) : null;
+    const resolvedTitle = linkMode === 'linked' ? (selectedItem?.name ?? '') : title.trim();
+    if (!resolvedTitle || !scheduledFor) {
+      return;
+    }
+
+    onSubmit({
+      title: resolvedTitle,
+      scheduledFor,
+      provider,
+      location,
+      catalogItemId: linkMode === 'linked' ? catalogItemId : '',
+    });
+  };
+
+  return (
+    <form className="vitalis-appt-form" onSubmit={handleSubmit}>
+      {errorMessage ? <p className="vitalis-appt-form-error" role="alert">{errorMessage}</p> : null}
+
+      <div className="vds-input">
+        <span className="vds-input-label">{t('appointments.linkQuestion')}</span>
+        <div className="vitalis-seg">
+          <button
+            type="button"
+            className={linkMode === 'linked' ? 'is-active' : ''}
+            disabled={planItems.length === 0}
+            onClick={() => setLinkMode('linked')}
+          >
+            {t('appointments.linkedItem')}
+          </button>
+          <button
+            type="button"
+            className={linkMode === 'standalone' ? 'is-active' : ''}
+            onClick={() => setLinkMode('standalone')}
+          >
+            {t('appointments.standalone')}
+          </button>
+        </div>
+      </div>
+
+      {linkMode === 'linked' ? (
+        <label className="vds-input">
+          <span className="vds-input-label">{t('appointments.item')}</span>
+          <span className="vds-input-field">
+            <Icon name="stethoscope" size={18} color="var(--text-muted)" />
+            <select value={catalogItemId} onChange={(event) => setCatalogItemId(event.target.value)}>
+              {planItems.map((item) => (
+                <option key={item.catalogItemId} value={item.catalogItemId}>{item.name}</option>
+              ))}
+            </select>
+          </span>
+        </label>
+      ) : (
+        <label className="vds-input">
+          <span className="vds-input-label">{t('appointments.title')}</span>
+          <span className="vds-input-field">
+            <Icon name="calendar-plus" size={18} color="var(--text-muted)" />
+            <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} required />
+          </span>
+        </label>
+      )}
+
+      <label className="vds-input">
+        <span className="vds-input-label">{t('appointments.dateTime')}</span>
+        <span className="vds-input-field">
+          <Icon name="calendar" size={18} color="var(--text-muted)" />
+          <input
+            type="datetime-local"
+            value={scheduledFor}
+            onChange={(event) => setScheduledFor(event.target.value)}
+            required
+          />
+        </span>
+      </label>
+
+      <label className="vds-input">
+        <span className="vds-input-label">{t('appointments.provider')}</span>
+        <span className="vds-input-field">
+          <Icon name="map-pin" size={18} color="var(--text-muted)" />
+          <input type="text" value={provider} onChange={(event) => setProvider(event.target.value)} placeholder={t('appointments.providerPlaceholder')} />
+        </span>
+      </label>
+
+      <label className="vds-input">
+        <span className="vds-input-label">{t('appointments.location')}</span>
+        <span className="vds-input-field">
+          <Icon name="map-pin" size={18} color="var(--text-muted)" />
+          <input type="text" value={location} onChange={(event) => setLocation(event.target.value)} placeholder={t('appointments.locationPlaceholder')} />
+        </span>
+      </label>
+
+      <Button type="submit" variant="primary" fullWidth disabled={pending}>
+        {pending ? t('appointments.saving') : t('appointments.save')}
+      </Button>
+      <Button type="button" variant="ghost" fullWidth onClick={onCancel} disabled={pending}>
+        {t('common.cancel')}
+      </Button>
+    </form>
+  );
+}
+
 export default function PlanTimeline({
   planSnapshot,
   onOpenItem,
   onBack,
   clock = () => new Date(),
   catalogGeneration = 0,
+  appointments = [],
+  appointmentsPending = false,
+  onCreateAppointment,
+  appointmentSaveError = '',
 }) {
   const { t, locale: uiLocale } = useTranslation();
   const [timelineTab, setTimelineTab] = useState('gantt');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [savePending, setSavePending] = useState(false);
+
+  const planItems = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
+
+  const handleCreate = async (input) => {
+    if (typeof onCreateAppointment !== 'function') return;
+    setSavePending(true);
+    const succeeded = await onCreateAppointment(input);
+    setSavePending(false);
+    if (succeeded) {
+      setShowAddForm(false);
+    }
+  };
 
   return (
-    <AppShell title={t('dashboard.timelineTitle')} onBack={onBack} backLabel={t('common.back')}>
+    <AppShell
+      title={t('dashboard.timelineTitle')}
+      onBack={onBack}
+      backLabel={t('common.back')}
+      headerAction={(
+        <button
+          type="button"
+          className="vitalis-appt-fab"
+          onClick={() => setShowAddForm((previous) => !previous)}
+          aria-label={t('appointments.add')}
+        >
+          <Icon name="plus" size={17} color="#fff" />
+        </button>
+      )}
+    >
+      {showAddForm ? (
+        <AddAppointmentForm
+          planItems={planItems}
+          onSubmit={handleCreate}
+          onCancel={() => setShowAddForm(false)}
+          pending={savePending}
+          errorMessage={appointmentSaveError}
+          t={t}
+        />
+      ) : null}
+
       <div className="vitalis-seg vitalis-timeline-seg" role="tablist" aria-label={t('timeline.viewsAriaLabel')}>
         <button
           type="button"
@@ -171,12 +340,36 @@ export default function PlanTimeline({
           clock={clock}
           uiLocale={uiLocale}
           t={t}
+          appointments={appointments}
         />
-      ) : (
+      ) : appointmentsPending ? (
+        <p className="sl001-summary-meta">{t('common.loading')}</p>
+      ) : appointments.length === 0 ? (
         <div className="vitalis-timeline-upcoming-empty">
           <Icon name="calendar" size={26} color="var(--text-muted)" />
           <h3>{t('timeline.upcomingEmptyTitle')}</h3>
           <p>{t('timeline.upcomingEmptyBody')}</p>
+        </div>
+      ) : (
+        <div className="vitalis-appt-agenda">
+          {appointments.map((appointment) => {
+            const { day, month } = formatAgendaDate(appointment.scheduledFor, uiLocale);
+            const time = formatAgendaTime(appointment.scheduledFor, uiLocale);
+            return (
+              <div key={appointment.id} className="vitalis-appt-card">
+                <div className={`vitalis-appt-date${appointment.catalogItemId ? '' : ' is-custom'}`}>
+                  <span className="vitalis-appt-date-d">{day}</span>
+                  <span className="vitalis-appt-date-m">{month}</span>
+                </div>
+                <div className="vitalis-appt-main">
+                  <div className="vitalis-appt-title">{appointment.title}</div>
+                  <div className="vitalis-appt-sub">
+                    {[time, appointment.provider, appointment.location].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </AppShell>

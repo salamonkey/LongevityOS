@@ -892,3 +892,123 @@ export async function saveLivePlanForProfile(profileId, planSnapshot) {
     itemUpdatedAtByCatalogItemId: persistedItemUpdatedAtByCatalogItemId,
   };
 }
+
+// Resolves a plan item's internal bigint id from its catalogItemId, the only
+// identifier the frontend model ever carries -- appointments link to that
+// internal id so the link survives item renames, but nothing outside this
+// module needs to know the id exists.
+async function resolvePlanItemDbId(client, normalizedProfileId, catalogItemId) {
+  if (!catalogItemId) {
+    return null;
+  }
+
+  const { data: planRow, error: planError } = await client
+    .from('plans')
+    .select('id')
+    .eq('profile_id', normalizedProfileId)
+    .maybeSingle();
+
+  if (planError) {
+    throw planError;
+  }
+  if (!planRow?.id) {
+    return null;
+  }
+
+  const { data: itemRow, error: itemError } = await client
+    .from('plan_items')
+    .select('id')
+    .eq('plan_id', planRow.id)
+    .eq('catalog_item_id', catalogItemId)
+    .maybeSingle();
+
+  if (itemError) {
+    throw itemError;
+  }
+
+  return itemRow?.id ?? null;
+}
+
+function toAppointmentRuntime(row) {
+  return {
+    id: row.id,
+    planItemId: row.plan_item_id ?? null,
+    catalogItemId: row.plan_items?.catalog_item_id ?? null,
+    title: row.title,
+    scheduledFor: row.scheduled_for,
+    provider: row.provider ?? '',
+    location: row.location ?? '',
+  };
+}
+
+export async function listAppointmentsForProfile(profileId) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const normalizedProfileId = parseProfileId(profileId);
+
+  const { data, error } = await client
+    .from('appointments')
+    .select('id, plan_item_id, title, scheduled_for, provider, location, plan_items(catalog_item_id)')
+    .eq('profile_id', normalizedProfileId)
+    .order('scheduled_for', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(toAppointmentRuntime);
+}
+
+export async function createAppointment(profileId, input = {}) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const normalizedProfileId = parseProfileId(profileId);
+
+  const title = String(input?.title ?? '').trim();
+  if (!title) {
+    throw new Error('Title is required.');
+  }
+
+  const scheduledForDate = new Date(String(input?.scheduledFor ?? '').trim());
+  if (Number.isNaN(scheduledForDate.getTime())) {
+    throw new Error('A valid date and time is required.');
+  }
+
+  const catalogItemId = String(input?.catalogItemId ?? '').trim();
+  const planItemId = catalogItemId
+    ? await resolvePlanItemDbId(client, normalizedProfileId, catalogItemId)
+    : null;
+
+  const { data, error } = await client
+    .from('appointments')
+    .insert({
+      profile_id: normalizedProfileId,
+      plan_item_id: planItemId,
+      title,
+      scheduled_for: scheduledForDate.toISOString(),
+      provider: String(input?.provider ?? '').trim() || null,
+      location: String(input?.location ?? '').trim() || null,
+    })
+    .select('id, plan_item_id, title, scheduled_for, provider, location')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    planItemId: data.plan_item_id ?? null,
+    catalogItemId: catalogItemId || null,
+    title: data.title,
+    scheduledFor: data.scheduled_for,
+    provider: data.provider ?? '',
+    location: data.location ?? '',
+  };
+}

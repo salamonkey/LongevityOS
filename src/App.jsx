@@ -20,6 +20,8 @@ import {
   setLiveActiveProfile,
   updateHealthProfile,
   updateHealthProfileRiskFlags,
+  listAppointmentsForProfile,
+  createAppointment,
 } from './lib/persistence/supabaseLivePlans.js';
 import {
   isSupabaseCatalogConfigured,
@@ -204,6 +206,9 @@ export default function App() {
   const [riskProfileError, setRiskProfileError] = useState('');
   const [profileDetailsPending, setProfileDetailsPending] = useState(false);
   const [profileDetailsError, setProfileDetailsError] = useState('');
+  const [appointments, setAppointments] = useState([]);
+  const [appointmentsPending, setAppointmentsPending] = useState(false);
+  const [appointmentSaveError, setAppointmentSaveError] = useState('');
 
   const hasCompletedOnboarding = Boolean(runtimeProfile && runtimePlanSnapshot);
 
@@ -389,6 +394,54 @@ export default function App() {
       setActiveView('start');
     }
   }, [activeView, hasCompletedOnboarding]);
+
+  useEffect(() => {
+    if (!livePlansEnabled || !runtimeProfile?.profileId) {
+      setAppointments([]);
+      return;
+    }
+
+    let cancelled = false;
+    setAppointmentsPending(true);
+
+    listAppointmentsForProfile(runtimeProfile.profileId)
+      .then((loaded) => {
+        if (!cancelled) {
+          setAppointments(loaded);
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to load appointments.', error);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAppointmentsPending(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [livePlansEnabled, runtimeProfile?.profileId]);
+
+  const handleCreateAppointment = async (input) => {
+    if (!runtimeProfile?.profileId) {
+      return false;
+    }
+
+    setAppointmentSaveError('');
+
+    try {
+      const created = await createAppointment(runtimeProfile.profileId, input);
+      setAppointments((previous) => [...previous, created].sort(
+        (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
+      ));
+      return true;
+    } catch (error) {
+      setAppointmentSaveError(resolveErrorMessage(error, t('appError.appointmentSaveFailed')));
+      return false;
+    }
+  };
 
   useEffect(() => {
     if (activeView !== 'start' || dashboardReturnScrollY === null) {
@@ -1005,6 +1058,10 @@ export default function App() {
           planSnapshot={runtimePlanSnapshot}
           onOpenItem={openTimelineItem}
           catalogGeneration={catalogGeneration}
+          appointments={appointments}
+          appointmentsPending={appointmentsPending}
+          onCreateAppointment={handleCreateAppointment}
+          appointmentSaveError={appointmentSaveError}
         />
       );
     } else if (activeView === 'settings') {
