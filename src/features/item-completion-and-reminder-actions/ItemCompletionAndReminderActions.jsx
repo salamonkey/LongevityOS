@@ -1239,7 +1239,7 @@ export default function ItemCompletionAndReminderActions({
               className="sl003-manual-entry-fab"
               onClick={openManualEntryForm}
             />
-            <Sheet open={showManualEntryForm} onClose={closeManualEntryForm} title={t('vaccinations.sheetTitle')}>
+            <Sheet open={showManualEntryForm} onClose={closeManualEntryForm} title={t('vaccinations.sheetTitle')} closeLabel={t('common.close')}>
               <ManualEntryForm
                 form={manualEntryForm}
                 options={manualEntryOptions}

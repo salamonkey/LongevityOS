@@ -17,6 +17,11 @@
   opacity: 0.45;
 }
 
+.vds-icon-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .vds-icon-button--sm { width: 36px; height: 36px; }
 .vds-icon-button--md { width: 44px; height: 44px; }
 .vds-icon-button--lg { width: 52px; height: 52px; }

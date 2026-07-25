@@ -53,7 +53,7 @@ export default function AddToHomeScreen() {
         {t('addToHomeScreen.cta')}
       </Button>
       {variant === ADD_TO_HOME_SCREEN_VARIANT.IOS_INSTRUCTIONS ? (
-        <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={t('addToHomeScreen.iosSheetTitle')}>
+        <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={t('addToHomeScreen.iosSheetTitle')} closeLabel={t('common.close')}>
           <ol className="vitalis-a2hs-steps">
             <li>
               <Icon name="share" size={20} />

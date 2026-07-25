@@ -44,3 +44,9 @@
 .vds-tabbar-button--active .vds-tabbar-label {
   font-weight: 600;
 }
+
+.vds-tabbar-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  border-radius: var(--radius-sm);
+}

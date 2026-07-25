@@ -17,7 +17,7 @@ export default function ProfileSheet({
   );
 
   return (
-    <Sheet open={open} onClose={onClose} title={t('profileSheet.title')}>
+    <Sheet open={open} onClose={onClose} title={t('profileSheet.title')} closeLabel={t('common.close')}>
       <div className="vitalis-profile-sheet-rows">
         {sortedProfiles.map((profile) => {
           const isActive = String(profile.profileId) === String(activeProfileId);

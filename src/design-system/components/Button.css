@@ -21,6 +21,11 @@
   opacity: 0.45;
 }
 
+.vds-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .vds-button--full {
   width: 100%;
 }

@@ -37,6 +37,12 @@
   animation: v-dot 0.5s var(--ease-spring) both;
 }
 
+.vds-bodymap-dot:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  border-radius: 50%;
+}
+
 .vds-bodymap-dot-ping {
   grid-area: 1 / 1;
   box-sizing: content-box;
@@ -106,6 +112,11 @@
 
 .vds-bodymap-list-row.is-selected {
   background: var(--surface-sunken);
+}
+
+.vds-bodymap-list-row:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .vds-bodymap-list-dot {

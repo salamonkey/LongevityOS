@@ -5,7 +5,7 @@ import './Sheet.css';
 
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function Sheet({ open = false, onClose, title, children, style }) {
+export function Sheet({ open = false, onClose, title, closeLabel = 'Close', children, style }) {
   const previouslyFocusedRef = useRef(null);
   const sheetRef = useRef(null);
 
@@ -74,7 +74,7 @@ export function Sheet({ open = false, onClose, title, children, style }) {
         <div className="vds-sheet-handle" />
         <div className="vds-sheet-header">
           <span className="vds-sheet-title">{title}</span>
-          {onClose ? <IconButton icon="x" variant="ghost" size="sm" label="Close" onClick={onClose} /> : null}
+          {onClose ? <IconButton icon="x" variant="ghost" size="md" label={closeLabel} onClick={onClose} /> : null}
         </div>
         {children}
       </div>

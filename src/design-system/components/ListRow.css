@@ -14,6 +14,11 @@
   cursor: pointer;
 }
 
+.vds-list-row--clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .vds-list-row--selected {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
