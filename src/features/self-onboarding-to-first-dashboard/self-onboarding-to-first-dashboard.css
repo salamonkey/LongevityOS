@@ -439,6 +439,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  padding: 4px 2px 18px;
 }
 
 .vitalis-region-detail-icon-chip {

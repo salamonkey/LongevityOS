@@ -131,7 +131,7 @@ const REGION_TONE_COLORS = Object.freeze({
   ok: ['var(--status-done-soft)', 'var(--status-done)'],
 });
 
-function RegionDetailSection({ label, items }) {
+function RegionDetailSection({ label, items, onOpenItem }) {
   if (!items || items.length === 0) {
     return null;
   }
@@ -147,7 +147,7 @@ function RegionDetailSection({ label, items }) {
             tone={getStatusTone(item.status)}
             title={item.name}
             subtitle={item.cadenceLabel}
-            trailingChevron={false}
+            onClick={typeof onOpenItem === 'function' ? () => onOpenItem(item) : undefined}
           />
         ))}
       </div>
@@ -155,7 +155,7 @@ function RegionDetailSection({ label, items }) {
   );
 }
 
-function RegionDetailView({ region, onBack, onViewInTab, t }) {
+function RegionDetailView({ region, onBack, onViewInTab, onOpenItem, t }) {
   const [chipBg, chipFg] = REGION_TONE_COLORS[region.status] ?? REGION_TONE_COLORS.ok;
   const viewLabelKey = region.id === 'immunizations' ? 'bodyRegionDetail.viewInVaccinations' : 'bodyRegionDetail.viewInCheckups';
 
@@ -167,7 +167,7 @@ function RegionDetailView({ region, onBack, onViewInTab, t }) {
         <Logo size={24} word={false} style={{ marginRight: 8 }} />
       </div>
       <div className="vitalis-region-detail-body">
-        <Card padding={16} className="vitalis-region-detail-summary">
+        <div className="vitalis-region-detail-summary">
           <span className="vitalis-region-detail-icon-chip" style={{ background: chipBg, color: chipFg }}>
             <Icon name={region.icon} size={26} />
           </span>
@@ -175,11 +175,11 @@ function RegionDetailView({ region, onBack, onViewInTab, t }) {
             <p className="vitalis-region-detail-summary-title">{region.label}</p>
             <p className="vitalis-region-detail-summary-status">{region.statusText}</p>
           </div>
-        </Card>
+        </div>
 
-        <RegionDetailSection label={t('bodyRegionDetail.sectionOpen')} items={region.dueItems} />
-        <RegionDetailSection label={t('bodyRegionDetail.sectionUpcoming')} items={region.soonItems} />
-        <RegionDetailSection label={t('bodyRegionDetail.sectionHistory')} items={region.historyItems} />
+        <RegionDetailSection label={t('bodyRegionDetail.sectionOpen')} items={region.dueItems} onOpenItem={onOpenItem} />
+        <RegionDetailSection label={t('bodyRegionDetail.sectionUpcoming')} items={region.soonItems} onOpenItem={onOpenItem} />
+        <RegionDetailSection label={t('bodyRegionDetail.sectionHistory')} items={region.historyItems} onOpenItem={onOpenItem} />
 
         {region.hasItems ? (
           <Button variant="primary" size="lg" fullWidth iconLeft="plus" onClick={onViewInTab} className="vitalis-region-detail-cta">
@@ -522,6 +522,10 @@ export default function SelfOnboardingToFirstDashboard({
           onViewInTab={() => {
             setOpenRegionId(null);
             openHealthPlanForRegion(openRegionId);
+          }}
+          onOpenItem={(item) => {
+            setOpenRegionId(null);
+            openHealthPlanFromTimelineItem(item);
           }}
           t={t}
         />
