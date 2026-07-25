@@ -523,7 +523,7 @@ export default function App() {
 
     setRuntimePlanEntry({
       initialItemKey: item.itemKey,
-      initialOrigin: DETAIL_ORIGIN.direct,
+      initialOrigin: DETAIL_ORIGIN.dashboard,
       initialCategory: category,
       initialReturnToVaccinationTracker: false,
     });
