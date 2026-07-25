@@ -37,7 +37,7 @@ import {
   createInitialManualEntryForm,
   validateManualVaccinationEntryInput,
 } from '../vaccination-tracking-area-and-manual-entries/model.js';
-import { Sheet, ListRow, IconButton, Card, Badge, Button, Icon, ProgressRing } from '../../design-system/components/index.js';
+import { ListRow, IconButton, Card, Badge, Button, Icon, ProgressRing } from '../../design-system/components/index.js';
 import { getCategoryIcon, getCategoryLabelKey, getInterventionTypeLabelKey, getStatusBadgeStatus, getStatusLabelKey, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
@@ -966,6 +966,23 @@ export default function ItemCompletionAndReminderActions({
     );
   }
 
+  if (showManualEntryForm) {
+    return (
+      <AppShell title={t('vaccinations.sheetTitle')} onBack={closeManualEntryForm} backLabel={t('common.back')}>
+        <ManualEntryForm
+          form={manualEntryForm}
+          options={manualEntryOptions}
+          errors={manualEntryErrors}
+          saveError={manualEntrySaveError}
+          pending={manualEntryPending}
+          onFieldChange={handleManualFieldChange}
+          onSubmit={handleManualSubmit}
+          onCancel={closeManualEntryForm}
+        />
+      </AppShell>
+    );
+  }
+
   if (detailState && !detailItemView) {
     return (
       <AppShell title={t('plan.itemUnavailableTitle')}>
@@ -1238,18 +1255,6 @@ export default function ItemCompletionAndReminderActions({
               className="sl003-manual-entry-fab"
               onClick={openManualEntryForm}
             />
-            <Sheet open={showManualEntryForm} onClose={closeManualEntryForm} title={t('vaccinations.sheetTitle')} closeLabel={t('common.close')}>
-              <ManualEntryForm
-                form={manualEntryForm}
-                options={manualEntryOptions}
-                errors={manualEntryErrors}
-                saveError={manualEntrySaveError}
-                pending={manualEntryPending}
-                onFieldChange={handleManualFieldChange}
-                onSubmit={handleManualSubmit}
-                onCancel={closeManualEntryForm}
-              />
-            </Sheet>
           </>
         ) : null}
       </section>
