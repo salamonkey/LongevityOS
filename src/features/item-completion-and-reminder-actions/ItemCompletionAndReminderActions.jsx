@@ -972,23 +972,6 @@ export default function ItemCompletionAndReminderActions({
     );
   }
 
-  if (showManualEntryForm) {
-    return (
-      <AppShell title={t('vaccinations.sheetTitle')} onBack={closeManualEntryForm} backLabel={t('common.back')}>
-        <ManualEntryForm
-          form={manualEntryForm}
-          options={manualEntryOptions}
-          errors={manualEntryErrors}
-          saveError={manualEntrySaveError}
-          pending={manualEntryPending}
-          onFieldChange={handleManualFieldChange}
-          onSubmit={handleManualSubmit}
-          onCancel={closeManualEntryForm}
-        />
-      </AppShell>
-    );
-  }
-
   if (detailState && !detailItemView) {
     return (
       <AppShell title={t('plan.itemUnavailableTitle')}>
@@ -1175,6 +1158,23 @@ export default function ItemCompletionAndReminderActions({
       setManualEntrySaveError(MANUAL_ENTRY_VALIDATION_ERRORS.saveFailed);
     }
   };
+
+  if (showManualEntryForm) {
+    return (
+      <AppShell title={t('vaccinations.sheetTitle')} onBack={closeManualEntryForm} backLabel={t('common.back')}>
+        <ManualEntryForm
+          form={manualEntryForm}
+          options={manualEntryOptions}
+          errors={manualEntryErrors}
+          saveError={manualEntrySaveError}
+          pending={manualEntryPending}
+          onFieldChange={handleManualFieldChange}
+          onSubmit={handleManualSubmit}
+          onCancel={closeManualEntryForm}
+        />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title={null}>
