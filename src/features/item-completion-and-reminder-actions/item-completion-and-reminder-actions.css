@@ -225,17 +225,19 @@
 .sl003-time-to-go {
   margin-top: var(--space-3);
   padding: var(--space-3);
-  border: 1px solid #dbe3ef;
-  border-radius: 0.9rem;
-  background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
-}
-
-.sl003-time-to-go-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+}
+
+.sl003-time-to-go-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .sl003-time-to-go-due {
@@ -244,26 +246,11 @@
 }
 
 .sl003-time-to-go-remaining {
-  color: #0f5a94;
+  color: var(--color-primary-ink);
   font-size: 0.82rem;
   font-weight: 700;
 }
 
 .sl003-time-to-go-remaining.is-overdue {
-  color: #b23b2a;
-}
-
-.sl003-time-to-go-track {
-  width: 100%;
-  height: 0.52rem;
-  border-radius: 999px;
-  background: #dce7f6;
-  overflow: hidden;
-}
-
-.sl003-time-to-go-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #0c4a6e 0%, #1f5c8d 100%);
-  transition: width 220ms ease;
+  color: var(--status-overdue);
 }

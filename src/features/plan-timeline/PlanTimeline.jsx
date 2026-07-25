@@ -1,34 +1,15 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { AppShell } from '../self-onboarding-to-first-dashboard/components.jsx';
-import { Card, Badge, Icon } from '../../design-system/components/index.js';
+import Gantt from './Gantt.jsx';
 import {
   PREVENTIVE_ITEM_DEFINITION_INDEX,
 } from '../health-plan-browsing-and-item-detail/definitions.js';
 import {
-  getCategoryIcon,
   getCategoryLabelKey,
-  getStatusBadgeStatus,
   getStatusLabelKey,
-  getStatusTone,
-  getToneColors,
 } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
-
-const DATE_KIND_KEY = Object.freeze({
-  Completed: 'timeline.dateKindCompleted',
-  Reminder: 'timeline.dateKindReminder',
-  Due: 'timeline.dateKindDue',
-  'Coming up': 'timeline.dateKindComingUp',
-  Target: 'timeline.dateKindTarget',
-});
-
-const GROUP_KEY = Object.freeze({
-  'Completed and past': 'timeline.groupCompletedPast',
-  Today: 'timeline.groupToday',
-  'Next 90 days': 'timeline.groupNext90Days',
-  Later: 'timeline.groupLater',
-});
 
 function parseDateValue(value) {
   if (!value) return null;
@@ -146,108 +127,25 @@ export function buildTimelineGroups(items) {
     .filter((group) => group.items.length > 0);
 }
 
-function TimelineNode({ item, past, onOpenItem, t }) {
-  const [chipBg, chipFg] = getToneColors(getStatusTone(item.status));
-  const dateKindLabel = t(DATE_KIND_KEY[item.dateKind] ?? 'timeline.dateKindTarget');
-
-  return (
-    <div className="vitalis-timeline-node">
-      <div className="vitalis-timeline-node-rail">
-        <span
-          className="vitalis-timeline-node-dot"
-          style={{
-            background: past ? 'var(--surface-card)' : chipBg,
-            color: chipFg,
-            borderColor: past ? 'var(--status-done)' : chipFg,
-          }}
-        >
-          <Icon name={past ? 'check' : getCategoryIcon(item.category)} size={18} />
-        </span>
-      </div>
-      <Card
-        padding={13}
-        className={`vitalis-timeline-node-card${past ? ' is-past' : ''}`}
-        onClick={typeof onOpenItem === 'function' ? () => onOpenItem(item) : undefined}
-        aria-label={`Open details for ${item.name}`}
-      >
-        <div className="vitalis-timeline-node-copy">
-          <p className="vitalis-timeline-node-date" style={{ color: chipFg }}>
-            {item.dateLabel || t('timeline.noDateSet')} · {dateKindLabel}
-          </p>
-          <p className="vitalis-timeline-node-title">{item.name}</p>
-          <p className="vitalis-timeline-node-sub">{item.cadenceText}</p>
-        </div>
-        <Badge status={getStatusBadgeStatus(item.status)}>{t(item.statusLabelKey)}</Badge>
-      </Card>
-    </div>
-  );
-}
-
-function TimelineTodayRow({ label }) {
-  return (
-    <div className="vitalis-timeline-today-row">
-      <div className="vitalis-timeline-node-rail">
-        <span className="vitalis-timeline-today-halo" aria-hidden="true" />
-        <span className="vitalis-timeline-today-core" aria-hidden="true" />
-      </div>
-      <div className="vitalis-timeline-today-banner">{label}</div>
-    </div>
-  );
-}
-
 export default function PlanTimeline({
   planSnapshot,
   onOpenItem,
   onBack,
   clock = () => new Date(),
-  locale = 'en-US',
   catalogGeneration = 0,
 }) {
   const { t, locale: uiLocale } = useTranslation();
-  const items = useMemo(
-    () => buildTimelineItems(planSnapshot, { today: clock(), locale }),
-    [clock, locale, planSnapshot, uiLocale, catalogGeneration],
-  );
-  const groups = useMemo(() => buildTimelineGroups(items), [items]);
-
-  const pastItems = groups.find((group) => group.label === 'Completed and past')?.items ?? [];
-  const upcomingItems = groups
-    .filter((group) => group.label !== 'Completed and past')
-    .flatMap((group) => group.items);
-
-  const todayLabel = useMemo(() => {
-    const now = clock();
-    return `${t('dashboard.timelineToday')} · ${new Intl.DateTimeFormat(uiLocale, { month: 'long', day: 'numeric' }).format(now)}`;
-  }, [clock, t, uiLocale]);
 
   return (
     <AppShell title={t('dashboard.timelineTitle')} onBack={onBack} backLabel={t('common.back')}>
-      {groups.length === 0 ? (
-        <p className="vitalis-timeline-empty">{t('timeline.empty')}</p>
-      ) : (
-        <section className="vitalis-timeline" aria-label="Plan timeline">
-          <div className="vitalis-timeline-line" aria-hidden="true" />
-          {pastItems.length > 0 ? (
-            <>
-              <p className="sec-label vitalis-timeline-section-label">{t('timeline.groupCompletedPast')}</p>
-              {pastItems.map((item) => (
-                <TimelineNode key={item.itemKey} item={item} past onOpenItem={onOpenItem} t={t} />
-              ))}
-            </>
-          ) : null}
-
-          <TimelineTodayRow label={todayLabel} />
-
-          {upcomingItems.length > 0 ? (
-            <>
-              <p className="sec-label vitalis-timeline-section-label">{t('timeline.groupUpcoming')}</p>
-              {upcomingItems.map((item) => (
-                <TimelineNode key={item.itemKey} item={item} past={false} onOpenItem={onOpenItem} t={t} />
-              ))}
-            </>
-          ) : null}
-        </section>
-      )}
+      <Gantt
+        key={catalogGeneration}
+        planSnapshot={planSnapshot}
+        onOpenItem={onOpenItem}
+        clock={clock}
+        uiLocale={uiLocale}
+        t={t}
+      />
     </AppShell>
   );
 }

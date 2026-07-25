@@ -457,8 +457,8 @@ export default function SelfOnboardingToFirstDashboard({
             <div className="vitalis-dash-hero-ring-card">
               <ProgressRing
                 value={animatedScore}
-                size={60}
-                stroke={6}
+                size={76}
+                stroke={9}
                 label={
                   <span className="vitalis-dash-hero-ring-value">
                     {projection.healthScore === null || projection.healthScore === undefined ? 'N/A' : animatedScore}

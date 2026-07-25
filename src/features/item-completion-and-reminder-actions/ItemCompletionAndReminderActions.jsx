@@ -37,7 +37,7 @@ import {
   createInitialManualEntryForm,
   validateManualVaccinationEntryInput,
 } from '../vaccination-tracking-area-and-manual-entries/model.js';
-import { Sheet, ListRow, IconButton, Card, Badge, Button, Icon } from '../../design-system/components/index.js';
+import { Sheet, ListRow, IconButton, Card, Badge, Button, Icon, ProgressRing } from '../../design-system/components/index.js';
 import { getCategoryIcon, getCategoryLabelKey, getInterventionTypeLabelKey, getStatusBadgeStatus, getStatusLabelKey, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
@@ -109,9 +109,8 @@ function buildTimeToGoState({ completedOn, cadenceText, now = new Date() }) {
   return {
     nextDueLabel: formatDateForConfirmation(nextDueDate.toISOString().slice(0, 10)),
     progressPercent,
-    remainingText: remainingDays >= 0
-      ? `${remainingDays} day${remainingDays === 1 ? '' : 's'} left`
-      : `Overdue by ${overdueDays} day${overdueDays === 1 ? '' : 's'}`,
+    remainingDays,
+    overdueDays,
     isOverdue: remainingDays < 0,
   };
 }
@@ -602,15 +601,15 @@ function DetailView({
                 : t('detail.markedDone')}
             </p>
             {doneTimeToGo ? (
-              <section className="sl003-time-to-go" aria-label="Time until next due checkup">
-                <div className="sl003-time-to-go-row">
-                  <span className="sl003-time-to-go-due">Next due by {doneTimeToGo.nextDueLabel}</span>
+              <section className="sl003-time-to-go" aria-label={t('detail.timeToGoLabel')}>
+                <ProgressRing value={doneTimeToGo.progressPercent} size={56} stroke={6} />
+                <div className="sl003-time-to-go-copy">
+                  <span className="sl003-time-to-go-due">{t('detail.nextDueBy', { date: doneTimeToGo.nextDueLabel })}</span>
                   <span className={doneTimeToGo.isOverdue ? 'sl003-time-to-go-remaining is-overdue' : 'sl003-time-to-go-remaining'}>
-                    {doneTimeToGo.remainingText}
+                    {doneTimeToGo.isOverdue
+                      ? t('detail.daysOverdue', { count: doneTimeToGo.overdueDays })
+                      : t('detail.daysLeft', { count: doneTimeToGo.remainingDays })}
                   </span>
-                </div>
-                <div className="sl003-time-to-go-track" role="presentation">
-                  <div className="sl003-time-to-go-fill" style={{ width: `${doneTimeToGo.progressPercent}%` }} />
                 </div>
               </section>
             ) : null}
