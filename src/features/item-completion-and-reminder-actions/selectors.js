@@ -301,7 +301,10 @@ export function buildPlanReadModelForSlice(planSnapshot) {
   const vaccinations = baseReadModel.vaccinations
     .map(withReminderDetails)
     .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey));
-  const allItems = [...checkups, ...vaccinations];
+  const counseling = baseReadModel.counseling
+    .map(withReminderDetails)
+    .sort((a, b) => sortByUrgencyWithinCategory(a, b, sourceByItemKey));
+  const allItems = [...checkups, ...vaccinations, ...counseling];
 
   const byItemKey = allItems.reduce((index, item) => {
     index[item.itemKey] = item;
@@ -312,19 +315,27 @@ export function buildPlanReadModelForSlice(planSnapshot) {
     ...baseReadModel,
     checkups,
     vaccinations,
+    counseling,
     allItems,
     byItemKey,
   };
 }
 
-export function resolveDefaultCategoryForItem(item) {
-  if (item?.category === PLAN_CATEGORIES.vaccination) {
-    return PLAN_CATEGORIES.vaccination;
-  }
+const DEFAULT_CATEGORY_FOR_ITEM = Object.freeze({
+  [PLAN_CATEGORIES.vaccination]: PLAN_CATEGORIES.vaccination,
+  [PLAN_CATEGORIES.counseling]: PLAN_CATEGORIES.counseling,
+});
 
-  return PLAN_CATEGORIES.checkup;
+const ORIGIN_FOR_CATEGORY = Object.freeze({
+  [PLAN_CATEGORIES.checkup]: DETAIL_ORIGIN.checkups,
+  [PLAN_CATEGORIES.vaccination]: DETAIL_ORIGIN.vaccinations,
+  [PLAN_CATEGORIES.counseling]: DETAIL_ORIGIN.counseling,
+});
+
+export function resolveDefaultCategoryForItem(item) {
+  return DEFAULT_CATEGORY_FOR_ITEM[item?.category] ?? PLAN_CATEGORIES.checkup;
 }
 
 export function resolveOriginForCategory(category) {
-  return category === PLAN_CATEGORIES.vaccination ? DETAIL_ORIGIN.vaccinations : DETAIL_ORIGIN.checkups;
+  return ORIGIN_FOR_CATEGORY[category] ?? DETAIL_ORIGIN.checkups;
 }

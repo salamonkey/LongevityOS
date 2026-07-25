@@ -2,10 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  MVP_CATALOG_VERSION,
-  MVP_PREVENTIVE_CATALOG,
-} from '../../src/features/self-onboarding-to-first-dashboard/catalog.js';
-import {
   buildDashboardProjection,
 } from '../../src/features/self-onboarding-to-first-dashboard/dashboard.js';
 import {
@@ -39,8 +35,13 @@ import {
 import {
   createVaccinationTrackingSession,
 } from '../../src/features/vaccination-tracking-area-and-manual-entries/service.js';
+import {
+  TEST_CATALOG_IDS,
+  TEST_CATALOG_OPTIONS,
+  withTestCatalogOptions,
+} from '../fixtures/catalogOptions.js';
 
-const CATALOG_IDS = new Set(MVP_PREVENTIVE_CATALOG.map((item) => item.itemId));
+const CATALOG_IDS = TEST_CATALOG_IDS;
 
 function createProfile() {
   return {
@@ -53,19 +54,19 @@ function createProfile() {
 
 function createSnapshot() {
   return generateInitialPlanSnapshot(createProfile(), {
-    now: new Date('2026-05-05T08:00:00.000Z'),
+    ...withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   });
 }
 
 test('[SL-001] generated plan remains locked to MVP catalog and approved categories', () => {
   const snapshot = createSnapshot();
 
-  assert.equal(snapshot.catalogVersion, MVP_CATALOG_VERSION);
+  assert.equal(snapshot.catalogVersion, TEST_CATALOG_OPTIONS.catalogVersion);
   assert.ok(snapshot.items.length > 0);
 
   for (const item of snapshot.items) {
     assert.equal(CATALOG_IDS.has(item.catalogItemId), true);
-    assert.equal(['checkup', 'vaccination'].includes(item.category), true);
+    assert.equal(['checkup', 'vaccination', 'counseling'].includes(item.category), true);
   }
 });
 
@@ -75,6 +76,7 @@ test('[SL-001] first plan generation remains under 5 seconds', async () => {
   await generateInitialPlanSnapshotAsync(createProfile(), {
     delayMs: 180,
     now: new Date('2026-05-05T08:00:00.000Z'),
+    ...TEST_CATALOG_OPTIONS,
   });
 
   const elapsed = Date.now() - startedAt;
@@ -137,7 +139,7 @@ test('[SL-003] mark done and reminder actions still update status and highlighte
   assert.equal(Boolean(dashboardAfterDone.highlightedItem), true);
 });
 
-test('[SL-004 guardrail] adding a manual vaccination entry does not rewrite plan guidance state', () => {
+test('[SL-004] the manual-entry session never mutates the plan snapshot it is given', () => {
   const snapshot = createSnapshot();
   const initialDueGuidance = buildVaccinationDueGuidance(snapshot);
   const session = createVaccinationTrackingSession({
@@ -156,10 +158,45 @@ test('[SL-004 guardrail] adding a manual vaccination entry does not rewrite plan
 
   assert.equal(addResult.entries.length, 1);
 
+  // The vaccination-tracking session only tracks manual entries locally; it
+  // never reaches into the plan snapshot object it was constructed with.
   const dueGuidanceAfter = buildVaccinationDueGuidance(snapshot);
   assert.equal(dueGuidanceAfter.length, initialDueGuidance.length);
   assert.deepEqual(
     dueGuidanceAfter.map((item) => item.itemKey),
     initialDueGuidance.map((item) => item.itemKey),
   );
+});
+
+test('[SL-004] logging a completed vaccination recomputes that plan item\'s booster due date', () => {
+  const snapshot = createSnapshot();
+  const boosterItem = snapshot.items.find((item) => item.catalogItemId === 'tdap-booster');
+  assert.ok(boosterItem, 'fixture catalog must include the tdap-booster item');
+
+  const entryDate = '2026-05-01';
+
+  // This mirrors what ItemCompletionAndReminderActions.jsx's manual-entry
+  // submit handler now does for a `completed` entry: reuse the same
+  // mark-done action already used by the item detail "mark done" button,
+  // instead of leaving manual entries and plan guidance decoupled.
+  const doneResult = markItemDoneInSnapshot(
+    snapshot,
+    'self',
+    boosterItem.catalogItemId,
+    { customDate: entryDate },
+    () => new Date('2026-05-05T09:45:00.000Z'),
+  );
+
+  assert.equal(doneResult.item.status, 'done');
+  assert.equal(doneResult.item.completedOn, entryDate);
+  assert.ok(doneResult.item.nextDueDate, 'booster recurrence should produce a recomputed next-due date');
+
+  const dueGuidanceAfterUpdate = buildVaccinationDueGuidance(doneResult.planSnapshot);
+  const updatedGuidance = dueGuidanceAfterUpdate.find((item) => item.itemKey === boosterItem.catalogItemId);
+  assert.equal(updatedGuidance.status, 'done');
+
+  // The original snapshot object passed in stays untouched.
+  const dueGuidanceForOriginal = buildVaccinationDueGuidance(snapshot);
+  const originalGuidance = dueGuidanceForOriginal.find((item) => item.itemKey === boosterItem.catalogItemId);
+  assert.notEqual(originalGuidance.status, 'done');
 });

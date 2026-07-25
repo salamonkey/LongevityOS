@@ -1,0 +1,8 @@
+/* Vitalis Design System — global entry point.
+   Consumers link THIS file. It only @imports token + font layers. */
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/radius.css";
+@import "./tokens/shadows.css";

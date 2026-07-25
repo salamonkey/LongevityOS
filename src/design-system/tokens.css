@@ -1,0 +1,9 @@
+/* Vitalis design system — global token entry point.
+   Import this once (see src/main.jsx). Mirrors the source design system's own
+   styles.css: it only @imports the token layers, no component styles here. */
+@import "./tokens/fonts.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/radius.css";
+@import "./tokens/shadows.css";

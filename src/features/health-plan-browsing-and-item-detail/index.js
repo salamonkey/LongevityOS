@@ -1,4 +1,3 @@
-export { default as HealthPlanBrowsingAndItemDetail } from './HealthPlanBrowsingAndItemDetail.jsx';
 export {
   LOCKED_PREVENTIVE_ITEM_DEFINITIONS,
   PREVENTIVE_ITEM_DEFINITION_INDEX,

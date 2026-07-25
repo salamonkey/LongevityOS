@@ -1,0 +1,22 @@
+<!-- @dsCard group="Components" viewport="700x340" name="BodyMap (Körper-Übersicht)" -->
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../../assets/body-silhouettes.js"></script>
+<script src="../../vitalis-ui.js"></script>
+<style>html,body{margin:0}body{font-family:var(--font-sans);background:var(--surface-app);padding:22px;color:var(--text-primary)}@keyframes v-ping{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(2.3);opacity:0}}@keyframes v-dot{from{transform:translate(-50%,-50%) scale(0);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}</style>
+</head><body><div id="root"></div>
+<script>
+(function(){
+var h=React.createElement, UI;
+function Demo(){ return h(UI.Card,{padding:18,style:{maxWidth:560}},
+  h('div',{style:{fontSize:16,fontWeight:700,marginBottom:14}},'Körper-Übersicht'),
+  h('div',{style:{display:'flex',gap:24}},
+    h('div',null,h('div',{style:{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginBottom:6}},'Weiblich'),h(UI.BodyMap,{sex:'w',showList:false})),
+    h('div',null,h('div',{style:{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginBottom:6}},'Männlich'),h(UI.BodyMap,{sex:'m',showList:false})))); }
+function mount(){ if(!window.VitalisUI){return setTimeout(mount,30);} UI=window.VitalisUI; ReactDOM.createRoot(document.getElementById('root')).render(h(Demo)); setTimeout(function(){window.lucide&&window.lucide.createIcons();},60); }
+mount();
+})();
+</script></body></html>

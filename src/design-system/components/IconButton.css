@@ -1,0 +1,37 @@
+.vds-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.16s, transform 0.08s;
+}
+
+.vds-icon-button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.vds-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.vds-icon-button--sm { width: 36px; height: 36px; }
+.vds-icon-button--md { width: 44px; height: 44px; }
+.vds-icon-button--lg { width: 52px; height: 52px; }
+
+.vds-icon-button--soft { background: var(--color-primary-soft); color: var(--color-primary-ink); }
+
+.vds-icon-button--solid { background: var(--color-primary); color: var(--text-on-primary); }
+.vds-icon-button--solid:hover:not(:disabled) { background: var(--color-primary-hover); }
+
+.vds-icon-button--ghost { background: transparent; color: var(--slate-500); }
+.vds-icon-button--ghost:hover:not(:disabled) { background: var(--surface-sunken); }
+
+.vds-icon-button--surface {
+  background: var(--surface-card);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
+}

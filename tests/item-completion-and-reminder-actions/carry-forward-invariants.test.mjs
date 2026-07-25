@@ -5,13 +5,14 @@ import {
   buildDashboardProjection,
 } from '../../src/features/self-onboarding-to-first-dashboard/dashboard.js';
 import {
-  MVP_CATALOG_VERSION,
-  MVP_PREVENTIVE_CATALOG,
-} from '../../src/features/self-onboarding-to-first-dashboard/catalog.js';
-import {
   generateInitialPlanSnapshot,
   generateInitialPlanSnapshotAsync,
 } from '../../src/features/self-onboarding-to-first-dashboard/plan.js';
+import {
+  TEST_CATALOG_IDS,
+  TEST_CATALOG_OPTIONS,
+  withTestCatalogOptions,
+} from '../fixtures/catalogOptions.js';
 import {
   buildHealthPlanReadModel,
   resolveDetailBackTarget,
@@ -21,7 +22,7 @@ import {
   ALLOWED_PLAN_STATUSES,
 } from '../../src/features/health-plan-browsing-and-item-detail/model.js';
 
-const CATALOG_IDS = new Set(MVP_PREVENTIVE_CATALOG.map((item) => item.itemId));
+const CATALOG_IDS = TEST_CATALOG_IDS;
 
 function createProfile() {
   return { profileId: 'self', age: 52, gender: 'female', name: 'You' };
@@ -29,15 +30,15 @@ function createProfile() {
 
 test('[SL-001] generated plan remains bounded to locked MVP catalog and approved categories', () => {
   const snapshot = generateInitialPlanSnapshot(createProfile(), {
-    now: new Date('2026-05-05T08:00:00.000Z'),
+    ...withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   });
 
-  assert.equal(snapshot.catalogVersion, MVP_CATALOG_VERSION);
+  assert.equal(snapshot.catalogVersion, TEST_CATALOG_OPTIONS.catalogVersion);
   assert.ok(snapshot.items.length > 0);
 
   for (const item of snapshot.items) {
     assert.equal(CATALOG_IDS.has(item.catalogItemId), true);
-    assert.equal(['checkup', 'vaccination'].includes(item.category), true);
+    assert.equal(['checkup', 'vaccination', 'counseling'].includes(item.category), true);
   }
 });
 
@@ -47,6 +48,7 @@ test('[SL-001] first plan generation still completes within 5 seconds', async ()
   await generateInitialPlanSnapshotAsync(createProfile(), {
     delayMs: 150,
     now: new Date('2026-05-05T08:00:00.000Z'),
+    ...TEST_CATALOG_OPTIONS,
   });
 
   const elapsedMs = Date.now() - startedAt;
@@ -55,7 +57,7 @@ test('[SL-001] first plan generation still completes within 5 seconds', async ()
 
 test('[SL-001] dashboard projection preserves Today/Soon/Later sections and highlighted next item', () => {
   const snapshot = generateInitialPlanSnapshot(createProfile(), {
-    now: new Date('2026-05-05T08:00:00.000Z'),
+    ...withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   });
 
   const projection = buildDashboardProjection(snapshot, createProfile());
@@ -67,7 +69,7 @@ test('[SL-001] dashboard projection preserves Today/Soon/Later sections and high
 
 test('[SL-002] every generated item remains visible in plan and resolves to detail with rationale and stable back behavior', () => {
   const snapshot = generateInitialPlanSnapshot(createProfile(), {
-    now: new Date('2026-05-05T08:00:00.000Z'),
+    ...withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   });
 
   const readModel = buildHealthPlanReadModel(snapshot);

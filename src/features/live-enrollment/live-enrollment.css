@@ -1,0 +1,80 @@
+.vitalis-enrollment-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vitalis-enrollment-title-standalone h1 {
+  margin: 6px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.vitalis-enrollment-title-standalone {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.vitalis-enrollment-description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 52ch;
+}
+
+.vitalis-enrollment-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+.vitalis-enrollment-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--slate-200);
+}
+
+.vitalis-enrollment-dots span.is-active {
+  width: 20px;
+  background: var(--color-primary);
+}
+
+.vitalis-enrollment-form-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.vitalis-enrollment-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vitalis-form-error-banner {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--status-overdue-soft);
+  color: var(--status-overdue);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-shell.vitalis-enrollment-shell {
+  padding-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .app-shell.vitalis-enrollment-shell {
+    padding-top: 1.5rem;
+  }
+}

@@ -1,0 +1,40 @@
+.vds-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s ease, opacity 0.16s ease, transform 0.08s ease;
+}
+
+.vds-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.vds-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.vds-button--full {
+  width: 100%;
+}
+
+.vds-button--sm { height: 36px; padding: 0 14px; font-size: 13px; gap: 6px; }
+.vds-button--md { height: 48px; padding: 0 18px; font-size: 15px; gap: 8px; }
+.vds-button--lg { height: 56px; padding: 0 22px; font-size: 16px; gap: 8px; }
+
+.vds-button--primary { background: var(--color-primary); color: var(--text-on-primary); }
+.vds-button--primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+
+.vds-button--secondary { background: var(--color-primary-soft); color: var(--color-primary-ink); }
+
+.vds-button--ghost { background: transparent; color: var(--color-primary-ink); }
+.vds-button--ghost:hover:not(:disabled) { background: var(--color-primary-soft); }
+
+.vds-button--danger { background: var(--status-overdue); color: var(--text-on-primary); }

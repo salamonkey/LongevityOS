@@ -1,0 +1,27 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Bottom sheet" -->
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../../vitalis-ui.js"></script>
+<style>html,body{margin:0}body{font-family:var(--font-sans);background:var(--surface-card);padding:22px;color:var(--text-primary)}.lbl{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}@keyframes v-fade{from{opacity:0}to{opacity:1}}@keyframes v-slide{from{transform:translateY(100%)}to{transform:translateY(0)}}</style>
+</head><body><div id="root"></div>
+<script>
+(function(){
+var h=React.createElement, useState=React.useState, UI;
+
+function Demo(){
+  var _o=useState(true), open=_o[0], setOpen=_o[1];
+  var S=UI.Sheet, B=UI.Button, In=UI.Input;
+  return h('div',{style:{position:'relative',width:340,height:360,background:'var(--surface-app)',borderRadius:20,overflow:'hidden',border:'1px solid var(--border-subtle)'}},
+    h('div',{style:{padding:20}},h(B,{onClick:function(){setOpen(true);},iconLeft:'plus'},'Sheet öffnen')),
+    h(S,{open:open,onClose:function(){setOpen(false);},title:'Impfung eintragen'},
+      h('div',{style:{display:'flex',flexDirection:'column',gap:14}},
+        h(In,{label:'Impfung',icon:'syringe',placeholder:'z. B. Grippe'}),
+        h(B,{variant:'primary',fullWidth:true,onClick:function(){setOpen(false);}},'Speichern'))));
+}
+function mount(){ if(!window.VitalisUI){return setTimeout(mount,30);} UI=window.VitalisUI; ReactDOM.createRoot(document.getElementById('root')).render(h(Demo)); setTimeout(function(){window.lucide&&window.lucide.createIcons();},60); }
+mount();
+})();
+</script></body></html>

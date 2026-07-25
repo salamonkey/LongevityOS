@@ -1,0 +1,48 @@
+.vitalis-auth-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vitalis-auth-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.vitalis-auth-intro h1 {
+  margin: 6px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.vitalis-auth-form-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.vitalis-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.vitalis-auth-notice {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vitalis-auth-notice--error {
+  background: var(--status-overdue-soft);
+  color: var(--status-overdue);
+  font-weight: 600;
+}

@@ -1,0 +1,57 @@
+.vds-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 13px 14px;
+  font-family: var(--font-sans);
+}
+
+.vds-list-row--clickable {
+  cursor: pointer;
+}
+
+.vds-list-row--selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.vds-list-row-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.vds-list-row--tone-primary .vds-list-row-icon { background: var(--color-primary-soft); color: var(--color-primary); }
+.vds-list-row--tone-teal .vds-list-row-icon { background: var(--color-secondary-soft); color: var(--color-secondary); }
+.vds-list-row--tone-green .vds-list-row-icon { background: var(--status-done-soft); color: var(--status-done); }
+.vds-list-row--tone-amber .vds-list-row-icon { background: var(--status-upcoming-soft); color: var(--status-upcoming); }
+.vds-list-row--tone-red .vds-list-row-icon { background: var(--status-overdue-soft); color: var(--status-overdue); }
+.vds-list-row--tone-neutral .vds-list-row-icon { background: var(--surface-sunken); color: var(--slate-500); }
+
+.vds-list-row-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.vds-list-row-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vds-list-row-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 1px;
+}

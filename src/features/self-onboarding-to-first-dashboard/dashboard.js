@@ -1,3 +1,5 @@
+import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
+
 const BUCKET_ORDER = ['today', 'soon', 'later'];
 
 const BUCKET_LABELS = {
@@ -9,6 +11,7 @@ const BUCKET_LABELS = {
 const CATEGORY_LABELS = {
   checkup: 'Checkup',
   vaccination: 'Vaccination',
+  counseling: 'Counseling',
 };
 
 const STATUS_LABELS = {
@@ -20,9 +23,15 @@ const STATUS_LABELS = {
   overdue: 'Overdue',
 };
 
+const HEALTH_READINESS_CATEGORIES = ['checkup', 'vaccination', 'counseling'];
+
+// checkup:vaccination stays at the original 0.6:0.4 ratio when counseling is
+// absent from a plan (redistribution below rescales to 100% among present
+// categories) — counseling only takes its 0.2 share once it's actually present.
 const HEALTH_READINESS_CATEGORY_SHARES = {
-  checkup: 0.6,
-  vaccination: 0.4,
+  checkup: 0.48,
+  vaccination: 0.32,
+  counseling: 0.2,
 };
 
 const HEALTH_READINESS_BUCKET_MULTIPLIERS = {
@@ -124,9 +133,14 @@ function resolveSortDueDate(item) {
 
 function mapDisplayItem(item) {
   const fallbackInterventionLabel = item.category === 'vaccination' ? 'Vaccination' : 'Preventive care';
+  const liveCopy = resolveCatalogCopyForItemKey(item.catalogItemId);
 
   return {
     ...item,
+    name: liveCopy?.name ?? item.name,
+    cadenceLabel: liveCopy?.cadenceLabel ?? item.cadenceLabel,
+    whyItMatters: liveCopy?.whyItMatters ?? item.whyItMatters,
+    recommendationText: liveCopy?.recommendationText ?? item.recommendationText,
     categoryLabel: CATEGORY_LABELS[item.category] ?? 'Preventive item',
     interventionTypeLabel: item.interventionTypeLabel ?? fallbackInterventionLabel,
     statusLabel: STATUS_LABELS[item.status] ?? 'Pending',
@@ -181,16 +195,19 @@ export function groupItemsByPriority(items, options = {}) {
 }
 
 export function selectHighlightedItem(bucketed) {
-  if (bucketed.today.length > 0) {
-    return bucketed.today[0];
+  const todayOutstanding = bucketed.today.filter(isOutstandingItem);
+  if (todayOutstanding.length > 0) {
+    return todayOutstanding[0];
   }
 
-  if (bucketed.soon.length > 0) {
-    return bucketed.soon[0];
+  const soonOutstanding = bucketed.soon.filter(isOutstandingItem);
+  if (soonOutstanding.length > 0) {
+    return soonOutstanding[0];
   }
 
-  if (bucketed.later.length > 0) {
-    return bucketed.later[0];
+  const laterOutstanding = bucketed.later.filter(isOutstandingItem);
+  if (laterOutstanding.length > 0) {
+    return laterOutstanding[0];
   }
 
   return null;
@@ -420,40 +437,33 @@ function resolveBaseWeight(item) {
 }
 
 function resolveCategoryShareMap(applicableItems) {
-  const hasCheckups = applicableItems.some((item) => item.category === 'checkup');
-  const hasVaccinations = applicableItems.some((item) => item.category === 'vaccination');
+  const presentCategories = HEALTH_READINESS_CATEGORIES.filter((category) => (
+    applicableItems.some((item) => item.category === category)
+  ));
 
-  if (hasCheckups && hasVaccinations) {
-    return {
-      checkup: HEALTH_READINESS_CATEGORY_SHARES.checkup,
-      vaccination: HEALTH_READINESS_CATEGORY_SHARES.vaccination,
-    };
+  const totalShareOfPresentCategories = presentCategories.reduce(
+    (sum, category) => sum + (HEALTH_READINESS_CATEGORY_SHARES[category] ?? 0),
+    0,
+  );
+
+  const shares = { checkup: 0, vaccination: 0, counseling: 0 };
+  if (totalShareOfPresentCategories === 0) {
+    return shares;
   }
 
-  if (hasCheckups) {
-    return {
-      checkup: 1,
-      vaccination: 0,
-    };
+  // A category absent from this profile's plan doesn't shrink the score —
+  // its share is redistributed proportionally across the categories present.
+  for (const category of presentCategories) {
+    shares[category] = (HEALTH_READINESS_CATEGORY_SHARES[category] ?? 0) / totalShareOfPresentCategories;
   }
 
-  if (hasVaccinations) {
-    return {
-      checkup: 0,
-      vaccination: 1,
-    };
-  }
-
-  return {
-    checkup: 0,
-    vaccination: 0,
-  };
+  return shares;
 }
 
 export function calculateHealthScore(items, options = {}) {
   const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
   const applicableItems = Array.isArray(items)
-    ? items.filter((item) => item?.category === 'checkup' || item?.category === 'vaccination')
+    ? items.filter((item) => HEALTH_READINESS_CATEGORIES.includes(item?.category))
     : [];
 
   if (applicableItems.length === 0) {
@@ -464,6 +474,7 @@ export function calculateHealthScore(items, options = {}) {
   const categoryBaseTotals = {
     checkup: 0,
     vaccination: 0,
+    counseling: 0,
   };
 
   for (const item of applicableItems) {
@@ -499,12 +510,20 @@ export function calculateHealthScore(items, options = {}) {
   return Math.round((earnedWeight / totalApplicableWeight) * 100);
 }
 
+function resolveDashboardProfileName(profile) {
+  const displayName = String(
+    profile?.firstName || profile?.name || profile?.displayLabel || '',
+  ).trim();
+
+  return displayName.split(/\s+/)[0] || 'Me';
+}
+
 export function buildDashboardProjection(planSnapshot, profile, options = {}) {
   const items = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
   const bucketed = groupItemsByPriority(items, options);
   const highlightedItem = selectHighlightedItem(bucketed);
   const healthScore = calculateHealthScore(items, options);
-  const profileName = profile?.name?.trim() || 'Me';
+  const profileName = resolveDashboardProfileName(profile);
   const profileAge = Number.isFinite(Number(profile?.age)) ? Number(profile.age) : null;
   const profileGender = String(profile?.gender || '').trim().toLowerCase();
 

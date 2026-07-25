@@ -1,5 +1,3 @@
-export { default as VaccinationTrackingAreaAndManualEntries } from './VaccinationTrackingAreaAndManualEntries.jsx';
-
 export {
   ALLOWED_MANUAL_ENTRY_STATUS_CONTEXTS,
   MANUAL_ENTRY_STATUS_CONTEXT,

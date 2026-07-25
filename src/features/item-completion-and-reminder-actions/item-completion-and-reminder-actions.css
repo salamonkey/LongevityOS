@@ -2,49 +2,21 @@
   margin-top: 0;
 }
 
-.sl003-plan-browser .sl002-category-switch {
-  margin-top: 0;
-}
-
-.sl003-plan-browser .sl002-tab.is-active {
-  border-color: #34aa9e;
-}
-
 .sl003-manual-entry-box {
   margin-top: var(--space-3);
 }
 
-.sl003-manual-entry-cta {
-  margin-top: 0;
-}
-
-.sl003-manual-entry-cta-inbox {
-  display: block;
-  margin-top: var(--space-3);
-  margin-left: 0;
-}
-
-.sl003-manual-entry-form-shell {
-  margin-top: var(--space-3);
-  overflow-x: hidden;
+.sl003-manual-entry-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  box-shadow: var(--shadow-lg);
 }
 
 .sl003-manual-empty {
   margin-top: var(--space-2);
   color: var(--color-text-secondary);
-}
-
-.sl003-manual-list {
-  margin-top: var(--space-3);
-}
-
-.sl003-manual-plan-row {
-  cursor: pointer;
-}
-
-.sl003-manual-plan-row:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
 }
 
 .sl003-manual-form {
@@ -81,6 +53,8 @@
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  /* 16px: below this, iOS Safari auto-zooms the viewport on focus. */
+  font-size: 16px;
 }
 
 .sl003-manual-form input[type='date'] {
@@ -147,9 +121,16 @@
   gap: var(--space-2);
 }
 
-.sl003-manual-form-actions .sl001-primary-action,
-.sl003-manual-form-actions .sl003-quiet-button {
-  margin-top: 0;
+.sl003-guidance-disclaimer {
+  margin-top: var(--space-4);
+  background: var(--surface-sunken);
+}
+
+.sl003-guidance-disclaimer p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .sl003-vaccination-guidance {
@@ -157,30 +138,25 @@
   margin-bottom: var(--space-3);
 }
 
-.sl003-guidance-list {
-  margin-top: var(--space-3);
-}
-
 .sl003-action-area {
-  border-top: 1px solid var(--color-surface-subtle);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
+  margin-top: var(--space-3);
+  padding: 16px;
 }
 
 .sl003-action-area h3 {
   margin: 0 0 var(--space-2);
 }
 
-.sl003-secondary-action,
-.sl003-quiet-button {
-  border: 1px solid var(--color-surface-subtle);
-  border-radius: var(--radius-pill);
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-surface-card);
-  color: var(--color-text-primary);
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: var(--space-2);
+.sl003-action-cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sl003-action-cta-row .vds-button {
+  flex: 0 1 auto;
+  white-space: nowrap;
 }
 
 .sl003-reminder-form {
@@ -228,8 +204,18 @@
   color: var(--color-text-secondary);
 }
 
+.sl003-shared-decision-note {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid #4338ca;
+  border-radius: var(--radius-card);
+  background: rgba(67, 56, 202, 0.08);
+  color: #4338ca;
+  font-weight: 500;
+}
+
 .sl003-confirmation {
-  color: var(--color-status-done);
+  color: var(--status-done);
   font-weight: 600;
 }
 

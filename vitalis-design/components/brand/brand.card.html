@@ -1,0 +1,18 @@
+<!-- @dsCard group="Components" viewport="700x180" name="Logo" -->
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="../../vitalis-ui.js"></script>
+<style>html,body{margin:0}body{font-family:var(--font-sans);padding:22px}</style>
+</head><body><div id="root"></div>
+<script>
+(function(){ var h=React.createElement, UI;
+function Demo(){ return h('div',{style:{display:'flex',alignItems:'center',gap:36,flexWrap:'wrap'}},
+  h(UI.Logo,{size:46,wordSize:30}),
+  h(UI.Logo,{size:36,word:false}),
+  h('span',{style:{display:'inline-flex',padding:'16px 20px',borderRadius:16,background:'var(--color-primary)'}},h(UI.Logo,{size:30,wordSize:22,reversed:true}))); }
+function mount(){ if(!window.VitalisUI){return setTimeout(mount,30);} UI=window.VitalisUI; ReactDOM.createRoot(document.getElementById('root')).render(h(Demo)); }
+mount();
+})();
+</script></body></html>

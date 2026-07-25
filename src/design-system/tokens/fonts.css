@@ -1,0 +1,4 @@
+/* Vitalis webfonts — Public Sans (Google Fonts).
+   NOTE: fonts are Google-hosted via @import (no local binaries copied in).
+   Switch to self-hosted woff2 if offline/production hosting is needed. */
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap');

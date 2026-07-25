@@ -13,6 +13,9 @@ import {
 import {
   createVaccinationTrackingSession,
 } from '../../src/features/vaccination-tracking-area-and-manual-entries/service.js';
+import {
+  withTestCatalogOptions,
+} from '../fixtures/catalogOptions.js';
 
 function createProfile() {
   return {
@@ -25,7 +28,7 @@ function createProfile() {
 
 function createPlanSnapshot() {
   return generateInitialPlanSnapshot(createProfile(), {
-    now: new Date('2026-05-05T08:00:00.000Z'),
+    ...withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   });
 }
 
@@ -76,7 +79,7 @@ test('manual entry validation requires vaccination item, status context, and dat
   assert.equal(Boolean(validation.errors.entryDate), true);
 });
 
-test('completed manual entries reject future dates while planned entries require a future date', () => {
+test('completed manual entries reject future dates while planned entries cannot use a past date', () => {
   const snapshot = createPlanSnapshot();
   const allowedKeys = buildManualVaccinationCatalogOptions(snapshot).map((option) => option.value);
 
@@ -111,8 +114,7 @@ test('completed manual entries reject future dates while planned entries require
     { allowedVaccinationKeys: allowedKeys, now: new Date('2026-05-05T08:00:00.000Z') },
   );
 
-  assert.equal(plannedToday.isValid, false);
-  assert.match(plannedToday.errors.entryDate, /future date/i);
+  assert.equal(plannedToday.isValid, true);
 });
 
 test('manual entries appear in the same session immediately after save', () => {

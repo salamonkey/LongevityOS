@@ -1,0 +1,818 @@
+<!-- @dsCard group="Vitalis App" viewport="440x900" subtitle="Interactive click-through — Onboarding, Dashboard, Body map, Timeline, Profiles, Settings (DE/EN)" -->
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitalis — App</title>
+<link rel="icon" href="../../guidelines/logo/vitalis-appicon.svg">
+<link rel="stylesheet" href="../../styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="./body-silhouettes.js"></script>
+<script src="./vitalis-ui.js"></script>
+<style>
+  html,body{margin:0;height:100%}
+  body{font-family:var(--font-sans);background:var(--surface-app);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+  .phone{width:390px;height:820px;background:#0f1720;border-radius:46px;padding:10px;box-shadow:0 30px 70px rgba(30,42,54,.28);flex:none}
+  .screen{position:relative;width:100%;height:100%;background:var(--surface-app);border-radius:36px;overflow:hidden;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:12px 24px 4px;font-size:12px;font-weight:600;color:var(--text-primary);flex:none}
+  .statusbar .r{display:flex;gap:5px;align-items:center}
+  .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .content::-webkit-scrollbar{width:0}
+  .pad{padding:8px 20px 24px}
+  .sec-label{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:20px 2px 10px}
+  .rows{display:flex;flex-direction:column;gap:10px}
+  .h1{font-size:26px;font-weight:700;color:var(--text-primary);letter-spacing:-.01em;line-height:1.1}
+  .fab{position:absolute;right:18px;bottom:calc(var(--tabbar-h) + 16px);z-index:20}
+  .chiprow{display:flex;gap:8px;flex-wrap:wrap}
+  .seg{display:flex;background:var(--surface-sunken);border-radius:var(--radius-full);padding:4px;gap:4px}
+  .seg button{flex:1;border:none;background:none;font-family:var(--font-sans);font-size:14px;font-weight:600;padding:9px 0;border-radius:var(--radius-full);cursor:pointer;color:var(--text-secondary)}
+  .seg button.on{background:var(--surface-card);color:var(--color-primary-ink);box-shadow:var(--shadow-sm)}
+  .dots{display:flex;gap:6px;justify-content:center}
+  .dots span{width:7px;height:7px;border-radius:999px;background:var(--slate-200)}
+  .dots span.on{width:20px;background:var(--color-primary)}
+  @keyframes v-fade{from{opacity:0}to{opacity:1}}
+  @keyframes v-slide{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes v-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes v-ping{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(2.3);opacity:0}}
+  @keyframes v-slidein{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  @keyframes v-halo{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.5);opacity:0}}
+  @keyframes v-draw{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  @keyframes v-dot{from{transform:translate(-50%,-50%) scale(0);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+  .anim{animation:v-up .28s ease both}
+  a{color:var(--color-primary)}a:hover{color:var(--color-primary-hover)}
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#EAF1F6">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#EAF1F6"/>
+    <g transform="translate(600 400) scale(3.4) translate(-50 -50)">
+      <path d="M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z" fill="#2B7FB8"/>
+      <circle cx="50" cy="48" r="17" fill="none" stroke="#FFFFFF" stroke-opacity="0.34" stroke-width="6.5"/>
+      <path d="M50 31a17 17 0 1 1 -14.2 7.6" fill="none" stroke="#8FCFC9" stroke-width="6.5" stroke-linecap="round"/>
+    </g>
+  </svg>
+</template>
+<div class="phone"><div class="screen" id="root"></div></div>
+<button onclick="window.dispatchEvent(new Event('vitalis-reset'))" title="Zurück zur Startseite" style="position:fixed;top:18px;right:18px;display:inline-flex;align-items:center;gap:7px;font-family:var(--font-sans);font-size:13px;font-weight:600;color:#fff;background:var(--color-primary);border:none;box-shadow:var(--shadow-lg);border-radius:999px;padding:10px 16px;cursor:pointer;z-index:9999">&#8634;&nbsp;Zur Startseite (Demo)</button>
+
+<script>
+(function () {
+  var h = React.createElement;
+  var useState = React.useState, useEffect = React.useEffect;
+  var UI = window.VitalisUI;
+  var Button = UI.Button, IconButton = UI.IconButton, Input = UI.Input, Card = UI.Card,
+      ListRow = UI.ListRow, Badge = UI.Badge, Avatar = UI.Avatar, ProgressRing = UI.ProgressRing,
+      TabBar = UI.TabBar, Sheet = UI.Sheet, Icon = UI.Icon, BodyMap = UI.BodyMap, Logo = UI.Logo;
+
+  /* ===================== i18n ===================== */
+  var LANG = 'de';
+  var DICT = {
+    de: {
+      tab_start: 'Start', tab_impfen: 'Impfen', tab_vorsorge: 'Vorsorge', tab_termine: 'Termine', tab_safe: 'Safe',
+      welcome_tag: 'Dein persönlicher Gesundheitsbegleiter',
+      welcome_sub: 'Behalte Impfungen, Vorsorge und Termine im Blick — ganz entspannt.',
+      cta_start: "Los geht's", next: 'Weiter', done: 'Fertig', save: 'Speichern', back: 'Zurück',
+      step1_title: 'Ein paar Angaben', step1_sub: 'Damit wir deinen Plan berechnen können.',
+      birthdate: 'Geburtsdatum', sex: 'Geschlecht', sex_f: 'Weiblich', sex_m: 'Männlich', country: 'Wohnland',
+      step2_title: 'Fast geschafft', step2_sub: 'Optional — du kannst das auch später ergänzen.',
+      opt_vac: 'Impfungen erfassen', opt_vac_sub: 'Impfpass später hinzufügen',
+      opt_prev: 'Vorsorge angeben', opt_prev_sub: 'Bisherige Untersuchungen',
+      opt_fam: 'Familie verwalten', opt_fam_sub: 'Partner & Kinder später',
+      greeting_morning: 'Guten Morgen', score_title: 'Vorsorge-Score', score_sub: 'Gut aufgestellt',
+      body_title: 'Körper-Übersicht', today_due: 'Heute fällig', all_done: 'Alles erledigt für heute — stark!',
+      tap_check: 'Tippen für Details', upcoming: 'Demnächst', tasks_today: 'Aufgaben heute',
+      timeline_title: 'Zeitstrahl', timeline_card_sub: 'Dein Gesundheitsverlauf', timeline_open: 'Verlauf ansehen', timeline_all: 'Alle ansehen',
+      tl_today: 'Heute', tl_past: 'Vergangen', tl_future: 'Anstehend',
+      tl_scope_1y: '12 Monate', tl_scope_5y: '5 Jahre',
+      lane_impf: 'Impfschutz', lane_vorsorge: 'Vorsorge', lane_termine: 'Termine', lane_kontrollen: 'Kontrollen',
+      tl_leg_span: 'Schutz / Intervall', tl_leg_due: 'Fällig', tl_leg_event: 'Termin',
+      tl_hint: 'Seitlich wischen für weitere Monate · Balken antippen für Details',
+      badge_due: 'Fällig', badge_soon: 'Demnächst', badge_done: 'Erledigt', badge_later: 'Später', badge_week: 'Diese Woche',
+      impf_title: 'Impfplan', impf_all: 'Alle Impfungen', impf_up_to_date: 'auf dem neuesten Stand',
+      impf_one_due: '1 Impfung ist gerade fällig', impf_add: 'Impfung eintragen', impf_of: 'von',
+      vor_title: 'Vorsorge', vor_sub: 'Alters- & geschlechtsabhängig', vor_reco: 'Empfohlen für dich',
+      vor_disc: 'Empfehlungen ersetzen kein ärztliches Gespräch. Vitalis erinnert dich nur rechtzeitig.',
+      term_title: 'Termine', term_up: 'Anstehend', term_add: 'Termin hinzufügen',
+      safe_title: 'Dokumentensafe', safe_sub: 'Sicher & verschlüsselt', safe_all: 'Alle', safe_docs: 'Dokumente', safe_upload: 'Dokument hochladen',
+      sec_open: 'Offen', sec_upcoming: 'Anstehend', sec_history: 'Verlauf',
+      ev_details: 'Details', ev_when: 'Wann', ev_cat: 'Kategorie', ev_status: 'Status',
+      ev_add_cal: 'Zum Kalender', ev_remind: 'Erinnerung setzen', ev_view_doc: 'Im Safe ansehen', ev_reschedule: 'Verschieben',
+      ev_note_future: 'Vitalis erinnert dich rechtzeitig — du musst nichts weiter tun.', ev_note_past: 'Dieses Ereignis ist abgeschlossen und in deinem Verlauf gespeichert.', ev_completed: 'Erledigt',
+      td_mark_done: 'Als erledigt markieren', td_snooze: 'Verschieben', td_undone: 'Wieder öffnen', td_done_note: 'Als erledigt markiert. Gut gemacht!',
+      set_title: 'Einstellungen', set_personal: 'Persönliche Daten', set_name: 'Name',
+      set_prefs: 'Einstellungen', set_language: 'Sprache', set_lang_de: 'Deutsch', set_lang_en: 'English',
+      set_profiles: 'Profile verwalten', set_notif: 'Benachrichtigungen', set_privacy: 'Datenschutz & Sicherheit',
+      set_signout: 'Abmelden', set_managed: 'verwaltete Profile',
+      prof_title: 'Profil wechseln', prof_you: 'Du', prof_managed: 'Verwaltete Profile', prof_add: 'Profil hinzufügen', prof_slots: 'von 10 Profilen',
+      title_vac_card: 'Impfpass', title_reports: 'Befunde', title_rx: 'Rezepte',
+      notif_label: 'Benachrichtigungen'
+    },
+    en: {
+      tab_start: 'Home', tab_impfen: 'Vaccines', tab_vorsorge: 'Check-ups', tab_termine: 'Appts', tab_safe: 'Safe',
+      welcome_tag: 'Your personal health companion',
+      welcome_sub: 'Keep vaccinations, screenings and appointments on track — calmly.',
+      cta_start: "Let's go", next: 'Next', done: 'Done', save: 'Save', back: 'Back',
+      step1_title: 'A few details', step1_sub: 'So we can calculate your plan.',
+      birthdate: 'Date of birth', sex: 'Sex', sex_f: 'Female', sex_m: 'Male', country: 'Country',
+      step2_title: 'Almost there', step2_sub: 'Optional — you can add this later.',
+      opt_vac: 'Add vaccinations', opt_vac_sub: 'Add your record later',
+      opt_prev: 'Add screenings', opt_prev_sub: 'Past examinations',
+      opt_fam: 'Manage family', opt_fam_sub: 'Partner & children later',
+      greeting_morning: 'Good morning', score_title: 'Prevention score', score_sub: 'Well on track',
+      body_title: 'Body overview', today_due: 'Due today', all_done: 'All done for today — great!',
+      tap_check: 'Tap for details', upcoming: 'Coming up', tasks_today: 'tasks today',
+      timeline_title: 'Timeline', timeline_card_sub: 'Your health journey', timeline_open: 'View timeline', timeline_all: 'View all',
+      tl_today: 'Today', tl_past: 'Past', tl_future: 'Upcoming',
+      tl_scope_1y: '12 months', tl_scope_5y: '5 years',
+      lane_impf: 'Immunisation', lane_vorsorge: 'Screenings', lane_termine: 'Appointments', lane_kontrollen: 'Check-ups',
+      tl_leg_span: 'Coverage / interval', tl_leg_due: 'Due', tl_leg_event: 'Appointment',
+      tl_hint: 'Swipe sideways for more months · tap a bar for details',
+      badge_due: 'Due', badge_soon: 'Soon', badge_done: 'Done', badge_later: 'Later', badge_week: 'This week',
+      impf_title: 'Vaccination plan', impf_all: 'All vaccinations', impf_up_to_date: 'up to date',
+      impf_one_due: '1 vaccination is due now', impf_add: 'Add vaccination', impf_of: 'of',
+      vor_title: 'Screenings', vor_sub: 'By age & sex', vor_reco: 'Recommended for you',
+      vor_disc: 'Recommendations do not replace medical advice. Vitalis just reminds you in time.',
+      term_title: 'Appointments', term_up: 'Upcoming', term_add: 'Add appointment',
+      safe_title: 'Document safe', safe_sub: 'Secure & encrypted', safe_all: 'All', safe_docs: 'documents', safe_upload: 'Upload document',
+      sec_open: 'Open', sec_upcoming: 'Upcoming', sec_history: 'History',
+      ev_details: 'Details', ev_when: 'When', ev_cat: 'Category', ev_status: 'Status',
+      ev_add_cal: 'Add to calendar', ev_remind: 'Set reminder', ev_view_doc: 'View in safe', ev_reschedule: 'Reschedule',
+      ev_note_future: 'Vitalis will remind you in time — nothing else to do.', ev_note_past: 'This event is complete and saved in your history.', ev_completed: 'Completed',
+      td_mark_done: 'Mark as done', td_snooze: 'Snooze', td_undone: 'Reopen', td_done_note: 'Marked as done. Nice work!',
+      set_title: 'Settings', set_personal: 'Personal data', set_name: 'Name',
+      set_prefs: 'Preferences', set_language: 'Language', set_lang_de: 'Deutsch', set_lang_en: 'English',
+      set_profiles: 'Manage profiles', set_notif: 'Notifications', set_privacy: 'Privacy & security',
+      set_signout: 'Sign out', set_managed: 'managed profiles',
+      prof_title: 'Switch profile', prof_you: 'You', prof_managed: 'Managed profiles', prof_add: 'Add profile', prof_slots: 'of 10 profiles',
+      title_vac_card: 'Vaccination card', title_reports: 'Reports', title_rx: 'Prescriptions',
+      notif_label: 'Notifications'
+    }
+  };
+  function t(k) { return (DICT[LANG] && DICT[LANG][k]) || DICT.de[k] || k; }
+  function tr(o) { if (o == null) return ''; if (typeof o === 'string') return o; return o[LANG] != null ? o[LANG] : o.de; }
+
+  /* ===================== data ===================== */
+  var PROFILES = [
+    { id: 'anna', name: 'Anna Berger', role: { de: 'Du', en: 'You' }, sex: 'w', self: true },
+    { id: 'thomas', name: 'Thomas Berger', role: { de: 'Partner', en: 'Partner' }, sex: 'm' },
+    { id: 'mia', name: 'Mia Berger', role: { de: 'Tochter', en: 'Daughter' }, sex: 'w' },
+    { id: 'karl', name: 'Karl Berger', role: { de: 'Vater', en: 'Father' }, sex: 'm' }
+  ];
+
+  var TIMELINE = {
+    past: [
+      { date: { de: '12. Mär', en: 'Mar 12' }, icon: 'eye', tone: 'green', title: { de: 'Augenarzt-Kontrolle', en: 'Eye exam' }, sub: { de: 'Unauffällig', en: 'All clear' } },
+      { date: { de: '2. Jun', en: 'Jun 2' }, icon: 'stethoscope', tone: 'green', title: { de: 'Hausarzt-Besuch', en: 'GP visit' }, sub: { de: 'Dr. Weber', en: 'Dr. Weber' } },
+      { date: { de: '18. Jun', en: 'Jun 18' }, icon: 'heart-pulse', tone: 'green', title: { de: 'Blutdruck gemessen', en: 'Blood pressure' }, sub: { de: '128/82 mmHg', en: '128/82 mmHg' } },
+      { date: { de: '20. Jun', en: 'Jun 20' }, icon: 'file-text', tone: 'green', title: { de: 'Laborbericht abgelegt', en: 'Lab report filed' }, sub: { de: 'Im Safe', en: 'In the safe' } }
+    ],
+    future: [
+      { date: { de: '27. Jun', en: 'Jun 27' }, icon: 'stethoscope', tone: 'primary', title: { de: 'Hausarzt — Dr. Weber', en: 'GP — Dr. Weber' }, sub: { de: '09:30 Uhr', en: '09:30' }, badge: 'badge_week', bs: 'due' },
+      { date: { de: 'in 2 Wo.', en: 'in 2 wks' }, icon: 'shield-check', tone: 'amber', title: { de: 'Hautkrebs-Screening', en: 'Skin cancer screening' }, sub: { de: 'Vorsorge', en: 'Screening' }, badge: 'badge_soon', bs: 'upcoming' },
+      { date: { de: '15. Jul', en: 'Jul 15' }, icon: 'syringe', tone: 'primary', title: { de: 'Grippe-Auffrischung', en: 'Flu booster' }, sub: { de: 'Impfung', en: 'Vaccination' }, badge: 'badge_soon', bs: 'upcoming' },
+      { date: { de: '4. Aug', en: 'Aug 4' }, icon: 'eye', tone: 'teal', title: { de: 'Augenarzt — Kontrolle', en: 'Eye check-up' }, sub: { de: '11:15 Uhr', en: '11:15' }, badge: 'badge_soon', bs: 'upcoming' },
+      { date: { de: 'ab 50', en: 'from 50' }, icon: 'shield-check', tone: 'neutral', title: { de: 'Darmkrebs-Vorsorge', en: 'Colon screening' }, sub: { de: 'Früherkennung', en: 'Early detection' }, badge: 'badge_later', bs: 'neutral' }
+    ]
+  };
+
+  var TONE_C = {
+    primary: ['var(--color-primary-soft)', 'var(--color-primary)'],
+    teal: ['var(--color-secondary-soft)', 'var(--color-secondary)'],
+    green: ['var(--status-done-soft)', 'var(--status-done)'],
+    amber: ['var(--status-upcoming-soft)', 'var(--status-upcoming)'],
+    red: ['var(--status-overdue-soft)', 'var(--status-overdue)'],
+    neutral: ['var(--surface-sunken)', 'var(--slate-500)']
+  };
+
+  /* ===================== chrome ===================== */
+  function StatusBar() {
+    return h('div', { className: 'statusbar' },
+      h('span', null, '9:41'),
+      h('span', { className: 'r' }, h(Icon, { name: 'signal', size: 15 }), h(Icon, { name: 'wifi', size: 15 }), h(Icon, { name: 'battery-full', size: 17 })));
+  }
+  function Header(p) {
+    return h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '6px 20px 2px' } },
+      h('div', null,
+        p.sub ? h('div', { style: { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 } }, p.sub) : null,
+        h('div', { className: 'h1' }, p.title)),
+      p.right || null);
+  }
+  function TopBar(title) {
+    return h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '2px 12px 6px' } },
+      h(IconButton, { icon: 'chevron-left', variant: 'ghost', label: t('back'), onClick: title.onBack }),
+      h('div', { style: { flex: 1, fontSize: 18, fontWeight: 700 } }, title.label),
+      title.right || h(Logo, { size: 24, word: false, style: { marginRight: 8 } }));
+  }
+
+  /* ===================== onboarding ===================== */
+  function Onboarding(p) {
+    var _s = useState(0), step = _s[0], setStep = _s[1];
+    var _x = useState('w'), sex = _x[0], setSex = _x[1];
+    var body;
+    if (step === 0) body = h('div', { className: 'anim', style: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', gap: 8, padding: '0 8px' } },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 } }, h(Logo, { size: 46, wordSize: 30 })),
+      h('div', { style: { fontSize: 24, fontWeight: 700, lineHeight: 1.2, maxWidth: 280 } }, t('welcome_tag')),
+      h('div', { style: { fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: 290, marginTop: 4 } }, t('welcome_sub')),
+      h('div', { style: { width: '100%', marginTop: 28 } }, h(Button, { variant: 'primary', size: 'lg', fullWidth: true, iconRight: 'arrow-right', onClick: function () { setStep(1); } }, t('cta_start'))));
+    else if (step === 1) body = h('div', { className: 'anim' },
+      h(Logo, { size: 30, word: false, style: { marginTop: 8, marginBottom: 6 } }),
+      h('div', { className: 'h1', style: { margin: '0 0 6px' } }, t('step1_title')),
+      h('div', { style: { fontSize: 14, color: 'var(--text-secondary)', marginBottom: 22 } }, t('step1_sub')),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 18 } },
+        h(Input, { label: t('birthdate'), icon: 'calendar', placeholder: LANG === 'de' ? 'TT.MM.JJJJ' : 'DD/MM/YYYY' }),
+        h('div', null,
+          h('div', { style: { fontSize: 13, fontWeight: 600, marginBottom: 8 } }, t('sex')),
+          h('div', { className: 'seg' }, [['w', t('sex_f')], ['m', t('sex_m')]].map(function (o) {
+            return h('button', { key: o[0], className: sex === o[0] ? 'on' : '', onClick: function () { setSex(o[0]); } }, o[1]);
+          }))),
+        h(Input, { label: t('country'), icon: 'map-pin', placeholder: LANG === 'de' ? 'Deutschland' : 'Germany' })));
+    else body = h('div', { className: 'anim' },
+      h(Logo, { size: 30, word: false, style: { marginTop: 8, marginBottom: 6 } }),
+      h('div', { className: 'h1', style: { margin: '0 0 6px' } }, t('step2_title')),
+      h('div', { style: { fontSize: 14, color: 'var(--text-secondary)', marginBottom: 22 } }, t('step2_sub')),
+      h('div', { className: 'rows' },
+        h(ListRow, { icon: 'syringe', tone: 'primary', title: t('opt_vac'), subtitle: t('opt_vac_sub') }),
+        h(ListRow, { icon: 'shield-check', tone: 'teal', title: t('opt_prev'), subtitle: t('opt_prev_sub') }),
+        h(ListRow, { icon: 'users', tone: 'neutral', title: t('opt_fam'), subtitle: t('opt_fam_sub') })));
+
+    return h(React.Fragment, null,
+      h(StatusBar),
+      h('div', { className: 'content' }, h('div', { className: 'pad', style: { minHeight: '100%', display: 'flex', flexDirection: 'column' } },
+        body,
+        h('div', { style: { marginTop: 'auto', paddingTop: 24, display: 'flex', flexDirection: 'column', gap: 16 } },
+          h('div', { className: 'dots' }, [0, 1, 2].map(function (i) { return h('span', { key: i, className: i === step ? 'on' : '' }); })),
+          step > 0 ? (step < 2
+            ? h(Button, { variant: 'primary', size: 'lg', fullWidth: true, onClick: function () { setStep(step + 1); } }, t('next'))
+            : h(Button, { variant: 'primary', size: 'lg', fullWidth: true, iconRight: 'check', onClick: function () { p.onDone(sex); } }, t('done'))) : null))));
+  }
+
+  /* ===================== dashboard ===================== */
+  function Dashboard(p) {
+    var due = p.tasks.filter(function (x) { return !x.done && !x.snoozed; });
+    var _c = useState(0), scoreN = _c[0], setScoreN = _c[1];
+    useEffect(function () {
+      var s = 0; var id = setInterval(function () { s += Math.ceil((72 - s) / 6); if (s >= 72) { s = 72; clearInterval(id); } setScoreN(s); }, 45);
+      return function () { clearInterval(id); };
+    }, []);
+    var upcoming = p.upcoming;
+    var dateStr = LANG === 'de' ? 'Dienstag, 24. Juni' : 'Tuesday, June 24';
+    return h(React.Fragment, null,
+      h(StatusBar),
+      h('div', { className: 'content' }, h('div', { className: 'pad' },
+        h(Header, {
+          title: t('greeting_morning') + ', ' + p.profile.name.split(' ')[0],
+          sub: h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } }, h(Logo, { size: 15, word: false }), dateStr),
+          right: h('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+            h(IconButton, { icon: 'settings', variant: 'surface', label: t('set_title'), onClick: p.onSettings }),
+            h('button', { onClick: p.onProfile, 'aria-label': t('prof_title'), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', borderRadius: '50%' } }, h(Avatar, { name: p.profile.name, size: 40 })))
+        }),
+        h(Card, { padding: 16, style: { marginTop: 16, position: 'relative', overflow: 'hidden', background: 'linear-gradient(158deg, var(--surface-card) 40%, var(--blue-50))' } },
+          h('div', { style: { position: 'absolute', top: -50, right: -40, width: 190, height: 190, borderRadius: '50%', background: 'radial-gradient(circle at 55% 45%, rgba(47,163,156,.13), rgba(43,127,184,.04) 60%, transparent 72%)', pointerEvents: 'none' } }),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, position: 'relative' } },
+            h('div', { style: { paddingTop: 4 } },
+              h('div', { style: { fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--text-muted)' } }, t('body_title')),
+              h('div', { style: { fontSize: 19, fontWeight: 700, marginTop: 3, letterSpacing: '-.01em' } }, t('score_sub'))),
+            h('div', { style: { position: 'relative', background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: '11px 13px 8px', boxShadow: '0 12px 26px -12px rgba(31,94,138,.30), 0 2px 6px rgba(30,42,54,.05)', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 'none' } },
+              h(ProgressRing, { value: scoreN, size: 60, stroke: 6, label: h('span', { style: { fontSize: 19, fontWeight: 700 } }, String(scoreN)) }),
+              h('div', { style: { fontSize: 9, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 } }, t('score_title')),
+              h('span', { style: { position: 'absolute', top: -9, left: -9, background: 'var(--status-done)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 2, boxShadow: 'var(--shadow-sm)' } }, h(Icon, { name: 'trending-up', size: 11 }), '+4'))),
+          h('div', { style: { marginTop: 6, position: 'relative' } }, h(BodyMap, { sex: p.profile.sex, onOpen: p.onOpen, showLegend: false })),
+          h('div', { style: { height: 1, background: 'var(--border-subtle)', margin: '2px 0 12px' } }),
+          h(TimelineRail, { onOpen: p.onTimeline, onEvent: p.onEvent })),
+        h('div', { className: 'sec-label' }, t('today_due')),
+        h('div', { className: 'rows' },
+          due.length === 0 ? h(Card, { elevated: false, style: { textAlign: 'center', color: 'var(--text-secondary)', fontSize: 14, padding: '22px 16px', border: '1px dashed var(--border-strong)' } }, t('all_done')) : null,
+          due.map(function (x) { return h(ListRow, { key: x.id, icon: x.icon, tone: x.tone, title: tr(x.title), subtitle: t('tap_check'), badge: t('badge_due'), badgeStatus: 'due', onClick: function () { p.onOpenTask(Object.assign({}, x, { kind: 'due' })); } }); })),
+        h('div', { className: 'sec-label' }, t('upcoming')),
+        h('div', { className: 'rows' }, upcoming.map(function (u) { return h(ListRow, { key: u.id, icon: u.icon, tone: u.tone, title: tr(u.title), subtitle: tr(u.sub), badge: t(u.badge), badgeStatus: u.bs, onClick: function () { p.onOpenTask(Object.assign({}, u, { kind: 'soon' })); } }); })))));
+  }
+
+  function TimelineRail(p) {
+    var past = TIMELINE.past.slice(-2);
+    var future = TIMELINE.future.slice(0, 3);
+    function node(ev, kind, i) {
+      var c = TONE_C[ev.tone] || TONE_C.primary;
+      var isToday = kind === 'today';
+      return h('button', { key: kind + i, type: 'button', onClick: (isToday ? p.onOpen : function () { p.onEvent(ev, kind === 'past'); }), style: { flex: 'none', width: 78, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-sans)' } },
+        isToday
+          ? h('span', { style: { position: 'relative', width: 34, height: 34, display: 'grid', placeItems: 'center' } },
+              h('span', { style: { gridArea: '1/1', width: 34, height: 34, borderRadius: '50%', background: 'var(--color-primary)', opacity: .4, animation: 'v-halo 2s ease-out infinite' } }),
+              h('span', { style: { gridArea: '1/1', width: 20, height: 20, borderRadius: '50%', background: 'var(--color-primary)', border: '3px solid #fff', boxShadow: 'var(--shadow-md)' } }))
+          : h('span', { style: { width: 34, height: 34, borderRadius: '50%', background: kind === 'past' ? 'var(--surface-card)' : c[0], color: c[1], border: kind === 'past' ? '2px solid var(--status-done)' : '2px solid ' + c[1], display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)' } }, h(Icon, { name: kind === 'past' ? 'check' : ev.icon, size: 16 })),
+        h('span', { style: { fontSize: 10, fontWeight: 700, color: isToday ? 'var(--color-primary)' : c[1] } }, isToday ? t('tl_today') : tr(ev.date)),
+        h('span', { style: { fontSize: 10.5, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.2, height: 26, overflow: 'hidden' } }, isToday ? '' : tr(ev.title)));
+    }
+    var items = [];
+    past.forEach(function (e, i) { items.push(node(e, 'past', i)); });
+    items.push(node({}, 'today', 0));
+    future.forEach(function (e, i) { items.push(node(e, 'future', i)); });
+    return h('div', null,
+      h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+          h('span', { style: { width: 30, height: 30, borderRadius: 9, background: 'var(--color-primary-soft)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(Icon, { name: 'git-commit-horizontal', size: 17 })),
+          h('span', { style: { fontSize: 15, fontWeight: 700 } }, t('timeline_title'))),
+        h('button', { type: 'button', onClick: p.onOpen, style: { border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: 3 } }, t('timeline_all'), h(Icon, { name: 'chevron-right', size: 15 }))),
+      h('div', { style: { position: 'relative', overflowX: 'auto', paddingTop: 8, margin: '0 -4px' } },
+        h('div', { style: { position: 'absolute', left: 12, right: 12, top: 25, height: 2, background: 'linear-gradient(90deg, var(--status-done), var(--color-primary) 45%, var(--teal-500))', borderRadius: 2 } }),
+        h('div', { style: { position: 'relative', display: 'flex', gap: 4, paddingBottom: 2, minWidth: 'min-content' } }, items)));
+  }
+
+  /* ===================== Zeitstrahl — Gantt ===================== */
+  var MONTH_NAMES = {
+    de: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  };
+  var TODAY_M = 5, TODAY_Y = 2026, TODAY_F = 0.77; /* 24 June 2026 */
+
+  var GANTT = [
+    { key: 'lane_impf', items: [
+      { icon: 'syringe', tone: 'red', title: { de: 'Grippeimpfung', en: 'Flu vaccination' }, sub: { de: 'Auffrischung fällig', en: 'Booster due' }, date: { de: 'jetzt fällig', en: 'due now' }, badge: 'badge_due', bs: 'due', bar: [-8, 0.77], due: 0.77, pulse: true },
+      { icon: 'syringe', tone: 'green', title: { de: 'Tetanus / Diphtherie', en: 'Tetanus / Diphtheria' }, sub: { de: 'gültig bis 2031', en: 'valid until 2031' }, date: { de: '2021 – 2031', en: '2021 – 2031' }, badge: 'badge_done', bs: 'done', bar: [-60, 66] },
+      { icon: 'syringe', tone: 'amber', title: { de: 'FSME (Zecken)', en: 'TBE (ticks)' }, sub: { de: 'in 3 Wochen', en: 'in 3 weeks' }, date: { de: 'Mitte Juli', en: 'mid July' }, badge: 'badge_soon', bs: 'upcoming', m: 0.95 },
+      { icon: 'syringe', tone: 'amber', title: { de: 'COVID-19 Auffrischung', en: 'COVID-19 booster' }, sub: { de: 'empfohlen ab Okt.', en: 'recommended from Oct.' }, date: { de: 'Okt 2026', en: 'Oct 2026' }, badge: 'badge_soon', bs: 'upcoming', m: 4.2 },
+      { icon: 'shield-check', tone: 'green', title: { de: 'Masern (MMR)', en: 'Measles (MMR)' }, sub: { de: 'lebenslang geschützt', en: 'lifelong protection' }, date: { de: 'seit 1998', en: 'since 1998' }, badge: 'badge_done', bs: 'done', bar: [-336, 240] }
+    ] },
+    { key: 'lane_vorsorge', items: [
+      { icon: 'shield-check', tone: 'amber', title: { de: 'Hautkrebs-Screening', en: 'Skin cancer screening' }, sub: { de: 'alle 2 Jahre · in 2 Wochen', en: 'every 2 years · in 2 weeks' }, date: { de: 'in 2 Wochen', en: 'in 2 weeks' }, badge: 'badge_soon', bs: 'upcoming', bar: [-23.5, 1.2], due: 1.2, recur: true },
+      { icon: 'stethoscope', tone: 'red', title: { de: 'Gesundheits-Check-up', en: 'Health check-up' }, sub: { de: 'alle 3 Jahre · fällig', en: 'every 3 years · due' }, date: { de: 'jetzt fällig', en: 'due now' }, badge: 'badge_due', bs: 'due', bar: [-36, 0.77], due: 0.77, recur: true, pulse: true },
+      { icon: 'shield-check', tone: 'green', title: { de: 'Zahnvorsorge', en: 'Dental check-up' }, sub: { de: 'halbjährlich · erledigt', en: 'twice a year · done' }, date: { de: 'nächste: Dez', en: 'next: Dec' }, badge: 'badge_done', bs: 'done', bar: [-6, 6], due: 6, recur: true },
+      { icon: 'shield-check', tone: 'neutral', title: { de: 'Darmkrebs-Früherkennung', en: 'Colon screening' }, sub: { de: 'ab 50', en: 'from 50' }, date: { de: 'ab 2029', en: 'from 2029' }, badge: 'badge_later', bs: 'neutral', m: 36 }
+    ] },
+    { key: 'lane_termine', items: [
+      { icon: 'stethoscope', tone: 'primary', title: { de: 'Hausarzt — Dr. Weber', en: 'GP — Dr. Weber' }, sub: { de: 'Fr, 27. Juni · 09:30', en: 'Fri, Jun 27 · 09:30' }, date: { de: '27. Jun', en: 'Jun 27' }, badge: 'badge_week', bs: 'due', m: 0.87 },
+      { icon: 'calendar', tone: 'teal', title: { de: 'Zahnreinigung', en: 'Dental cleaning' }, sub: { de: 'Di, 15. Juli · 14:00', en: 'Tue, Jul 15 · 14:00' }, date: { de: '15. Jul', en: 'Jul 15' }, badge: 'badge_soon', bs: 'upcoming', m: 1.48 },
+      { icon: 'eye', tone: 'teal', title: { de: 'Augenarzt — Kontrolle', en: 'Eye check-up' }, sub: { de: 'Mo, 4. Aug · 11:15', en: 'Mon, Aug 4 · 11:15' }, date: { de: '4. Aug', en: 'Aug 4' }, badge: 'badge_soon', bs: 'upcoming', m: 2.13 }
+    ] },
+    { key: 'lane_kontrollen', items: [
+      { icon: 'heart-pulse', tone: 'red', title: { de: 'Blutdruck', en: 'Blood pressure' }, sub: { de: 'monatlich · heute fällig', en: 'monthly · due today' }, date: { de: 'heute', en: 'today' }, badge: 'badge_due', bs: 'due', bar: [-6, 6], due: 0.77, recur: true, pulse: true },
+      { icon: 'eye', tone: 'green', title: { de: 'Augenarzt-Kontrolle', en: 'Eye exam' }, sub: { de: '12. März · unauffällig', en: 'Mar 12 · all clear' }, date: { de: '12. Mär', en: 'Mar 12' }, badge: 'badge_done', bs: 'done', m: -2.6, past: true },
+      { icon: 'file-text', tone: 'green', title: { de: 'Laborbericht abgelegt', en: 'Lab report filed' }, sub: { de: 'Im Safe', en: 'In the safe' }, date: { de: '20. Jun', en: 'Jun 20' }, badge: 'badge_done', bs: 'done', m: 0.63, past: true }
+    ] }
+  ];
+
+  var LABEL_W = 118;
+  function Timeline(p) {
+    var _sc = useState('y1'), scope = _sc[0], setScope = _sc[1];
+    var conf = scope === 'y1' ? { unit: 1, start: -3, cols: 16, colW: 48 } : { unit: 3, start: -12, cols: 24, colW: 36 };
+    var rangeEnd = conf.start + conf.cols * conf.unit;
+    var timeW = conf.cols * conf.colW;
+    function xOf(m) { return ((m - conf.start) / conf.unit) * conf.colW; }
+    var todayX = xOf(TODAY_F);
+
+    function colMeta(i) {
+      var off = conf.start + i * conf.unit;
+      var abs = TODAY_M + off;
+      var y = TODAY_Y + Math.floor(abs / 12);
+      var mo = ((abs % 12) + 12) % 12;
+      var yy = String(y).slice(2);
+      return { mo: mo, y: y, yearStart: conf.unit === 1 ? mo === 0 : mo === 0,
+        label: conf.unit === 1 ? MONTH_NAMES[LANG][mo] : 'Q' + (Math.floor(mo / 3) + 1) + ' ' + yy,
+        year: yy };
+    }
+
+    var grid = [], header = [];
+    for (var i = 0; i < conf.cols; i++) {
+      var cm = colMeta(i);
+      grid.push(h('span', { key: 'g' + i, style: { position: 'absolute', left: i * conf.colW, top: 0, bottom: 0, width: 1, background: cm.yearStart ? 'var(--border-strong)' : 'var(--border-subtle)' } }));
+      header.push(h('span', { key: 'h' + i, style: { position: 'absolute', left: i * conf.colW, top: 0, width: conf.colW, textAlign: 'center', fontSize: 9.5, lineHeight: '11px', fontWeight: 700, letterSpacing: '.02em', color: cm.yearStart ? 'var(--text-secondary)' : 'var(--text-muted)', textTransform: 'uppercase' } },
+        cm.label, conf.unit === 1 && cm.yearStart ? h('span', { style: { display: 'block', fontSize: 8.5, lineHeight: '9px', fontWeight: 600, color: 'var(--text-muted)' } }, "'" + cm.year) : null));
+    }
+
+    function offSide(it) {
+      var visibleBar = it.bar && Math.min(rangeEnd, it.bar[1]) > Math.max(conf.start, it.bar[0]);
+      var visibleM = it.m != null && it.m >= conf.start && it.m <= rangeEnd;
+      if (visibleBar || visibleM) return null;
+      var at = it.m != null ? it.m : it.bar[0];
+      return at > rangeEnd ? 'after' : 'before';
+    }
+    function bar(it, c) {
+      var s = Math.max(conf.start, it.bar[0]), e = Math.min(rangeEnd, it.bar[1]);
+      if (e <= s) return null;
+      var left = xOf(s), w = Math.max(6, xOf(e) - left);
+      var clipL = it.bar[0] < conf.start, clipR = it.bar[1] > rangeEnd;
+      var rad = (clipL ? '3px' : '999px') + ' ' + (clipR ? '3px' : '999px') + ' ' + (clipR ? '3px' : '999px') + ' ' + (clipL ? '3px' : '999px');
+      var elapsedTo = Math.min(TODAY_F, e);
+      var elapsedW = elapsedTo > s ? xOf(elapsedTo) - left : 0;
+      return h('button', { type: 'button', onClick: function () { p.onEvent(it, !!it.past); },
+        'aria-label': tr(it.title) + ' — ' + tr(it.sub),
+        style: { position: 'absolute', left: left, width: w, top: 3, height: 38, border: 'none', background: 'none', padding: 0, cursor: 'pointer', zIndex: 2 } },
+        h('span', { style: { position: 'absolute', left: 0, right: 0, top: 8, height: 22, borderRadius: rad, background: c[0], boxShadow: 'inset 0 0 0 1px rgba(30,42,54,.05)', overflow: 'hidden', display: 'block' } },
+          elapsedW > 0 ? h('span', { style: { position: 'absolute', left: 0, top: 0, bottom: 0, width: elapsedW, background: c[1], opacity: .26 } }) : null,
+          it.recur ? h('span', { style: { position: 'absolute', inset: 0, background: 'repeating-linear-gradient(115deg, transparent 0 7px, ' + c[1] + ' 7px 8px)', opacity: .16 } }) : null));
+    }
+    function marker(it, c, x, isDue) {
+      var sz = isDue ? 20 : 26;
+      return h('button', { type: 'button', onClick: function () { p.onEvent(it, !!it.past); },
+        'aria-label': tr(it.title) + ' — ' + tr(it.sub),
+        style: { position: 'absolute', left: x, top: 2, transform: 'translateX(-50%)', width: 44, height: 40, border: 'none', background: 'none', padding: 0, cursor: 'pointer', zIndex: 3, display: 'grid', placeItems: 'center' } },
+        it.pulse ? h('span', { style: { gridArea: '1/1', width: sz, height: sz, borderRadius: '50%', border: '2px solid ' + c[1], opacity: .5, animation: 'v-ping 1.9s ease-out infinite' } }) : null,
+        h('span', { style: { gridArea: '1/1', width: sz, height: sz, flex: 'none', boxSizing: 'border-box', borderRadius: '50%', background: it.past ? 'var(--surface-card)' : c[0], color: c[1], border: '2px solid ' + c[1], display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-sm)' } },
+          isDue ? null : h(Icon, { name: it.past ? 'check' : it.icon, size: 13 })));
+    }
+
+    function ghost(it, c, side) {
+      var st = { position: 'absolute', top: 8, height: 28, display: 'flex', alignItems: 'center', gap: 4, boxSizing: 'border-box', border: '1px dashed ' + c[1], background: c[0], color: c[1], borderRadius: 999, padding: '0 9px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 10, fontWeight: 700, letterSpacing: '.02em', opacity: .9, zIndex: 3 };
+      if (side === 'after') st.right = 8; else st.left = 8;
+      return h('button', { type: 'button', onClick: function () { p.onEvent(it, !!it.past); },
+        'aria-label': tr(it.title) + ' — ' + tr(it.sub), style: st },
+        side === 'before' ? h(Icon, { name: 'chevron-left', size: 12 }) : null,
+        h('span', null, tr(it.date)),
+        side === 'after' ? h(Icon, { name: 'chevron-right', size: 12 }) : null);
+    }
+
+    var rows = [];
+    GANTT.forEach(function (lane) {
+      rows.push(h('div', { key: lane.key, style: { display: 'flex', alignItems: 'center', height: 26, background: 'var(--surface-sunken)', position: 'relative', zIndex: 4 } },
+        h('span', { style: { position: 'sticky', left: 0, width: LABEL_W, flex: 'none', padding: '0 10px', boxSizing: 'border-box', background: 'var(--surface-sunken)', fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-secondary)' } }, t(lane.key))));
+      lane.items.forEach(function (it, k) {
+        var c = TONE_C[it.tone] || TONE_C.primary;
+        rows.push(h('div', { key: lane.key + k, className: 'anim', style: { display: 'flex', alignItems: 'stretch', height: 44, borderBottom: '1px solid var(--border-subtle)', animationDelay: (rows.length * 24) + 'ms' } },
+          h('button', { type: 'button', onClick: function () { p.onEvent(it, !!it.past); },
+            style: { position: 'sticky', left: 0, zIndex: 5, width: LABEL_W, flex: 'none', boxSizing: 'border-box', padding: '0 8px 0 10px', background: 'var(--surface-card)', border: 'none', borderRight: '1px solid var(--border-subtle)', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 7 } },
+            h('span', { style: { width: 7, height: 7, borderRadius: 999, background: c[1], flex: 'none' } }),
+            h('span', { style: { minWidth: 0 } },
+              h('span', { style: { display: 'block', fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, tr(it.title)),
+              h('span', { style: { display: 'block', fontSize: 9.5, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, tr(it.date)))),
+          h('div', { style: { position: 'relative', width: timeW, flex: 'none' } },
+            it.bar ? bar(it, c) : null,
+            it.bar && it.due != null && it.due >= conf.start && it.due <= rangeEnd ? marker(it, c, xOf(it.due), true) : null,
+            it.m != null && it.m >= conf.start && it.m <= rangeEnd ? marker(it, c, xOf(it.m), false) : null,
+            offSide(it) ? ghost(it, c, offSide(it)) : null)));
+      });
+    });
+
+    var legend = h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 12, alignItems: 'center' } },
+      h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        h('span', { style: { width: 26, height: 10, borderRadius: 999, background: 'var(--color-primary-soft)', boxShadow: 'inset 0 0 0 1px rgba(30,42,54,.06)' } }), t('tl_leg_span')),
+      h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        h('span', { style: { width: 13, height: 13, borderRadius: '50%', border: '2px solid var(--status-overdue)', boxSizing: 'border-box' } }), t('tl_leg_due')),
+      h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        h('span', { style: { width: 15, height: 15, borderRadius: '50%', background: 'var(--color-secondary-soft)', border: '2px solid var(--color-secondary)', boxSizing: 'border-box' } }), t('tl_leg_event')),
+      h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
+        h('span', { style: { width: 3, height: 14, borderRadius: 2, background: 'var(--color-primary)' } }), t('tl_today')));
+
+    return h(React.Fragment, null,
+      h(StatusBar),
+      TopBar({ label: t('timeline_title'), onBack: p.onBack }),
+      h('div', { className: 'content' }, h('div', { className: 'pad', style: { paddingTop: 4 } },
+        h('div', { className: 'seg', style: { marginBottom: 14 } }, [['y1', t('tl_scope_1y')], ['y5', t('tl_scope_5y')]].map(function (o) {
+          return h('button', { key: o[0], className: scope === o[0] ? 'on' : '', onClick: function () { setScope(o[0]); } }, o[1]);
+        })),
+        h(Card, { padding: 0, style: { overflow: 'hidden' } },
+          h('div', { key: scope, ref: function (el) { if (el && !el.__init) { el.__init = 1; var to = Math.max(0, todayX - 96); requestAnimationFrame(function () { el.scrollLeft = to; requestAnimationFrame(function () { el.scrollLeft = to; }); }); } },
+            style: { overflowX: 'auto', overflowY: 'hidden' } },
+            h('div', { style: { position: 'relative', width: LABEL_W + timeW } },
+              h('div', { style: { position: 'absolute', left: LABEL_W, top: 30, bottom: 0, right: 0 } }, grid),
+              h('div', { style: { position: 'absolute', left: LABEL_W + todayX, top: 24, bottom: 0, width: 3, marginLeft: -1.5, borderRadius: 2, background: 'linear-gradient(var(--color-primary), var(--teal-500))', transformOrigin: 'top', animation: 'v-draw .5s ease both', zIndex: 3 } }),
+              h('div', { style: { display: 'flex', alignItems: 'flex-start', height: 30, position: 'relative', zIndex: 6 } },
+                h('span', { style: { position: 'sticky', left: 0, width: LABEL_W, flex: 'none', boxSizing: 'border-box', padding: '4px 10px 0', background: 'var(--surface-card)', borderRight: '1px solid var(--border-subtle)', fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--text-muted)', height: 30 } }, String(TODAY_Y)),
+                h('div', { style: { position: 'relative', width: timeW, flex: 'none', height: 30, paddingTop: 3, boxSizing: 'border-box', overflow: 'hidden' } },
+                  header,
+                  h('span', { style: { position: 'absolute', left: todayX, top: 20, transform: 'translateX(-50%)', width: 18, height: 18, display: 'grid', placeItems: 'center' } },
+                    h('span', { style: { gridArea: '1/1', width: 18, height: 18, borderRadius: '50%', background: 'var(--color-primary)', opacity: .45, animation: 'v-halo 2s ease-out infinite' } }),
+                    h('span', { style: { gridArea: '1/1', width: 11, height: 11, borderRadius: '50%', background: 'var(--color-primary)', border: '2.5px solid #fff', boxShadow: 'var(--shadow-md)' } })))),
+              rows))),
+        legend,
+        h('div', { style: { fontSize: 11, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.5 } }, t('tl_hint')))));
+  }
+
+  function EventDetail(p) {
+    var ev = p.ev, past = p.past, c = TONE_C[ev.tone] || TONE_C.primary;
+    function meta(label, val) {
+      return h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--border-subtle)' } },
+        h('span', { style: { fontSize: 13, color: 'var(--text-secondary)' } }, label),
+        h('span', { style: { fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' } }, val));
+    }
+    return h(React.Fragment, null,
+      h(StatusBar),
+      TopBar({ label: tr(ev.title), onBack: p.onBack }),
+      h('div', { className: 'content' }, h('div', { className: 'pad', style: { paddingTop: 4 } },
+        h(Card, { padding: 16, style: { display: 'flex', alignItems: 'center', gap: 14 } },
+          h('span', { style: { width: 54, height: 54, borderRadius: 15, background: c[0], color: c[1], display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, h(Icon, { name: ev.icon, size: 26 })),
+          h('div', { style: { flex: 1, minWidth: 0 } },
+            h('div', { style: { fontSize: 17, fontWeight: 700 } }, tr(ev.title)),
+            h('div', { style: { fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 } }, tr(ev.sub))),
+          past ? h(Badge, { status: 'done' }, t('ev_completed')) : (ev.badge ? h(Badge, { status: ev.bs }, t(ev.badge)) : null)),
+        h('div', { className: 'sec-label' }, t('ev_details')),
+        h(Card, { padding: '2px 14px' },
+          meta(t('ev_when'), tr(ev.date)),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0' } },
+            h('span', { style: { fontSize: 13, color: 'var(--text-secondary)' } }, t('ev_status')),
+            past ? h(Badge, { status: 'done' }, t('ev_completed')) : h(Badge, { status: ev.bs || 'upcoming' }, ev.badge ? t(ev.badge) : t('badge_soon')))),
+        h(Card, { elevated: false, style: { marginTop: 12, padding: '14px 16px', background: 'var(--surface-sunken)', border: 'none', display: 'flex', gap: 10, alignItems: 'flex-start' } },
+          h(Icon, { name: past ? 'check-circle-2' : 'bell', size: 18, color: c[1], style: { marginTop: 1, flex: 'none' } }),
+          h('div', { style: { fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 } }, past ? t('ev_note_past') : t('ev_note_future'))),
+        h('div', { style: { marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 } },
+          past
+            ? h(Button, { variant: 'secondary', size: 'lg', fullWidth: true, iconLeft: 'file-text', onClick: p.onBack }, t('ev_view_doc'))
+            : h(React.Fragment, null,
+                h(Button, { variant: 'primary', size: 'lg', fullWidth: true, iconLeft: 'calendar-plus', onClick: p.onBack }, t('ev_add_cal')),
+                h(Button, { variant: 'secondary', size: 'lg', fullWidth: true, iconLeft: 'bell', onClick: p.onBack }, t('ev_remind')))))));
+  }
+
+  function TaskDetail(p) {
+    var it = p.item, c = TONE_C[it.tone] || TONE_C.primary;
+    var isDone = it.bs === 'done';
+    var subTxt = it.sub ? tr(it.sub) : (it.kind === 'due' ? t('today_due') : t('upcoming'));
+    return h(React.Fragment, null,
+      h(StatusBar),
+      TopBar({ label: tr(it.title), onBack: p.onBack }),
+      h('div', { className: 'content' }, h('div', { className: 'pad', style: { paddingTop: 4 } },
+        h(Card, { padding: 16, style: { display: 'flex', alignItems: 'center', gap: 14 } },
+          h('span', { style: { width: 54, height: 54, borderRadius: 15, background: c[0], color: c[1], display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, h(Icon, { name: it.icon, size: 26 })),
+          h('div', { style: { flex: 1, minWidth: 0 } },
+            h('div', { style: { fontSize: 17, fontWeight: 700 } }, tr(it.title)),
+            h('div', { style: { fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 } }, subTxt))),
+        h('div', { className: 'sec-label' }, t('ev_details')),
+        h(Card, { padding: '2px 14px' },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 0' } },
+            h('span', { style: { fontSize: 13, color: 'var(--text-secondary)' } }, t('ev_status')),
+            isDone ? h(Badge, { status: 'done' }, t('ev_completed')) : h(Badge, { status: it.kind === 'due' ? 'due' : (it.bs || 'upcoming') }, it.kind === 'due' ? t('badge_due') : t(it.badge || 'badge_soon')))),
+        isDone ? h(Card, { elevated: false, style: { marginTop: 12, padding: '14px 16px', background: 'var(--status-done-soft)', border: 'none', display: 'flex', gap: 10, alignItems: 'flex-start' } },
+          h(Icon, { name: 'check-circle-2', size: 18, color: 'var(--status-done)', style: { marginTop: 1, flex: 'none' } }),
+          h('div', { style: { fontSize: 12.5, color: 'var(--status-done)', lineHeight: 1.5, fontWeight: 600 } }, t('td_done_note'))) : null,
+        h('div', { style: { marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 } },
+          isDone
+            ? h(Button, { variant: 'secondary', size: 'lg', fullWidth: true, iconLeft: 'rotate-ccw', onClick: function () { p.onReopen(it); } }, t('td_undone'))
+            : h(React.Fragment, null,
+                h(Button, { variant: 'primary', size: 'lg', fullWidth: true, iconLeft: 'check', onClick: function () { p.onDone(it); } }, t('td_mark_done')),
+                h(Button, { variant: 'ghost', size: 'lg', fullWidth: true, iconLeft: 'clock', onClick: function () { p.onSnooze(it); } }, t('td_snooze')))))));
+  }
+
+  /* ===================== plans ===================== */
+  function Impfplan(p) {
+    var items = [
+      { id: 1, title: { de: 'Grippeimpfung', en: 'Flu vaccination' }, sub: { de: 'Auffrischung fällig', en: 'Booster due' }, status: 'due', badge: 'badge_due' },
+      { id: 2, title: { de: 'Tetanus / Diphtherie', en: 'Tetanus / Diphtheria' }, sub: { de: 'Auffrischung 2031', en: 'Booster 2031' }, status: 'done', badge: 'badge_done' },
+      { id: 3, title: { de: 'FSME (Zecken)', en: 'TBE (ticks)' }, sub: { de: 'in 3 Wochen', en: 'in 3 weeks' }, status: 'upcoming', badge: 'badge_soon' },
+      { id: 4, title: { de: 'COVID-19 Auffrischung', en: 'COVID-19 booster' }, sub: { de: 'empfohlen ab Okt.', en: 'from Oct.' }, status: 'upcoming', badge: 'badge_soon' },
+      { id: 5, title: { de: 'Pneumokokken', en: 'Pneumococcal' }, sub: { de: 'einmalig ab 60', en: 'once from 60' }, status: 'done', badge: 'badge_done' }
+    ];
+    var toneFor = function (s) { return s === 'done' ? 'green' : s === 'upcoming' ? 'teal' : 'primary'; };
+    var done = items.filter(function (i) { return i.status === 'done'; }).length;
+    return h(React.Fragment, null,
+      h(StatusBar),
+      h('div', { className: 'content' }, h('div', { className: 'pad' },
+        h(Header, { title: t('impf_title') }),
+        h(Card, { padding: 14, style: { marginTop: 14, display: 'flex', alignItems: 'center', gap: 12 } },
+          h('span', { style: { width: 44, height: 44, borderRadius: 12, background: 'var(--status-done-soft)', color: 'var(--status-done)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(Icon, { name: 'shield-check', size: 22 })),
+          h('div', { style: { flex: 1 } },
+            h('div', { style: { fontSize: 15, fontWeight: 600 } }, done + ' ' + t('impf_of') + ' ' + items.length + ' ' + t('impf_up_to_date')),
+            h('div', { style: { fontSize: 12, color: 'var(--text-secondary)' } }, t('impf_one_due')))),
+        h('div', { className: 'sec-label' }, t('impf_all')),
+        h('div', { className: 'rows' }, items.map(function (it) { return h(ListRow, { key: it.id, icon: 'syringe', tone: toneFor(it.status), title: tr(it.title), subtitle: tr(it.sub), badge: t(it.badge), badgeStatus: it.status }); })))),
+      h('div', { className: 'fab' }, h(IconButton, { icon: 'plus', variant: 'solid', size: 'lg', label: t('impf_add'), onClick: p.onAdd, style: { boxShadow: 'var(--shadow-lg)' } })));
+  }
+
+  function Vorsorge() {
+    var items = [
+      { title: { de: 'Hautkrebs-Screening', en: 'Skin cancer screening' }, sub: { de: 'alle 2 Jahre · ab 35', en: 'every 2 years · from 35' }, badge: 'badge_soon', bs: 'upcoming' },
+      { title: { de: 'Gesundheits-Check-up', en: 'Health check-up' }, sub: { de: 'alle 3 Jahre · ab 35', en: 'every 3 years · from 35' }, badge: 'badge_due', bs: 'due' },
+      { title: { de: 'Zahnvorsorge', en: 'Dental check-up' }, sub: { de: 'halbjährlich', en: 'twice a year' }, badge: 'badge_done', bs: 'done' },
+      { title: { de: 'Darmkrebs-Früherkennung', en: 'Colon cancer screening' }, sub: { de: 'ab 50', en: 'from 50' }, badge: 'badge_later', bs: 'neutral' }
+    ];
+    return h(React.Fragment, null,
+      h(StatusBar),
+      h('div', { className: 'content' }, h('div', { className: 'pad' },
+        h(Header, { title: t('vor_title'), sub: t('vor_sub') }),
+        h('div', { className: 'sec-label', style: { marginTop: 14 } }, t('vor_reco')),
+        h('div', { className: 'rows' }, items.map(function (it, i) { return h(ListRow, { key: i, icon: 'shield-check', tone: 'teal', title: tr(it.title), subtitle: tr(it.sub), badge: t(it.badge), badgeStatus: it.bs }); })),
+        h(Card, { elevated: false, style: { marginTop: 16, padding: '14px 16px', background: 'var(--surface-sunken)', border: 'none', display: 'flex', gap: 10, alignItems: 'flex-start' } },
+          h(Icon, { name: 'info', size: 18, color: 'var(--color-primary)', style: { marginTop: 1, flex: 'none' } }),
+          h('div', { style: { fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5 } }, t('vor_disc'))))));
+  }
+
+  function Termine(p) {
+    var items = [
+      { title: { de: 'Hausarzt — Dr. Weber', en: 'GP — Dr. Weber' }, sub: { de: 'Fr, 27. Juni · 09:30', en: 'Fri, Jun 27 · 09:30' }, tone: 'primary', badge: 'badge_week', bs: 'due' },
+      { title: { de: 'Zahnreinigung', en: 'Dental cleaning' }, sub: { de: 'Di, 15. Juli · 14:00', en: 'Tue, Jul 15 · 14:00' }, tone: 'teal', badge: 'badge_soon', bs: 'upcoming' },
+      { title: { de: 'Augenarzt — Kontrolle', en: 'Eye check-up' }, sub: { de: 'Mo, 4. Aug · 11:15', en: 'Mon, Aug 4 · 11:15' }, tone: 'neutral', badge: 'badge_soon', bs: 'upcoming' }
+    ];
+    return h(React.Fragment, null,
+      h(StatusBar),
+      h('div', { className: 'content' }, h('div', { className: 'pad' },
+        h(Header, { title: t('term_title') }),
+        h('div', { className: 'sec-label', style: { marginTop: 14 } }, t('term_up')),
+        h('div', { className: 'rows' }, items.map(function (it, i) { return h(ListRow, { key: i, icon: 'calendar', tone: it.tone, title: tr(it.title), subtitle: tr(it.sub), badge: t(it.badge), badgeStatus: it.bs }); })))),
+      h('div', { className: 'fab' }, h(IconButton, { icon: 'plus', variant: 'solid', size: 'lg', label: t('term_add'), onClick: p.onAdd, style: { boxShadow: 'var(--shadow-lg)' } })));
+  }
+
+  function Safe() {
+    var cats = [['all', t('safe_all')], ['vac', t('title_vac_card')], ['rep', t('title_reports')], ['rx', t('title_rx')]];
+    var _f = useState('all'), filter = _f[0], setFilter = _f[1];
+    var docs = [
+      { title: { de: 'Impfpass (Scan)', en: 'Vaccination card (scan)' }, sub: 'PDF · 1,2 MB · 12.05.', cat: 'vac' },
+      { title: { de: 'Laborbericht Juni', en: 'Lab report June' }, sub: 'PDF · 240 KB · 18.06.', cat: 'rep' },
+      { title: { de: 'Arztbrief Dr. Weber', en: 'Doctor letter Dr. Weber' }, sub: 'PDF · 180 KB · 02.06.', cat: 'rep' },
+      { title: { de: 'Rezept — Blutdruck', en: 'Prescription — BP' }, sub: 'Foto · 900 KB · 20.06.', cat: 'rx' }
+    ];
+    var shown = filter === 'all' ? docs : docs.filter(function (d) { return d.cat === filter; });
+    return h(React.Fragment, null,
+      h(StatusBar),
+      h('div', { className: 'content' }, h('div', { className: 'pad' },
+        h(Header, { title: t('safe_title'), sub: t('safe_sub'), right: h('span', { style: { width: 40, height: 40, borderRadius: 12, background: 'var(--status-done-soft)', color: 'var(--status-done)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(Icon, { name: 'shield-check', size: 20 })) }),
+        h('div', { className: 'chiprow', style: { marginTop: 16 } }, cats.map(function (c) {
+          return h('button', { key: c[0], onClick: function () { setFilter(c[0]); }, style: { border: 'none', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 999, background: filter === c[0] ? 'var(--color-primary)' : 'var(--surface-card)', color: filter === c[0] ? '#fff' : 'var(--text-secondary)', boxShadow: filter === c[0] ? 'none' : 'var(--shadow-sm)' } }, c[1]);
+        })),
+        h('div', { className: 'sec-label' }, shown.length + ' ' + t('safe_docs')),
+        h('div', { className: 'rows' }, shown.map(function (d, i) { return h(ListRow, { key: i, icon: 'file-text', tone: 'neutral', title: tr(d.title), subtitle: d.sub }); })),
+        h('div', { style: { marginTop: 16 } }, h(Button, { variant: 'secondary', size: 'lg', fullWidth: true, iconLeft: 'upload' }, t('safe_upload'))))));
+  }
+
+  /* ===================== region detail ===================== */
+  var REGION = {
+    kopf: { title: { de: 'Kopf & Sinne', en: 'Head & senses' }, icon: 'eye', tone: 'green', status: { de: 'Alles im grünen Bereich', en: 'All in good shape' }, due: [], soon: [{ t: { de: 'Hörtest', en: 'Hearing test' }, s: { de: 'empfohlen ab 50', en: 'from 50' }, b: 'badge_later', bs: 'neutral' }], history: [{ t: { de: 'Augenarzt-Kontrolle', en: 'Eye exam' }, s: { de: '12. März · unauffällig', en: 'Mar 12 · all clear' } }], action: null },
+    impf: { title: { de: 'Impfschutz', en: 'Immunisation' }, icon: 'syringe', tone: 'primary', status: { de: '1 Impfung ist gerade fällig', en: '1 vaccination is due' }, due: [{ t: { de: 'Grippeimpfung', en: 'Flu vaccination' }, s: { de: 'Auffrischung fällig', en: 'Booster due' }, b: 'badge_due', bs: 'due' }], soon: [{ t: { de: 'FSME (Zecken)', en: 'TBE (ticks)' }, s: { de: 'in 3 Wochen', en: 'in 3 weeks' }, b: 'badge_soon', bs: 'upcoming' }], history: [{ t: { de: 'Tetanus / Diphtherie', en: 'Tetanus / Diphtheria' }, s: { de: 'erledigt 2021', en: 'done 2021' } }, { t: { de: 'Masern (MMR)', en: 'Measles (MMR)' }, s: { de: 'erledigt 1998', en: 'done 1998' } }], action: 'impf_add' },
+    herz: { title: { de: 'Herz & Kreislauf', en: 'Heart & circulation' }, icon: 'heart-pulse', tone: 'red', status: { de: 'Blutdruck heute notieren', en: 'Log blood pressure today' }, due: [{ t: { de: 'Blutdruck messen', en: 'Measure blood pressure' }, s: { de: 'heute fällig', en: 'due today' }, b: 'badge_due', bs: 'due' }], soon: [], history: [{ t: { de: 'Blutdruck', en: 'Blood pressure' }, s: { de: '18. Juni · 128/82', en: 'Jun 18 · 128/82' } }, { t: { de: 'Cholesterin', en: 'Cholesterol' }, s: { de: 'Mai · im Normbereich', en: 'May · normal' } }], action: 'save' },
+    haut: { title: { de: 'Haut', en: 'Skin' }, icon: 'shield-check', tone: 'amber', status: { de: 'Screening in 2 Wochen', en: 'Screening in 2 weeks' }, due: [], soon: [{ t: { de: 'Hautkrebs-Screening', en: 'Skin cancer screening' }, s: { de: 'in 2 Wochen', en: 'in 2 weeks' }, b: 'badge_soon', bs: 'upcoming' }], history: [{ t: { de: 'Hautkrebs-Screening', en: 'Skin cancer screening' }, s: { de: '2022 · unauffällig', en: '2022 · all clear' } }], action: 'term_add' },
+    bauch: { title: { de: 'Verdauung', en: 'Digestion' }, icon: 'shield-check', tone: 'amber', status: { de: 'Vorsorge ab 50 empfohlen', en: 'Screening from 50' }, due: [], soon: [{ t: { de: 'Darmkrebs-Früherkennung', en: 'Colon screening' }, s: { de: 'ab 50', en: 'from 50' }, b: 'badge_later', bs: 'neutral' }], history: [], action: null },
+    beine: { title: { de: 'Bewegung', en: 'Movement' }, icon: 'activity', tone: 'green', status: { de: 'Aktiv — weiter so!', en: 'Active — keep it up!' }, due: [], soon: [], history: [{ t: { de: 'Aktivität', en: 'Activity' }, s: { de: 'Ø 8.200 Schritte / Tag', en: 'avg 8,200 steps / day' } }], action: null }
+  };
+  function RegionSection(label, rows, tone, icon) {
+    if (!rows || !rows.length) return null;
+    return h('div', null,
+      h('div', { className: 'sec-label' }, label),
+      h('div', { className: 'rows' }, rows.map(function (r, i) {
+        return h(ListRow, { key: i, icon: icon, tone: tone, title: tr(r.t), subtitle: tr(r.s), badge: r.b ? t(r.b) : null, badgeStatus: r.bs, trailingChevron: false });
+      })));
+  }
+  function RegionDetail(p) {
+    var d = REGION[p.regionId] || REGION.kopf;
+    var tc = TONE_C[d.tone] || TONE_C.primary;
+    return h(React.Fragment, null,
+      h(StatusBar),
+      TopBar({ label: tr(d.title), onBack: p.onBack }),
+      h('div', { className: 'content' }, h('div', { className: 'pad', style: { paddingTop: 4 } },
+        h(Card, { padding: 16, style: { display: 'flex', alignItems: 'center', gap: 14 } },
+          h('span', { style: { width: 54, height: 54, borderRadius: 15, background: tc[0], color: tc[1], display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, h(Icon, { name: d.icon, size: 26 })),
+          h('div', null,
+            h('div', { style: { fontSize: 16, fontWeight: 700 } }, tr(d.title)),
+            h('div', { style: { fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 } }, tr(d.status)))),
+        RegionSection(t('sec_open'), d.due, d.tone, d.icon),
+        RegionSection(t('sec_upcoming'), d.soon, 'amber', d.icon),
+        RegionSection(t('sec_history'), d.history, 'green', 'check'),
+        d.action ? h('div', { style: { marginTop: 20 } }, h(Button, { variant: 'primary', size: 'lg', fullWidth: true, iconLeft: 'plus', onClick: p.onBack }, t(d.action))) : null)));
+  }
+
+  /* ===================== settings ===================== */
+  function SetRow(icon, label, onClick, right) {
+    return h('button', { type: 'button', onClick: onClick, style: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', padding: '13px 14px', cursor: 'pointer', fontFamily: 'var(--font-sans)' } },
+      h('span', { style: { width: 38, height: 38, borderRadius: 11, background: 'var(--color-primary-soft)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, h(Icon, { name: icon, size: 19 })),
+      h('span', { style: { flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' } }, label),
+      right || h(Icon, { name: 'chevron-right', size: 18, color: 'var(--text-muted)' }));
+  }
+  function Settings(p) {
+    return h(React.Fragment, null,
+      h(StatusBar),
+      TopBar({ label: t('set_title'), onBack: p.onBack }),
+      h('div', { className: 'content' }, h('div', { className: 'pad', style: { paddingTop: 4 } },
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '4px 2px 6px' } },
+          h(Avatar, { name: p.profile.name, size: 56 }),
+          h('div', null, h('div', { style: { fontSize: 17, fontWeight: 700 } }, p.profile.name), h('div', { style: { fontSize: 13, color: 'var(--text-secondary)' } }, tr(p.profile.role)))),
+        h('div', { className: 'sec-label' }, t('set_personal')),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+          h(Input, { label: t('set_name'), icon: 'user', value: p.profile.name, onChange: function () {} }),
+          h(Input, { label: t('birthdate'), icon: 'calendar', value: '14.03.1977', onChange: function () {} }),
+          h(Input, { label: t('country'), icon: 'map-pin', value: LANG === 'de' ? 'Deutschland' : 'Germany', onChange: function () {} }),
+          h('div', null,
+            h('div', { style: { fontSize: 13, fontWeight: 600, marginBottom: 8 } }, t('sex')),
+            h('div', { className: 'seg' }, [['w', t('sex_f')], ['m', t('sex_m')]].map(function (o) {
+              return h('button', { key: o[0], className: p.profile.sex === o[0] ? 'on' : '', onClick: function () { p.onSex(o[0]); } }, o[1]);
+            })))),
+        h('div', { className: 'sec-label' }, t('set_prefs')),
+        h('div', { style: { background: 'var(--surface-card)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)', borderRadius: 'var(--radius-md)', padding: '13px 14px' } },
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 } },
+            h('span', { style: { width: 38, height: 38, borderRadius: 11, background: 'var(--color-secondary-soft)', color: 'var(--color-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, h(Icon, { name: 'languages', size: 19 })),
+            h('span', { style: { flex: 1, fontSize: 15, fontWeight: 600 } }, t('set_language'))),
+          h('div', { className: 'seg' }, [['de', t('set_lang_de')], ['en', t('set_lang_en')]].map(function (o) {
+            return h('button', { key: o[0], className: LANG === o[0] ? 'on' : '', onClick: function () { p.onLang(o[0]); } }, o[1]);
+          }))),
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 } },
+          SetRow('users', t('set_profiles'), p.onProfiles, h('span', { style: { fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 } }, (PROFILES.length - 1) + '', h(Icon, { name: 'chevron-right', size: 18, color: 'var(--text-muted)' }))),
+          SetRow('bell', t('set_notif'), function () {}),
+          SetRow('shield', t('set_privacy'), function () {})),
+        h('div', { style: { marginTop: 20 } }, h(Button, { variant: 'ghost', size: 'lg', fullWidth: true, iconLeft: 'log-out', onClick: function () { window.dispatchEvent(new Event('vitalis-reset')); } }, t('set_signout'))))));
+  }
+
+  /* ===================== profile switcher ===================== */
+  function ProfileSheet(p) {
+    var self = PROFILES.filter(function (x) { return x.self; });
+    var managed = PROFILES.filter(function (x) { return !x.self; });
+    function row(pr) {
+      var on = pr.id === p.current.id;
+      return h('button', { key: pr.id, type: 'button', onClick: function () { p.onPick(pr); }, style: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left', background: on ? 'var(--color-primary-soft)' : 'var(--surface-card)', border: '1px solid ' + (on ? 'transparent' : 'var(--border-subtle)'), borderRadius: 'var(--radius-md)', padding: '11px 12px', cursor: 'pointer', fontFamily: 'var(--font-sans)' } },
+        h(Avatar, { name: pr.name, size: 42 }),
+        h('div', { style: { flex: 1, minWidth: 0 } },
+          h('div', { style: { fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' } }, pr.name),
+          h('div', { style: { fontSize: 12, color: 'var(--text-secondary)' } }, tr(pr.role))),
+        on ? h(Icon, { name: 'check-circle-2', size: 20, color: 'var(--color-primary)' }) : null);
+    }
+    return h(Sheet, { open: p.open, onClose: p.onClose, title: t('prof_title') },
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+        h('div', { className: 'sec-label', style: { margin: '0 2px 2px' } }, t('prof_you')),
+        self.map(row),
+        h('div', { className: 'sec-label', style: { margin: '10px 2px 2px' } }, t('prof_managed') + ' · ' + managed.length + ' ' + t('prof_slots')),
+        managed.map(row),
+        managed.length < 10 ? h('button', { type: 'button', style: { display: 'flex', alignItems: 'center', gap: 12, width: '100%', background: 'none', border: '1.5px dashed var(--border-strong)', borderRadius: 'var(--radius-md)', padding: '12px', cursor: 'pointer', fontFamily: 'var(--font-sans)', color: 'var(--color-primary)', fontWeight: 600, fontSize: 14, marginTop: 2 } },
+          h('span', { style: { width: 42, height: 42, borderRadius: '50%', background: 'var(--color-primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(Icon, { name: 'plus', size: 20 })), t('prof_add')) : null));
+  }
+
+  /* ===================== app shell ===================== */
+  function App() {
+    var _o = useState(false), onboarded = _o[0], setOnboarded = _o[1];
+    var _lg = useState('de'), lang = _lg[0], setLang = _lg[1];
+    var _pf = useState(PROFILES[0]), profile = _pf[0], setProfile = _pf[1];
+    var _rg = useState(null), region = _rg[0], setRegion = _rg[1];
+    var _ov = useState(null), overlay = _ov[0], setOverlay = _ov[1]; // 'timeline' | 'settings'
+    var _ev = useState(null), selEvent = _ev[0], setSelEvent = _ev[1];
+    var _st = useState(null), selTask = _st[0], setSelTask = _st[1];
+    var _up = useState([
+      { id: 'up1', icon: 'shield-check', tone: 'teal', title: { de: 'Hautkrebs-Screening', en: 'Skin cancer screening' }, sub: { de: 'in 2 Wochen', en: 'in 2 weeks' }, badge: 'badge_soon', bs: 'upcoming' },
+      { id: 'up2', icon: 'stethoscope', tone: 'neutral', title: { de: 'Check-up 35', en: 'Check-up 35' }, sub: { de: 'nächsten Monat', en: 'next month' }, badge: 'badge_soon', bs: 'upcoming' }
+    ]), upcoming = _up[0], setUpcoming = _up[1];
+    var _t = useState('start'), tab = _t[0], setTab = _t[1];
+    var _sh = useState(null), sheet = _sh[0], setSheet = _sh[1];
+    var _ts = useState([
+      { id: 1, icon: 'syringe', tone: 'primary', title: { de: 'Grippeimpfung', en: 'Flu vaccination' }, done: false },
+      { id: 2, icon: 'droplet', tone: 'red', title: { de: 'Blutdruck notieren', en: 'Log blood pressure' }, done: false },
+      { id: 3, icon: 'stethoscope', tone: 'teal', title: { de: 'Check-up-Termin buchen', en: 'Book check-up' }, done: false }
+    ]), tasks = _ts[0], setTasks = _ts[1];
+    LANG = lang;
+    var toggle = function (id) { setTasks(function (ts) { return ts.map(function (x) { return x.id === id ? Object.assign({}, x, { done: !x.done }) : x; }); }); };
+
+    useEffect(function () {
+      function r() { setOnboarded(false); setTab('start'); setSheet(null); setRegion(null); setOverlay(null); setSelEvent(null); setSelTask(null); setProfile(PROFILES[0]); }
+      window.addEventListener('vitalis-reset', r);
+      return function () { window.removeEventListener('vitalis-reset', r); };
+    }, []);
+    useEffect(function () { if (window.lucide) window.lucide.createIcons(); });
+
+    var TABS = [
+      { key: 'start', label: t('tab_start'), icon: 'layout-grid' },
+      { key: 'impfen', label: t('tab_impfen'), icon: 'syringe' },
+      { key: 'vorsorge', label: t('tab_vorsorge'), icon: 'shield-check' },
+      { key: 'termine', label: t('tab_termine'), icon: 'calendar' },
+      { key: 'safe', label: t('tab_safe'), icon: 'lock' }
+    ];
+
+    if (!onboarded) return h(Onboarding, { onDone: function (s) { if (s) setProfile(Object.assign({}, PROFILES[0], { sex: s })); setOnboarded(true); } });
+
+    var openEvent = function (ev, past) { setSelEvent({ ev: ev, past: past }); };
+    var upDone = function (it, val) { setUpcoming(function (arr) { return arr.map(function (u) { return u.id === it.id ? Object.assign({}, u, val) : u; }); }); };
+    var taskDone = function (it) {
+      if (it.kind === 'due') setTasks(function (ts) { return ts.map(function (x) { return x.id === it.id ? Object.assign({}, x, { done: true }) : x; }); });
+      else upDone(it, { bs: 'done', badge: 'badge_done', tone: 'green' });
+      setSelTask(null);
+    };
+    var taskSnooze = function (it) {
+      if (it.kind === 'due') setTasks(function (ts) { return ts.map(function (x) { return x.id === it.id ? Object.assign({}, x, { snoozed: true }) : x; }); });
+      else upDone(it, { bs: 'neutral', badge: 'badge_later' });
+      setSelTask(null);
+    };
+    var taskReopen = function (it) {
+      if (it.kind === 'due') setTasks(function (ts) { return ts.map(function (x) { return x.id === it.id ? Object.assign({}, x, { done: false, snoozed: false }) : x; }); });
+      else upDone(it, { bs: 'upcoming', badge: 'badge_soon', tone: it.id === 'up1' ? 'teal' : 'neutral' });
+      setSelTask(null);
+    };
+    var screen = tab === 'start' ? h(Dashboard, { tasks: tasks, upcoming: upcoming, profile: profile, onOpen: function (id) { setRegion(id); }, onTimeline: function () { setOverlay('timeline'); }, onEvent: openEvent, onOpenTask: function (it) { setSelTask(it); }, onSettings: function () { setOverlay('settings'); }, onProfile: function () { setSheet('profile'); } })
+      : tab === 'impfen' ? h(Impfplan, { onAdd: function () { setSheet('impf'); } })
+      : tab === 'vorsorge' ? h(Vorsorge)
+      : tab === 'termine' ? h(Termine, { onAdd: function () { setSheet('termin'); } })
+      : h(Safe);
+
+    return h(React.Fragment, null,
+      h('div', { style: { position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } },
+        screen,
+        h(Sheet, { open: sheet === 'impf', onClose: function () { setSheet(null); }, title: t('impf_add') },
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+            h(Input, { label: t('tab_impfen'), icon: 'syringe', placeholder: LANG === 'de' ? 'z. B. Grippe' : 'e.g. flu' }),
+            h(Input, { label: t('birthdate'), icon: 'calendar', placeholder: LANG === 'de' ? 'TT.MM.JJJJ' : 'DD/MM/YYYY' }),
+            h(Button, { variant: 'primary', size: 'lg', fullWidth: true, onClick: function () { setSheet(null); } }, t('save')))),
+        h(Sheet, { open: sheet === 'termin', onClose: function () { setSheet(null); }, title: t('term_add') },
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } },
+            h(Input, { label: LANG === 'de' ? 'Titel' : 'Title', icon: 'stethoscope', placeholder: LANG === 'de' ? 'z. B. Hausarzt' : 'e.g. GP' }),
+            h(Input, { label: LANG === 'de' ? 'Datum & Uhrzeit' : 'Date & time', icon: 'calendar', placeholder: LANG === 'de' ? 'TT.MM.JJJJ · HH:MM' : 'DD/MM/YYYY · HH:MM' }),
+            h(Button, { variant: 'primary', size: 'lg', fullWidth: true, onClick: function () { setSheet(null); } }, t('save')))),
+        h(ProfileSheet, { open: sheet === 'profile', current: profile, onClose: function () { setSheet(null); }, onPick: function (pr) { setProfile(pr); setSheet(null); } })),
+      h(TabBar, { items: TABS, active: tab, onChange: setTab }),
+      region ? h('div', { style: { position: 'absolute', inset: 0, zIndex: 40, background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', animation: 'v-slidein .26s ease' } }, h(RegionDetail, { regionId: region, onBack: function () { setRegion(null); } })) : null,
+      overlay === 'timeline' ? h('div', { style: { position: 'absolute', inset: 0, zIndex: 45, background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', animation: 'v-slidein .26s ease' } }, h(Timeline, { onBack: function () { setOverlay(null); }, onEvent: openEvent })) : null,
+      overlay === 'settings' ? h('div', { style: { position: 'absolute', inset: 0, zIndex: 45, background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', animation: 'v-slidein .26s ease' } }, h(Settings, { profile: profile, onBack: function () { setOverlay(null); }, onLang: function (l) { setLang(l); }, onSex: function (s) { setProfile(function (pr) { return Object.assign({}, pr, { sex: s }); }); }, onProfiles: function () { setOverlay(null); setSheet('profile'); } })) : null,
+      selEvent ? h('div', { style: { position: 'absolute', inset: 0, zIndex: 48, background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', animation: 'v-slidein .26s ease' } }, h(EventDetail, { ev: selEvent.ev, past: selEvent.past, onBack: function () { setSelEvent(null); } })) : null,
+      selTask ? h('div', { style: { position: 'absolute', inset: 0, zIndex: 48, background: 'var(--surface-app)', display: 'flex', flexDirection: 'column', animation: 'v-slidein .26s ease' } }, h(TaskDetail, { item: selTask, onBack: function () { setSelTask(null); }, onDone: taskDone, onSnooze: taskSnooze, onReopen: taskReopen })) : null);
+  }
+
+  function mount() {
+    if (!window.VitalisUI) { return setTimeout(mount, 30); }
+    ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+    setTimeout(function () { window.lucide && window.lucide.createIcons(); }, 80);
+  }
+  mount();
+})();
+</script>
+</body>
+</html>

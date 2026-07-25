@@ -1,6 +1,7 @@
 export const PLAN_CATEGORIES = Object.freeze({
   checkup: 'checkup',
   vaccination: 'vaccination',
+  counseling: 'counseling',
 });
 
 export const PLAN_STATUSES = Object.freeze({
@@ -29,13 +30,24 @@ export const CATEGORY_LABELS = Object.freeze({
     singular: 'Vaccination',
     plural: 'Vaccinations',
   },
+  counseling: {
+    singular: 'Counseling',
+    plural: 'Counseling',
+  },
 });
 
 export const DETAIL_ORIGIN = Object.freeze({
   dashboard: 'dashboard',
   checkups: 'checkups',
   vaccinations: 'vaccinations',
+  counseling: 'counseling',
   direct: 'direct',
+});
+
+const CATEGORY_ROUTE_KEYS = Object.freeze({
+  [PLAN_CATEGORIES.checkup]: DETAIL_ORIGIN.checkups,
+  [PLAN_CATEGORIES.vaccination]: DETAIL_ORIGIN.vaccinations,
+  [PLAN_CATEGORIES.counseling]: DETAIL_ORIGIN.counseling,
 });
 
 export function isAllowedPlanCategory(value) {
@@ -56,5 +68,5 @@ export function getCategoryLabel(category, mode = 'plural') {
 }
 
 export function getCategoryRouteKey(category) {
-  return category === PLAN_CATEGORIES.vaccination ? DETAIL_ORIGIN.vaccinations : DETAIL_ORIGIN.checkups;
+  return CATEGORY_ROUTE_KEYS[category] ?? DETAIL_ORIGIN.checkups;
 }

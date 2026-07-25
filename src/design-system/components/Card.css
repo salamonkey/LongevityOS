@@ -1,0 +1,19 @@
+.vds-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  transition: box-shadow 0.16s, transform 0.08s;
+}
+
+.vds-card--elevated {
+  box-shadow: var(--shadow-sm);
+}
+
+.vds-card--clickable {
+  cursor: pointer;
+}
+
+.vds-card--clickable:active {
+  transform: scale(0.99);
+}

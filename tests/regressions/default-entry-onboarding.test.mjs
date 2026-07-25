@@ -5,7 +5,7 @@ import path from 'node:path';
 
 const appPath = path.join(process.cwd(), 'src/App.jsx');
 
-test('default app entry keeps onboarding as fallback surface', () => {
+test('default app entry keeps the dashboard (start) as fallback surface', () => {
   const text = fs.readFileSync(appPath, 'utf8');
 
   assert.match(
@@ -16,8 +16,8 @@ test('default app entry keeps onboarding as fallback surface', () => {
 
   assert.match(
     text,
-    /function\s+normalizeView\(value\)[\s\S]*return\s+'onboarding';/,
-    'normalizeView should fallback to onboarding',
+    /function\s+normalizeView\(value\)[\s\S]*return\s+'start';/,
+    "normalizeView should fallback to 'start' (the dashboard view)",
   );
 
   assert.match(

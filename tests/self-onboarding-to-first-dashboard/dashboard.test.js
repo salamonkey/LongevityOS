@@ -9,6 +9,7 @@ import {
   selectHighlightedItem,
 } from '../../src/features/self-onboarding-to-first-dashboard/dashboard.js';
 import { generateInitialPlanSnapshot } from '../../src/features/self-onboarding-to-first-dashboard/plan.js';
+import { withTestCatalogOptions } from '../fixtures/catalogOptions.js';
 
 const SAMPLE_ITEMS = [
   {
@@ -111,6 +112,15 @@ test('projection returns one highlighted item and populated sections', () => {
   assert.equal(hasPopulatedDashboard(projection), true);
 });
 
+test('projection uses only the first name for the dashboard greeting', () => {
+  const projection = buildDashboardProjection(
+    { items: SAMPLE_ITEMS, generatedAt: '2026-05-05T08:00:00.000Z' },
+    { name: 'Jane Doe' },
+  );
+
+  assert.equal(projection.profileName, 'Jane');
+});
+
 test('done items move between Later/Soon/Today based on time remaining to next due date', () => {
   const doneItem = {
     catalogItemId: 'done-item',
@@ -201,7 +211,7 @@ test('completing a Today item promotes the next urgent item into Today', () => {
 
 test('low-effort blood pressure check is surfaced in Today immediately after onboarding', () => {
   const profile = { profileId: 'self', age: 45, gender: 'female', name: 'You' };
-  const snapshot = generateInitialPlanSnapshot(profile, { now: new Date('2026-05-05T08:00:00.000Z') });
+  const snapshot = generateInitialPlanSnapshot(profile, withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }));
   const projection = buildDashboardProjection(snapshot, profile, { today: new Date('2026-05-05T08:00:00.000Z') });
   const todayItems = projection.sections.find((section) => section.priority === 'today')?.items ?? [];
 

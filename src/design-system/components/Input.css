@@ -1,0 +1,66 @@
+.vds-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-sans);
+}
+
+.vds-input-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.vds-input-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 14px;
+  background: var(--surface-card);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+
+.vds-input-field:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.vds-input-field--error,
+.vds-input-field--error:focus-within {
+  border-color: var(--status-overdue);
+  box-shadow: none;
+}
+
+.vds-input-field--disabled {
+  background: var(--surface-sunken);
+}
+
+.vds-input-field input,
+.vds-input-field select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  /* 16px, not the design's literal 15px: below 16px, iOS Safari auto-zooms
+     the viewport on focus regardless of the user-scalable meta setting. */
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.vds-input-field select {
+  cursor: pointer;
+}
+
+.vds-input-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.vds-input-note--error {
+  color: var(--status-overdue);
+}

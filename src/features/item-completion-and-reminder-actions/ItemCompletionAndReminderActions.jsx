@@ -2,14 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   AppShell,
-  StatusPill,
 } from '../self-onboarding-to-first-dashboard/components.jsx';
 import {
   DETAIL_ORIGIN,
   PLAN_STATUSES,
   PLAN_CATEGORIES,
-  getCategoryLabel,
-  getStatusLabel,
 } from '../health-plan-browsing-and-item-detail/model.js';
 import {
   resolveDetailBackTarget,
@@ -23,7 +20,6 @@ import {
 } from './actions.js';
 import {
   DETAIL_ACTION_ERRORS,
-  REMINDER_OPTION_LABELS,
   REMINDER_TIMING_TYPES,
   formatDateForConfirmation,
 } from './model.js';
@@ -33,7 +29,7 @@ import {
 } from './selectors.js';
 import {
   ALLOWED_MANUAL_ENTRY_STATUS_CONTEXTS,
-  MANUAL_ENTRY_STATUS_LABELS,
+  MANUAL_ENTRY_STATUS_CONTEXT,
   MANUAL_ENTRY_VALIDATION_ERRORS,
   buildManualVaccinationCatalogOptions,
   buildManualVaccinationRows,
@@ -41,6 +37,10 @@ import {
   createInitialManualEntryForm,
   validateManualVaccinationEntryInput,
 } from '../vaccination-tracking-area-and-manual-entries/model.js';
+import { Sheet, ListRow, IconButton, Card, Badge, Button, Icon } from '../../design-system/components/index.js';
+import { getCategoryIcon, getCategoryLabelKey, getInterventionTypeLabelKey, getStatusBadgeStatus, getStatusLabelKey, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
+import { useTranslation } from '../../lib/i18n/index.js';
+import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 
 const DONE_COMPLETION_TIMING_TYPES = Object.freeze({
   today: 'today',
@@ -117,35 +117,42 @@ function buildTimeToGoState({ completedOn, cadenceText, now = new Date() }) {
 }
 
 function PlanRow({ item, onOpen }) {
+  const { t } = useTranslation();
   return (
-    <li>
-      <button type="button" className="sl002-plan-row" onClick={() => onOpen(item.itemKey)}>
-        <span className="sl002-plan-row-copy">
-          <span className="sl002-plan-row-title">{item.displayName}</span>
-          <span className="sl002-plan-row-cadence">{item.cadenceText}</span>
-        </span>
-        <StatusPill status={item.status} label={item.statusLabel} />
-      </button>
-    </li>
+    <ListRow
+      icon={getCategoryIcon(item.category)}
+      tone={getStatusTone(item.status)}
+      title={item.displayName}
+      subtitle={item.requiresSharedDecision ? `${item.cadenceText} · Discuss with clinician` : item.cadenceText}
+      badge={t(getStatusLabelKey(item.status))}
+      badgeStatus={getStatusBadgeStatus(item.status)}
+      onClick={() => onOpen(item.itemKey)}
+    />
   );
 }
 
-function ListEmptyState({ activeCategory, onSwitchCategory }) {
-  const nextCategory = activeCategory === PLAN_CATEGORIES.checkup
-    ? PLAN_CATEGORIES.vaccination
-    : PLAN_CATEGORIES.checkup;
+const EMPTY_STATE_NEXT_CATEGORY = Object.freeze({
+  [PLAN_CATEGORIES.checkup]: PLAN_CATEGORIES.vaccination,
+  [PLAN_CATEGORIES.vaccination]: PLAN_CATEGORIES.counseling,
+  [PLAN_CATEGORIES.counseling]: PLAN_CATEGORIES.checkup,
+});
+
+function ListEmptyState({ activeCategory, onSwitchCategory, visibleCategories }) {
+  const { t } = useTranslation();
+  const nextCategory = EMPTY_STATE_NEXT_CATEGORY[activeCategory] ?? PLAN_CATEGORIES.checkup;
+  const canSwitchCategory = visibleCategories.includes(nextCategory) && nextCategory !== activeCategory;
+  const categoryLabel = t(getCategoryLabelKey(activeCategory));
+  const nextCategoryLabel = t(getCategoryLabelKey(nextCategory));
 
   return (
     <section className="sl002-empty-state" role="status" aria-live="polite">
-      <h3>No {getCategoryLabel(activeCategory).toLowerCase()} in your plan right now</h3>
-      <p>There are no {getCategoryLabel(activeCategory).toLowerCase()} to show yet.</p>
-      <button
-        type="button"
-        className="sl001-primary-action"
-        onClick={() => onSwitchCategory(nextCategory)}
-      >
-        View {getCategoryLabel(nextCategory)}
-      </button>
+      <h3>{t('checkups.noItemsInCategory', { category: categoryLabel.toLowerCase() })}</h3>
+      <p>{t('checkups.noItemsInCategoryBody', { category: categoryLabel.toLowerCase() })}</p>
+      {canSwitchCategory ? (
+      <Button type="button" variant="primary" onClick={() => onSwitchCategory(nextCategory)}>
+        {t('checkups.viewCategory', { category: nextCategoryLabel })}
+      </Button>
+      ) : null}
     </section>
   );
 }
@@ -159,6 +166,7 @@ function ReminderForm({
   pending,
   validationMessage,
 }) {
+  const { t } = useTranslation();
   const customDateInputRef = useRef(null);
 
   useEffect(() => {
@@ -185,7 +193,7 @@ function ReminderForm({
   return (
     <div className="sl003-reminder-form" role="group" aria-label="Set a reminder">
       <fieldset className="sl003-reminder-fieldset" disabled={pending}>
-        <legend>Set a reminder</legend>
+        <legend>{t('reminderForm.legend')}</legend>
         <label>
           <input
             type="radio"
@@ -194,7 +202,7 @@ function ReminderForm({
             checked={selectedTiming === REMINDER_TIMING_TYPES.one_month}
             onChange={(event) => onTimingChange(event.target.value)}
           />
-          {REMINDER_OPTION_LABELS[REMINDER_TIMING_TYPES.one_month]}
+          {t('reminderForm.inOneMonth')}
         </label>
         <label>
           <input
@@ -204,7 +212,7 @@ function ReminderForm({
             checked={selectedTiming === REMINDER_TIMING_TYPES.three_months}
             onChange={(event) => onTimingChange(event.target.value)}
           />
-          {REMINDER_OPTION_LABELS[REMINDER_TIMING_TYPES.three_months]}
+          {t('reminderForm.inThreeMonths')}
         </label>
         <label>
           <input
@@ -214,11 +222,11 @@ function ReminderForm({
             checked={selectedTiming === REMINDER_TIMING_TYPES.custom_date}
             onChange={(event) => onTimingChange(event.target.value)}
           />
-          {REMINDER_OPTION_LABELS[REMINDER_TIMING_TYPES.custom_date]}
+          {t('reminderForm.chooseDate')}
         </label>
         {selectedTiming === REMINDER_TIMING_TYPES.custom_date ? (
           <div className="sl003-custom-date">
-            <label htmlFor="sl003-custom-date">Reminder date</label>
+            <label htmlFor="sl003-custom-date">{t('reminderForm.reminderDate')}</label>
             <input
               ref={customDateInputRef}
               id="sl003-custom-date"
@@ -232,9 +240,9 @@ function ReminderForm({
       </fieldset>
       {validationMessage ? <p className="sl001-field-error" role="alert">{validationMessage}</p> : null}
       <div className="sl003-reminder-actions">
-        <button className="sl003-quiet-button" type="button" onClick={onCancel} disabled={pending}>
-          Cancel
-        </button>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          {t('common.cancel')}
+        </Button>
       </div>
     </div>
   );
@@ -250,6 +258,7 @@ function DoneForm({
   pending,
   validationMessage,
 }) {
+  const { t } = useTranslation();
   const customDateInputRef = useRef(null);
 
   useEffect(() => {
@@ -276,7 +285,7 @@ function DoneForm({
   return (
     <form className="sl003-reminder-form" onSubmit={onSubmit} noValidate>
       <fieldset className="sl003-reminder-fieldset" disabled={pending}>
-        <legend>Mark as done</legend>
+        <legend>{t('doneForm.legend')}</legend>
         <label>
           <input
             type="radio"
@@ -285,7 +294,7 @@ function DoneForm({
             checked={selectedTiming === DONE_COMPLETION_TIMING_TYPES.today}
             onChange={(event) => onTimingChange(event.target.value)}
           />
-          Today
+          {t('doneForm.today')}
         </label>
         <label>
           <input
@@ -295,11 +304,11 @@ function DoneForm({
             checked={selectedTiming === DONE_COMPLETION_TIMING_TYPES.custom_date}
             onChange={(event) => onTimingChange(event.target.value)}
           />
-          Choose date
+          {t('doneForm.chooseDate')}
         </label>
         {selectedTiming === DONE_COMPLETION_TIMING_TYPES.custom_date ? (
           <div className="sl003-custom-date">
-            <label htmlFor="sl003-done-custom-date">Completion date</label>
+            <label htmlFor="sl003-done-custom-date">{t('doneForm.completionDate')}</label>
             <input
               ref={customDateInputRef}
               id="sl003-done-custom-date"
@@ -313,12 +322,12 @@ function DoneForm({
       </fieldset>
       {validationMessage ? <p className="sl001-field-error" role="alert">{validationMessage}</p> : null}
       <div className="sl003-reminder-actions">
-        <button className="sl001-primary-action" type="submit" disabled={pending}>
-          {pending ? 'Saving...' : 'Save completion'}
-        </button>
-        <button className="sl003-quiet-button" type="button" onClick={onCancel} disabled={pending}>
-          Cancel
-        </button>
+        <Button type="submit" variant="primary" disabled={pending}>
+          {pending ? t('doneForm.saving') : t('doneForm.saveCompletion')}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          {t('common.cancel')}
+        </Button>
       </div>
     </form>
   );
@@ -344,6 +353,11 @@ function ManualEntryForm({
   const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const dateMin = form.statusContext === 'planned' ? todayIso : undefined;
   const dateMax = form.statusContext === 'completed' ? todayIso : undefined;
+  const { t } = useTranslation();
+  const manualEntryStatusLabelKeys = {
+    completed: 'manualEntry.statusCompleted',
+    planned: 'manualEntry.statusPlanned',
+  };
 
   const handleEntryDateChange = (nextDate, inputElement) => {
     if (!nextDate) {
@@ -419,7 +433,7 @@ function ManualEntryForm({
 
   return (
     <form className="sl003-manual-form" onSubmit={onSubmit} noValidate>
-      <label htmlFor="sl003-manual-vaccination-item">Vaccination record</label>
+      <label htmlFor="sl003-manual-vaccination-item">{t('manualEntry.vaccinationRecord')}</label>
       <select
         id="sl003-manual-vaccination-item"
         value={form.vaccinationKey}
@@ -427,7 +441,7 @@ function ManualEntryForm({
         disabled={pending}
         aria-invalid={Boolean(errors.vaccinationKey)}
       >
-        <option value="">Choose a vaccination</option>
+        <option value="">{t('manualEntry.chooseVaccination')}</option>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -435,7 +449,7 @@ function ManualEntryForm({
       {errors.vaccinationKey ? <p className="sl001-field-error" role="alert">{errors.vaccinationKey}</p> : null}
 
       <fieldset className="sl003-manual-status-group" disabled={pending}>
-        <legend>Status</legend>
+        <legend>{t('manualEntry.status')}</legend>
         {ALLOWED_MANUAL_ENTRY_STATUS_CONTEXTS.map((statusContext) => (
           <label key={statusContext}>
             <input
@@ -445,13 +459,13 @@ function ManualEntryForm({
               checked={form.statusContext === statusContext}
               onChange={(event) => handleStatusContextChange(event.target.value)}
             />
-            {MANUAL_ENTRY_STATUS_LABELS[statusContext]}
+            {t(manualEntryStatusLabelKeys[statusContext] ?? 'manualEntry.statusPlanned')}
           </label>
         ))}
       </fieldset>
       {errors.statusContext ? <p className="sl001-field-error" role="alert">{errors.statusContext}</p> : null}
 
-      {showDateField ? <label htmlFor="sl003-manual-entry-date">Date</label> : null}
+      {showDateField ? <label htmlFor="sl003-manual-entry-date">{t('manualEntry.date')}</label> : null}
       {showDateField ? (
         <input
           ref={visibleDateInputRef}
@@ -475,12 +489,12 @@ function ManualEntryForm({
       {saveError ? <p className="sl001-error-banner" role="alert">{saveError}</p> : null}
 
       <div className="sl003-manual-form-actions">
-        <button type="submit" className="sl001-primary-action" disabled={pending || !canSave}>
-          {pending ? 'Saving entry...' : 'Save record'}
-        </button>
-        <button type="button" className="sl003-quiet-button" onClick={onCancel} disabled={pending}>
-          Cancel
-        </button>
+        <Button type="submit" variant="primary" disabled={pending || !canSave}>
+          {pending ? t('manualEntry.savingEntry') : t('manualEntry.saveRecord')}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          {t('common.cancel')}
+        </Button>
       </div>
     </form>
   );
@@ -509,8 +523,10 @@ function DetailView({
   actionError,
   confirmationMessage,
 }) {
+  const { t } = useTranslation();
   const actionAreaRef = useRef(null);
   const actionsDisabled = donePending || reminderPending;
+  const showActionCtas = !showDoneForm && !showReminderForm;
   const doneTimeToGo = item.status === 'done' && item.completedOn
     ? buildTimeToGoState({
       completedOn: item.completedOn,
@@ -536,41 +552,54 @@ function DetailView({
     requestAnimationFrame(scrollToActionArea);
   }, [showDoneForm, showReminderForm]);
 
+  const [heroChipBg, heroChipFg] = getToneColors(getStatusTone(item.status));
+
   return (
     <section className="sl002-detail-view" aria-label={`${item.displayName} details`}>
-      <div className="sl002-detail-topline">
-        <StatusPill status={item.status} label={item.statusLabel} />
-        <span className="sl002-detail-category">{item.interventionTypeLabel ?? item.categoryLabel}</span>
-      </div>
+      <Card padding={16} className="vitalis-detail-hero">
+        <span className="vitalis-detail-hero-icon" style={{ background: heroChipBg, color: heroChipFg }}>
+          <Icon name={getCategoryIcon(item.category)} size={26} />
+        </span>
+        <div className="vitalis-detail-hero-copy">
+          <p className="vitalis-detail-hero-title">{item.displayName}</p>
+          <p className="vitalis-detail-hero-sub">{t(getInterventionTypeLabelKey(item.interventionType))}</p>
+        </div>
+        <Badge status={getStatusBadgeStatus(item.status)}>{t(getStatusLabelKey(item.status))}</Badge>
+      </Card>
       {item.reminderDateLabel ? (
         <p className="sl003-reminder-note">Planned for {item.reminderDateLabel}</p>
       ) : null}
+      {item.requiresSharedDecision ? (
+        <p className="sl003-shared-decision-note" role="note">
+          Worth discussing with your clinician — this is a personal choice, not something you're behind on.
+        </p>
+      ) : null}
 
-      <section className="sl002-detail-section" aria-label="Cadence">
-        <h3>Cadence</h3>
+      <Card className="sl002-detail-section" aria-label="Cadence">
+        <h3>{t('detail.cadence')}</h3>
         <p>{item.cadenceText}</p>
-      </section>
+      </Card>
 
-      <section className="sl002-detail-section" aria-label="Recommendation">
-        <h3>Recommendation</h3>
+      <Card className="sl002-detail-section" aria-label="Recommendation">
+        <h3>{t('detail.recommendation')}</h3>
         <p>{item.recommendationText}</p>
-      </section>
+      </Card>
 
-      <section className="sl002-detail-section" aria-label="Why it matters">
-        <h3>Why it matters</h3>
+      <Card className="sl002-detail-section" aria-label="Why it matters">
+        <h3>{t('detail.whyItMatters')}</h3>
         <p>{item.whyItMattersText}</p>
-      </section>
+      </Card>
 
-      <section ref={actionAreaRef} className="sl003-action-area" aria-label="Item actions">
-        <h3>{doneTimeToGo ? 'Time to go' : 'Next step'}</h3>
+      <section ref={actionAreaRef} className="sl003-action-area vds-card vds-card--elevated" aria-label="Item actions">
+        <h3>{doneTimeToGo ? t('detail.timeToGo') : t('detail.nextStep')}</h3>
         {readOnly ? (
-          <p className="sl003-complete-message">This item is not currently in your active plan list.</p>
+          <p className="sl003-complete-message">{t('detail.notInPlan')}</p>
         ) : item.status === 'done' ? (
           <>
             <p className="sl003-complete-message">
               {item.completedOnLabel
-                ? `This item was marked as done on ${item.completedOnLabel}.`
-                : 'This item is marked as done.'}
+                ? t('detail.markedDoneOn', { date: item.completedOnLabel })
+                : t('detail.markedDone')}
             </p>
             {doneTimeToGo ? (
               <section className="sl003-time-to-go" aria-label="Time until next due checkup">
@@ -588,15 +617,25 @@ function DetailView({
           </>
         ) : (
           <>
-            {!showDoneForm ? (
-              <button
-                type="button"
-                className="sl001-primary-action"
-                onClick={onOpenDone}
-                disabled={actionsDisabled}
-              >
-                Mark as done
-              </button>
+            {showActionCtas ? (
+              <div className="sl003-action-cta-row">
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={onOpenDone}
+                  disabled={actionsDisabled}
+                >
+                  {t('detail.markAsDone')}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={onOpenReminder}
+                  disabled={actionsDisabled}
+                >
+                  {t('detail.setReminder')}
+                </Button>
+              </div>
             ) : null}
             {showDoneForm ? (
               <DoneForm
@@ -609,16 +648,6 @@ function DetailView({
                 pending={donePending}
                 validationMessage={actionError}
               />
-            ) : null}
-            {!showReminderForm ? (
-              <button
-                type="button"
-                className="sl003-secondary-action"
-                onClick={onOpenReminder}
-                disabled={actionsDisabled}
-              >
-                Set reminder
-              </button>
             ) : null}
             {showReminderForm ? (
               <ReminderForm
@@ -642,11 +671,12 @@ function DetailView({
 }
 
 function NotFoundState({ onRecover }) {
+  const { t } = useTranslation();
   return (
     <section className="sl002-not-found" role="alert">
-      <h2>This item is not available in your current plan</h2>
-      <p>It may no longer be part of this plan. You can return to your plan list.</p>
-      <button type="button" className="sl001-primary-action" onClick={onRecover}>Return to your plan</button>
+      <h2>{t('plan.itemUnavailableHeading')}</h2>
+      <p>{t('plan.itemUnavailableBody')}</p>
+      <Button type="button" variant="primary" fullWidth onClick={onRecover}>{t('plan.returnToPlan')}</Button>
     </section>
   );
 }
@@ -656,6 +686,7 @@ export default function ItemCompletionAndReminderActions({
   initialPlanSnapshot,
   initialManualEntries = [],
   initialCategory = PLAN_CATEGORIES.checkup,
+  visibleCategories = [PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination, PLAN_CATEGORIES.counseling],
   initialItemKey,
   initialOrigin = DETAIL_ORIGIN.direct,
   initialReturnToVaccinationTracker = false,
@@ -665,7 +696,9 @@ export default function ItemCompletionAndReminderActions({
   onPlanSnapshotChange,
   clock = () => new Date(),
   locale = 'en-US',
+  catalogGeneration = 0,
 }) {
+  const { t, locale: uiLocale } = useTranslation();
   const [planSnapshot, setPlanSnapshot] = useState(initialPlanSnapshot);
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [detailState, setDetailState] = useState(initialItemKey ? {
@@ -690,7 +723,6 @@ export default function ItemCompletionAndReminderActions({
   const [manualEntryPending, setManualEntryPending] = useState(false);
   const [manualEntries, setManualEntries] = useState(initialManualEntries);
   const [pendingListScrollRestoreY, setPendingListScrollRestoreY] = useState(null);
-  const manualEntryFormShellRef = useRef(null);
   const planListScrollYRef = useRef(0);
 
   const latestSnapshotRef = useRef(planSnapshot);
@@ -705,56 +737,38 @@ export default function ItemCompletionAndReminderActions({
 
   const readModel = useMemo(
     () => buildPlanReadModelForSlice(planSnapshot),
-    [planSnapshot],
+    [planSnapshot, uiLocale, catalogGeneration],
   );
   const manualEntryOptions = useMemo(
     () => buildManualVaccinationCatalogOptions(planSnapshot),
-    [planSnapshot],
+    [planSnapshot, uiLocale, catalogGeneration],
   );
   const manualEntryRows = useMemo(
     () => buildManualVaccinationRows(manualEntries, planSnapshot, { locale }),
-    [manualEntries, planSnapshot, locale],
+    [manualEntries, planSnapshot, locale, uiLocale, catalogGeneration],
   );
 
   const detailItem = detailState ? resolveItemDetail(readModel, detailState.itemKey) : null;
   const fallbackDefinition = detailState?.itemKey
     ? PREVENTIVE_ITEM_DEFINITION_INDEX[detailState.itemKey]
     : null;
+  const fallbackLiveCopy = fallbackDefinition ? resolveCatalogCopyForItemKey(fallbackDefinition.itemKey) : null;
   const detailItemView = detailItem ?? (fallbackDefinition ? {
     itemKey: fallbackDefinition.itemKey,
-    displayName: fallbackDefinition.displayName,
+    displayName: fallbackLiveCopy?.name ?? fallbackDefinition.displayName,
     category: fallbackDefinition.category,
-    categoryLabel: getCategoryLabel(fallbackDefinition.category, 'singular'),
     interventionType: fallbackDefinition.interventionType,
-    interventionTypeLabel: fallbackDefinition.interventionTypeLabel,
-    cadenceText: fallbackDefinition.cadenceText,
-    recommendationText: fallbackDefinition.recommendationText,
-    whyItMattersText: fallbackDefinition.whyItMattersText,
+    cadenceText: fallbackLiveCopy?.cadenceLabel ?? fallbackDefinition.cadenceText,
+    recommendationText: fallbackLiveCopy?.recommendationText ?? fallbackDefinition.recommendationText,
+    whyItMattersText: fallbackLiveCopy?.whyItMatters ?? fallbackDefinition.whyItMattersText,
     status: PLAN_STATUSES.pending,
-    statusLabel: getStatusLabel(PLAN_STATUSES.pending),
     reminderDate: null,
     reminderDateLabel: null,
   } : null);
   const detailReadOnly = Boolean(detailItemView && !detailItem);
-  const activeItems = activeCategory === PLAN_CATEGORIES.vaccination ? readModel.vaccinations : readModel.checkups;
-
-  useEffect(() => {
-    if (!showManualEntryForm || activeCategory !== PLAN_CATEGORIES.vaccination) {
-      return;
-    }
-
-    const node = manualEntryFormShellRef.current;
-    if (!node) {
-      return;
-    }
-
-    const scrollToForm = () => {
-      node.scrollIntoView({ block: 'start', behavior: 'auto' });
-    };
-
-    scrollToForm();
-    requestAnimationFrame(scrollToForm);
-  }, [activeCategory, showManualEntryForm]);
+  const activeItems = activeCategory === PLAN_CATEGORIES.vaccination
+    ? readModel.vaccinations
+    : (activeCategory === PLAN_CATEGORIES.counseling ? readModel.counseling : readModel.checkups);
 
   const handleOpenDetailFromPlan = (itemKey) => {
     if (typeof window !== 'undefined') {
@@ -945,8 +959,8 @@ export default function ItemCompletionAndReminderActions({
 
   if (!planSnapshot) {
     return (
-      <AppShell title="Your preventive plan">
-        <p className="sl001-support-copy">Loading your preventive plan...</p>
+      <AppShell title={t('plan.loadingTitle')}>
+        <p className="sl001-support-copy">{t('plan.loadingBody')}</p>
         <div className="sl002-loading-block" aria-hidden="true" />
         <div className="sl002-loading-block" aria-hidden="true" />
       </AppShell>
@@ -955,7 +969,7 @@ export default function ItemCompletionAndReminderActions({
 
   if (detailState && !detailItemView) {
     return (
-      <AppShell title="Plan item unavailable">
+      <AppShell title={t('plan.itemUnavailableTitle')}>
         <NotFoundState
           onRecover={() => {
             setDetailState(null);
@@ -970,11 +984,8 @@ export default function ItemCompletionAndReminderActions({
     return (
       <AppShell
         title={detailItemView.displayName}
-        headerAction={(
-          <button type="button" className="sl002-back-button" onClick={handleBackFromDetail}>
-            Back
-          </button>
-        )}
+        onBack={handleBackFromDetail}
+        backLabel={t('common.back')}
       >
         <DetailView
           item={detailItemView}
@@ -1115,6 +1126,19 @@ export default function ItemCompletionAndReminderActions({
         }
       }
 
+      if (savedEntry.statusContext === MANUAL_ENTRY_STATUS_CONTEXT.completed) {
+        try {
+          const doneResult = service.markItemDone(profile.profileId, savedEntry.vaccinationKey, {
+            customDate: savedEntry.entryDate,
+          });
+          if (typeof onPlanSnapshotChange === 'function') {
+            onPlanSnapshotChange(doneResult.planSnapshot);
+          }
+        } catch (doneError) {
+          console.warn('Failed to recompute booster due date for logged vaccination.', doneError);
+        }
+      }
+
       setManualEntries((previous) => {
         const next = [...previous, savedEntry];
         if (typeof onManualEntriesChange === 'function') {
@@ -1133,17 +1157,19 @@ export default function ItemCompletionAndReminderActions({
   return (
     <AppShell title={null}>
       <section className="sl003-plan-browser" aria-label="Browse your plan">
-        <div className="sl002-category-switch" role="tablist" aria-label="Plan categories">
-          {[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination].map((category) => {
+        <div className="vitalis-seg" role="tablist" aria-label="Plan categories">
+          {[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.vaccination, PLAN_CATEGORIES.counseling]
+            .filter((category) => visibleCategories.includes(category))
+            .map((category) => {
             const isActive = activeCategory === category;
-            const label = getCategoryLabel(category);
+            const label = t(getCategoryLabelKey(category));
 
             return (
               <button
                 key={category}
                 type="button"
                 role="tab"
-                className={isActive ? 'sl002-tab is-active' : 'sl002-tab'}
+                className={isActive ? 'is-active' : ''}
                 aria-selected={isActive}
                 onClick={() => setActiveCategory(category)}
               >
@@ -1153,83 +1179,78 @@ export default function ItemCompletionAndReminderActions({
           })}
         </div>
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
-          <section className="sl003-vaccination-guidance sl001-summary-card" aria-label="Due guidance">
-            <p className="sl001-label">Due guidance</p>
-            <p className="sl001-summary-meta">
-              Guidance is based on your preventive plan profile and helps you spot what may need attention next.
-            </p>
+          <Card className="sl003-vaccination-guidance" aria-label="Due guidance">
+            <p className="sl001-label">{t('vaccinations.dueGuidanceTitle')}</p>
+            <p className="sl001-summary-meta">{t('vaccinations.dueGuidanceBody')}</p>
             {activeItems.length === 0 ? (
-              <p className="sl001-summary-meta">No vaccination guidance is available right now.</p>
+              <p className="sl001-summary-meta">{t('vaccinations.noGuidance')}</p>
             ) : (
-              <ul className="sl002-plan-list sl003-guidance-list" aria-label="Vaccination guidance list">
+              <div className="rows" aria-label="Vaccination guidance list">
                 {activeItems.map((item) => (
                   <PlanRow key={item.itemKey} item={item} onOpen={handleOpenDetailFromPlan} />
                 ))}
-              </ul>
+              </div>
             )}
-          </section>
+          </Card>
         ) : null}
         {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length === 0 ? (
-          <ListEmptyState activeCategory={activeCategory} onSwitchCategory={setActiveCategory} />
+          <ListEmptyState activeCategory={activeCategory} onSwitchCategory={setActiveCategory} visibleCategories={visibleCategories} />
         ) : null}
         {activeCategory !== PLAN_CATEGORIES.vaccination && activeItems.length > 0 ? (
-          <ul className="sl002-plan-list" aria-label={`${getCategoryLabel(activeCategory)} list`}>
+          <div className="rows" aria-label={`${t(getCategoryLabelKey(activeCategory))} list`}>
             {activeItems.map((item) => (
               <PlanRow key={item.itemKey} item={item} onOpen={handleOpenDetailFromPlan} />
             ))}
-          </ul>
+          </div>
+        ) : null}
+        {activeCategory !== PLAN_CATEGORIES.vaccination ? (
+          <Card elevated={false} className="sl003-guidance-disclaimer">
+            <p>{t('checkups.disclaimer')}</p>
+          </Card>
         ) : null}
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
           <>
-            <section className="sl003-manual-entry-box sl002-empty-state" aria-label="Manual vaccination records">
-              <h3>Your vaccination records</h3>
+            <Card className="sl003-manual-entry-box" aria-label="Manual vaccination records">
+              <h3>{t('vaccinations.recordsTitle')}</h3>
               {manualEntryRows.length === 0 ? (
-                <p className="sl003-manual-empty">No manual vaccination entries yet.</p>
+                <p className="sl003-manual-empty">{t('vaccinations.noRecords')}</p>
               ) : (
-                <ul className="sl002-plan-list sl003-manual-list" aria-label="Manual vaccination entries">
+                <div className="rows" aria-label="Manual vaccination entries">
                   {manualEntryRows.map((row) => (
-                    <li key={row.id}>
-                      <button
-                        type="button"
-                        className="sl002-plan-row sl003-manual-plan-row"
-                        onClick={() => handleOpenDetailFromPlan(row.relatedItemKey ?? row.vaccinationKey)}
-                      >
-                        <span className="sl002-plan-row-copy">
-                          <span className="sl002-plan-row-title">{row.vaccineName}</span>
-                          <span className="sl002-plan-row-cadence">Date: {row.entryDateLabel}</span>
-                        </span>
-                        <StatusPill status={row.planStatus} label={row.statusLabel} />
-                      </button>
-                    </li>
+                    <ListRow
+                      key={row.id}
+                      icon="syringe"
+                      tone={getStatusTone(row.planStatus)}
+                      title={row.vaccineName}
+                      subtitle={`Date: ${row.entryDateLabel}`}
+                      badge={t(getStatusLabelKey(row.planStatus))}
+                      badgeStatus={getStatusBadgeStatus(row.planStatus)}
+                      onClick={() => handleOpenDetailFromPlan(row.relatedItemKey ?? row.vaccinationKey)}
+                    />
                   ))}
-                </ul>
+                </div>
               )}
-              <button
-                type="button"
-                className="sl001-primary-action sl003-manual-entry-cta sl003-manual-entry-cta-inbox"
-                onClick={openManualEntryForm}
-              >
-                Add record
-              </button>
-            </section>
-            {showManualEntryForm ? (
-              <section
-                ref={manualEntryFormShellRef}
-                className="sl003-manual-entry-form-shell sl002-empty-state"
-                aria-label="Add vaccination entry"
-              >
-                <ManualEntryForm
-                  form={manualEntryForm}
-                  options={manualEntryOptions}
-                  errors={manualEntryErrors}
-                  saveError={manualEntrySaveError}
-                  pending={manualEntryPending}
-                  onFieldChange={handleManualFieldChange}
-                  onSubmit={handleManualSubmit}
-                  onCancel={closeManualEntryForm}
-                />
-              </section>
-            ) : null}
+            </Card>
+            <IconButton
+              icon="plus"
+              variant="solid"
+              size="lg"
+              label={t('vaccinations.addRecordLabel')}
+              className="sl003-manual-entry-fab"
+              onClick={openManualEntryForm}
+            />
+            <Sheet open={showManualEntryForm} onClose={closeManualEntryForm} title={t('vaccinations.sheetTitle')}>
+              <ManualEntryForm
+                form={manualEntryForm}
+                options={manualEntryOptions}
+                errors={manualEntryErrors}
+                saveError={manualEntrySaveError}
+                pending={manualEntryPending}
+                onFieldChange={handleManualFieldChange}
+                onSubmit={handleManualSubmit}
+                onCancel={closeManualEntryForm}
+              />
+            </Sheet>
           </>
         ) : null}
       </section>

@@ -1,0 +1,52 @@
+/* Small shared layout utilities used across restyled screens (Dashboard,
+   Impfen, Vorsorge) that compose the design-system primitives — not part of
+   the token set itself, but common enough to not duplicate per screen. */
+
+.sec-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 20px 2px 10px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Pill segmented control — matches the Designer source's `.seg` pattern
+   (Onboarding gender switch, Vorsorge checkups/counseling tab switch). */
+.vitalis-seg {
+  display: flex;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  gap: 4px;
+}
+
+.vitalis-seg button {
+  flex: 1;
+  border: none;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.vitalis-seg button.is-active {
+  background: var(--surface-card);
+  color: var(--color-primary-ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.vitalis-seg button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

@@ -2,10 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  MVP_PREVENTIVE_CATALOG,
-  MVP_CATALOG_VERSION,
-} from '../../src/features/self-onboarding-to-first-dashboard/catalog.js';
-import {
   buildDashboardProjection,
   hasPopulatedDashboard,
 } from '../../src/features/self-onboarding-to-first-dashboard/dashboard.js';
@@ -16,8 +12,13 @@ import {
 import {
   validateSelfProfileInput,
 } from '../../src/features/self-onboarding-to-first-dashboard/validation.js';
+import {
+  TEST_CATALOG_IDS,
+  TEST_CATALOG_OPTIONS,
+  withTestCatalogOptions,
+} from '../fixtures/catalogOptions.js';
 
-const CATALOG_IDS = new Set(MVP_PREVENTIVE_CATALOG.map((item) => item.itemId));
+const CATALOG_IDS = TEST_CATALOG_IDS;
 
 test('[SL-001] onboarding input validation keeps the two required self fields', () => {
   const invalid = validateSelfProfileInput({ age: '', gender: '' });
@@ -34,7 +35,7 @@ test('[SL-001] first health plan generation completes within 5 seconds', async (
 
   await generateInitialPlanSnapshotAsync(
     { profileId: 'self', age: 38, gender: 'female' },
-    { delayMs: 120, now: new Date('2026-05-05T08:00:00.000Z') },
+    { delayMs: 120, now: new Date('2026-05-05T08:00:00.000Z'), ...TEST_CATALOG_OPTIONS },
   );
 
   const elapsedMs = Date.now() - start;
@@ -44,22 +45,22 @@ test('[SL-001] first health plan generation completes within 5 seconds', async (
 test('[SL-001] generated items only come from locked MVP catalog and approved categories', () => {
   const snapshot = generateInitialPlanSnapshot(
     { profileId: 'self', age: 45, gender: 'male' },
-    { now: new Date('2026-05-05T08:00:00.000Z') },
+    withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   );
 
-  assert.equal(snapshot.catalogVersion, MVP_CATALOG_VERSION);
+  assert.equal(snapshot.catalogVersion, TEST_CATALOG_OPTIONS.catalogVersion);
   assert.ok(snapshot.items.length > 0);
 
   for (const item of snapshot.items) {
     assert.equal(CATALOG_IDS.has(item.catalogItemId), true);
-    assert.equal(['checkup', 'vaccination'].includes(item.category), true);
+    assert.equal(['checkup', 'vaccination', 'counseling'].includes(item.category), true);
   }
 });
 
 test('[SL-001] dashboard projection preserves Today/Soon/Later, highlighted next item, and health score', () => {
   const snapshot = generateInitialPlanSnapshot(
     { profileId: 'self', age: 45, gender: 'female' },
-    { now: new Date('2026-05-05T08:00:00.000Z') },
+    withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   );
 
   const projection = buildDashboardProjection(snapshot, { name: 'You' });
@@ -76,7 +77,7 @@ test('[SL-001] onboarding-to-populated-dashboard pipeline completes well within 
 
   const snapshot = await generateInitialPlanSnapshotAsync(
     { profileId: 'self', age: 33, gender: 'male' },
-    { delayMs: 200, now: new Date('2026-05-05T08:00:00.000Z') },
+    { delayMs: 200, now: new Date('2026-05-05T08:00:00.000Z'), ...TEST_CATALOG_OPTIONS },
   );
 
   const projection = buildDashboardProjection(snapshot, { name: 'You' });

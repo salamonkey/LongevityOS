@@ -1,0 +1,4 @@
+/* Vitalis Design System — root entry point.
+   Kept so component specimen cards and the UI kit can link ../../styles.css.
+   The canonical token layer lives in design/tokens/ and is imported by design/styles.css. */
+@import "./design/styles.css";

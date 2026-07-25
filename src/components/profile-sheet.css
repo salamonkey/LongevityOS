@@ -1,0 +1,60 @@
+.vitalis-profile-sheet-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vitalis-profile-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 11px 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.vitalis-profile-sheet-row.is-active {
+  background: var(--color-primary-soft);
+  border-color: transparent;
+}
+
+.vitalis-profile-sheet-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.vitalis-profile-sheet-add {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: none;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.vitalis-profile-sheet-add-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}

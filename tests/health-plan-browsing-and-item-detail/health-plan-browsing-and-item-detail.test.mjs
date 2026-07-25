@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { generateInitialPlanSnapshot } from '../../src/features/self-onboarding-to-first-dashboard/plan.js';
 import {
-  LOCKED_PREVENTIVE_ITEM_DEFINITIONS,
+  buildPreventiveItemDefinitionsFromCatalog,
 } from '../../src/features/health-plan-browsing-and-item-detail/definitions.js';
 import {
   DETAIL_ORIGIN,
@@ -16,11 +16,17 @@ import {
   resolveDetailBackTarget,
   resolveItemDetail,
 } from '../../src/features/health-plan-browsing-and-item-detail/projection.js';
+import {
+  withTestCatalogOptions,
+} from '../fixtures/catalogOptions.js';
+import {
+  TEST_PREVENTIVE_CATALOG,
+} from '../fixtures/preventiveCatalog.js';
 
 function createSnapshot() {
   return generateInitialPlanSnapshot(
     { profileId: 'self', age: 52, gender: 'female' },
-    { now: new Date('2026-05-05T08:00:00.000Z') },
+    withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   );
 }
 
@@ -99,7 +105,7 @@ test('back target preserves dashboard or list origin context with safe fallback'
 
 test('missing locked definition keeps item unavailable rather than partially rendering detail', () => {
   const snapshot = createSnapshot();
-  const [first, ...rest] = LOCKED_PREVENTIVE_ITEM_DEFINITIONS;
+  const [first, ...rest] = buildPreventiveItemDefinitionsFromCatalog(TEST_PREVENTIVE_CATALOG);
   const readModel = buildHealthPlanReadModel(snapshot, {
     definitions: rest,
   });

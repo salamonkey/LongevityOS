@@ -1,0 +1,287 @@
+.sl003-plan-browser {
+  margin-top: 0;
+}
+
+.sl003-plan-browser .sl002-category-switch {
+  margin-top: 0;
+}
+
+.sl003-plan-browser .sl002-tab.is-active {
+  border-color: #34aa9e;
+}
+
+.sl003-manual-entry-box {
+  margin-top: var(--space-3);
+}
+
+.sl003-manual-entry-cta {
+  margin-top: 0;
+}
+
+.sl003-manual-entry-cta-inbox {
+  display: block;
+  margin-top: var(--space-3);
+  margin-left: 0;
+}
+
+.sl003-manual-entry-form-shell {
+  margin-top: var(--space-3);
+  overflow-x: hidden;
+}
+
+.sl003-manual-empty {
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+}
+
+.sl003-manual-list {
+  margin-top: var(--space-3);
+}
+
+.sl003-manual-plan-row {
+  cursor: pointer;
+}
+
+.sl003-manual-plan-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.sl003-manual-form {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.sl003-manual-form > * {
+  min-inline-size: 0;
+}
+
+.sl003-manual-form label,
+.sl003-manual-form legend {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.sl003-manual-form select,
+.sl003-manual-form input[type='date'] {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  block-size: 2.75rem;
+  padding: 0 var(--space-4);
+  color: var(--color-text-primary);
+  background: var(--color-surface-card);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.sl003-manual-form input[type='date'] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .sl003-manual-form input[type='date'] {
+    /* iOS Safari can render native date controls wider than their container. */
+    display: block;
+    inline-size: 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-date-and-time-value {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-datetime-edit {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-datetime-edit-fields-wrapper {
+    min-width: 0;
+  }
+
+  .sl003-manual-form input[type='date']::-webkit-calendar-picker-indicator {
+    margin: 0;
+    padding: 0;
+    max-width: 1.1em;
+  }
+}
+
+.sl003-manual-status-group {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.sl003-manual-status-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl003-manual-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl003-manual-form-actions .sl001-primary-action,
+.sl003-manual-form-actions .sl003-quiet-button {
+  margin-top: 0;
+}
+
+.sl003-vaccination-guidance {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.sl003-guidance-list {
+  margin-top: var(--space-3);
+}
+
+.sl003-checkup-list {
+  margin-top: var(--space-4);
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  box-sizing: border-box;
+}
+
+.sl003-action-area {
+  border-top: 1px solid var(--color-surface-subtle);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+}
+
+.sl003-action-area h3 {
+  margin: 0 0 var(--space-2);
+}
+
+.sl003-secondary-action,
+.sl003-quiet-button {
+  border: 1px solid var(--color-surface-subtle);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: var(--space-2);
+}
+
+.sl003-reminder-form {
+  margin-top: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl003-reminder-fieldset {
+  border: 1px solid var(--color-surface-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sl003-reminder-fieldset label {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sl003-custom-date {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.sl003-custom-date input {
+  border: 1px solid var(--color-surface-subtle);
+  border-radius: var(--radius-card);
+  padding: var(--space-2) var(--space-3);
+}
+
+.sl003-reminder-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sl003-reminder-note,
+.sl003-complete-message,
+.sl003-confirmation {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.sl003-confirmation {
+  color: var(--color-status-done);
+  font-weight: 600;
+}
+
+.sl003-time-to-go {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid #dbe3ef;
+  border-radius: 0.9rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
+}
+
+.sl003-time-to-go-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.sl003-time-to-go-due {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.sl003-time-to-go-remaining {
+  color: #0f5a94;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.sl003-time-to-go-remaining.is-overdue {
+  color: #b23b2a;
+}
+
+.sl003-time-to-go-track {
+  width: 100%;
+  height: 0.52rem;
+  border-radius: 999px;
+  background: #dce7f6;
+  overflow: hidden;
+}
+
+.sl003-time-to-go-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0c4a6e 0%, #1f5c8d 100%);
+  transition: width 220ms ease;
+}

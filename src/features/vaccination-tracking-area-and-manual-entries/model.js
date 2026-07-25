@@ -1,6 +1,6 @@
-import { MVP_PREVENTIVE_CATALOG } from '../self-onboarding-to-first-dashboard/catalog.js';
 import { buildPlanReadModelForSlice } from '../item-completion-and-reminder-actions/selectors.js';
 import { parseIsoDateInput } from '../item-completion-and-reminder-actions/model.js';
+import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 
 export const MANUAL_ENTRY_STATUS_CONTEXT = Object.freeze({
   completed: 'completed',
@@ -30,15 +30,6 @@ const MANUAL_STATUS_TO_PLAN_STATUS = Object.freeze({
   [MANUAL_ENTRY_STATUS_CONTEXT.completed]: 'done',
   [MANUAL_ENTRY_STATUS_CONTEXT.planned]: 'planned',
 });
-
-const VACCINATION_DEFINITION_INDEX = Object.freeze(
-  MVP_PREVENTIVE_CATALOG
-    .filter((item) => item.category === 'vaccination')
-    .reduce((index, item) => {
-      index[item.itemId] = item;
-      return index;
-    }, {}),
-);
 
 function resolveNow(options = {}) {
   const now = options.now instanceof Date ? new Date(options.now.getTime()) : new Date(options.now ?? Date.now());
@@ -74,17 +65,27 @@ export function formatVaccinationEntryDate(isoDate, locale = 'en-US') {
 }
 
 function toAllowedVaccinationKeys(planSnapshot) {
-  // Manual-entry options should remain stable even when a profile's current
-  // plan only surfaces a subset of vaccination items.
-  return Object.keys(VACCINATION_DEFINITION_INDEX);
+  const items = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
+  const keys = new Set();
+
+  for (const item of items) {
+    if (item?.category === 'vaccination' && item?.catalogItemId) {
+      keys.add(item.catalogItemId);
+    }
+  }
+
+  return Array.from(keys).sort();
 }
 
 export function buildManualVaccinationCatalogOptions(planSnapshot) {
   return toAllowedVaccinationKeys(planSnapshot).map((itemKey) => {
-    const catalogItem = VACCINATION_DEFINITION_INDEX[itemKey];
+    const matchingItem = Array.isArray(planSnapshot?.items)
+      ? planSnapshot.items.find((item) => item.catalogItemId === itemKey)
+      : null;
+    const liveName = resolveCatalogCopyForItemKey(itemKey)?.name;
     return {
       value: itemKey,
-      label: catalogItem?.name ?? 'Vaccination item',
+      label: liveName ?? matchingItem?.name ?? 'Vaccination item',
     };
   });
 }
@@ -210,12 +211,15 @@ export function sortManualVaccinationEntries(entries = []) {
   return cloned;
 }
 
-function resolveVaccinationName(vaccinationKey, guidanceIndex) {
+function resolveVaccinationName(vaccinationKey, guidanceIndex, planSnapshot) {
   if (guidanceIndex[vaccinationKey]?.name) {
     return guidanceIndex[vaccinationKey].name;
   }
 
-  return VACCINATION_DEFINITION_INDEX[vaccinationKey]?.name ?? 'Vaccination item';
+  const matchingItem = Array.isArray(planSnapshot?.items)
+    ? planSnapshot.items.find((item) => item.catalogItemId === vaccinationKey)
+    : null;
+  return matchingItem?.name ?? 'Vaccination item';
 }
 
 export function buildManualVaccinationRows(entries, planSnapshot, options = {}) {
@@ -238,7 +242,7 @@ export function buildManualVaccinationRows(entries, planSnapshot, options = {}) 
     return {
       id: entry.id,
       vaccinationKey: entry.vaccinationKey,
-      vaccineName: resolveVaccinationName(entry.vaccinationKey, guidanceIndex),
+      vaccineName: resolveVaccinationName(entry.vaccinationKey, guidanceIndex, planSnapshot),
       statusContext,
       statusLabel,
       planStatus,

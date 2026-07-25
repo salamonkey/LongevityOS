@@ -1,0 +1,34 @@
+<!-- @dsCard group="Components" viewport="700x360" name="Cards, rows, badges, ring & avatar" -->
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../../vitalis-ui.js"></script>
+<style>html,body{margin:0}body{font-family:var(--font-sans);background:var(--surface-card);padding:22px;color:var(--text-primary)}.lbl{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}@keyframes v-fade{from{opacity:0}to{opacity:1}}@keyframes v-slide{from{transform:translateY(100%)}to{transform:translateY(0)}}</style>
+</head><body><div id="root"></div>
+<script>
+(function(){
+var h=React.createElement, useState=React.useState, UI;
+
+function Demo(){
+  var C=UI.Card, LR=UI.ListRow, Bd=UI.Badge, Av=UI.Avatar, PR=UI.ProgressRing;
+  return h('div',{style:{display:'flex',flexDirection:'column',gap:18,maxWidth:660,background:'var(--surface-app)',margin:-22,padding:22}},
+    h('div',{style:{display:'flex',gap:14,alignItems:'stretch',flexWrap:'wrap'}},
+      h(C,{padding:16,style:{display:'flex',alignItems:'center',gap:16}},
+        h(PR,{value:72,size:72,label:'72%',sublabel:'Score'}),
+        h('div',null,h('div',{style:{fontWeight:600,fontSize:15}},'Vorsorge-Score'),h('div',{style:{fontSize:12,color:'var(--text-secondary)'}},'Gut aufgestellt'))),
+      h(C,{padding:16,style:{display:'flex',alignItems:'center',gap:12}},
+        h(Av,{name:'Anna Berger',size:'lg'}),
+        h('div',null,h('div',{style:{fontWeight:600,fontSize:15}},'Anna Berger'),h('div',{style:{fontSize:12,color:'var(--text-secondary)'}},'Profil')))),
+    h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+      h(Bd,{status:'due'},'Fällig'),h(Bd,{status:'upcoming'},'Demnächst'),h(Bd,{status:'done'},'Erledigt'),h(Bd,{status:'overdue'},'Überfällig'),h(Bd,{status:'neutral'},'Impfung')),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:10}},
+      h(LR,{icon:'syringe',tone:'primary',title:'Grippeimpfung',subtitle:'Auffrischung fällig',badge:'Fällig',badgeStatus:'due'}),
+      h(LR,{icon:'shield-check',tone:'teal',title:'Hautkrebs-Screening',subtitle:'in 2 Wochen',badge:'Demnächst',badgeStatus:'upcoming'}),
+      h(LR,{icon:'file-text',tone:'neutral',title:'Laborbericht Juni',subtitle:'PDF · 240 KB'})));
+}
+function mount(){ if(!window.VitalisUI){return setTimeout(mount,30);} UI=window.VitalisUI; ReactDOM.createRoot(document.getElementById('root')).render(h(Demo)); setTimeout(function(){window.lucide&&window.lucide.createIcons();},60); }
+mount();
+})();
+</script></body></html>

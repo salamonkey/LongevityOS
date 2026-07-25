@@ -1,0 +1,15 @@
+:root{
+  --font-sans:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-mono:ui-monospace,'SF Mono',Menlo,monospace;
+
+  /* Type scale (mobile) — size / line-height / weight */
+  --text-display-size:28px; --text-display-lh:34px; --text-display-weight:700;
+  --text-title-size:20px;   --text-title-lh:26px;   --text-title-weight:700;
+  --text-headline-size:17px;--text-headline-lh:22px;--text-headline-weight:600;
+  --text-body-size:15px;    --text-body-lh:22px;    --text-body-weight:400;
+  --text-bodystrong-weight:600;
+  --text-callout-size:13px; --text-callout-lh:18px; --text-callout-weight:500;
+  --text-caption-size:12px; --text-caption-lh:16px; --text-caption-weight:500;
+  --text-overline-size:11px;--text-overline-lh:14px;--text-overline-weight:600;
+  --text-overline-tracking:0.04em;
+}

@@ -15,6 +15,9 @@ import {
 import {
   REMINDER_TIMING_TYPES,
 } from '../../src/features/item-completion-and-reminder-actions/model.js';
+import {
+  withTestCatalogOptions,
+} from '../fixtures/catalogOptions.js';
 
 function createProfile() {
   return { profileId: 'self', age: 45, gender: 'female', name: 'You' };
@@ -22,7 +25,7 @@ function createProfile() {
 
 function createSnapshot() {
   return generateInitialPlanSnapshot(createProfile(), {
-    now: new Date('2026-05-05T08:00:00.000Z'),
+    ...withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') }),
   });
 }
 
@@ -265,6 +268,8 @@ test('plan read model orders checkups and vaccinations by urgency', () => {
     items: [
       {
         catalogItemId: 'cholesterol-screening',
+        name: 'Cholesterol screening',
+        category: 'checkup',
         cadenceLabel: 'Every 4 to 6 years',
         recurrence: { intervalDays: 1460 },
         nextDueDate: '2028-05-05',
@@ -274,6 +279,8 @@ test('plan read model orders checkups and vaccinations by urgency', () => {
       },
       {
         catalogItemId: 'annual-wellness-visit',
+        name: 'Annual wellness visit',
+        category: 'checkup',
         cadenceLabel: 'Every year',
         recurrence: { intervalDays: 365 },
         nextDueDate: '2026-05-01',
@@ -283,6 +290,8 @@ test('plan read model orders checkups and vaccinations by urgency', () => {
       },
       {
         catalogItemId: 'diabetes-screening',
+        name: 'Diabetes screening',
+        category: 'checkup',
         cadenceLabel: 'Every 3 years',
         recurrence: { intervalDays: 1095 },
         nextDueDate: '2026-09-01',
@@ -292,6 +301,8 @@ test('plan read model orders checkups and vaccinations by urgency', () => {
       },
       {
         catalogItemId: 'tdap-booster',
+        name: 'Tetanus, diphtheria, and pertussis booster',
+        category: 'vaccination',
         cadenceLabel: 'Every 10 years',
         recurrence: { intervalDays: 3650 },
         nextDueDate: '2030-05-05',
@@ -301,6 +312,8 @@ test('plan read model orders checkups and vaccinations by urgency', () => {
       },
       {
         catalogItemId: 'influenza-vaccine',
+        name: 'Flu vaccine',
+        category: 'vaccination',
         cadenceLabel: 'Every year',
         recurrence: { intervalDays: 365 },
         nextDueDate: '2026-05-02',
@@ -310,6 +323,8 @@ test('plan read model orders checkups and vaccinations by urgency', () => {
       },
       {
         catalogItemId: 'shingles-vaccine',
+        name: 'Shingles vaccine',
+        category: 'vaccination',
         cadenceLabel: 'Every year',
         recurrence: { intervalDays: 365 },
         nextDueDate: '2026-07-10',

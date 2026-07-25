@@ -9,12 +9,13 @@ import {
 } from './model.js';
 import {
   LOCKED_PREVENTIVE_ITEM_DEFINITIONS,
-  PREVENTIVE_ITEM_DEFINITION_INDEX,
+  buildPreventiveItemDefinitionIndex,
 } from './definitions.js';
+import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 
 function toDefinitionIndex(definitions) {
   if (!Array.isArray(definitions)) {
-    return PREVENTIVE_ITEM_DEFINITION_INDEX;
+    return buildPreventiveItemDefinitionIndex(LOCKED_PREVENTIVE_ITEM_DEFINITIONS);
   }
 
   return definitions.reduce((index, definition) => {
@@ -29,6 +30,30 @@ function toDefinitionIndex(definitions) {
 
 function toSafeStatus(status) {
   return isAllowedPlanStatus(status) ? status : 'pending';
+}
+
+function toDefinitionFromGeneratedItem(generatedItem) {
+  const category = isAllowedPlanCategory(generatedItem?.category)
+    ? generatedItem.category
+    : PLAN_CATEGORIES.checkup;
+  const liveCopy = resolveCatalogCopyForItemKey(generatedItem?.catalogItemId);
+  const displayName = String(liveCopy?.name ?? generatedItem?.name ?? '').trim() || 'Preventive item';
+  const cadenceText = String(liveCopy?.cadenceLabel ?? generatedItem?.cadenceLabel ?? '').trim() || 'By recommendation';
+  const whyItMattersText = String(liveCopy?.whyItMatters ?? generatedItem?.whyItMatters ?? '').trim() || 'Why this matters is not available yet.';
+  const recommendationText = String(liveCopy?.recommendationText ?? generatedItem?.recommendationText ?? '').trim() || whyItMattersText;
+
+  return {
+    itemKey: generatedItem?.catalogItemId,
+    displayName,
+    category,
+    interventionType: String(generatedItem?.interventionType ?? '').trim() || 'preventive',
+    interventionTypeLabel: String(generatedItem?.interventionTypeLabel ?? '').trim() || 'Preventive care',
+    cadenceText,
+    recommendationText,
+    whyItMattersText,
+    evidenceTier: generatedItem?.evidenceTier ?? null,
+    requiresSharedDecision: Boolean(generatedItem?.requiresSharedDecision),
+  };
 }
 
 function toViewItem(generatedItem, definition) {
@@ -46,16 +71,20 @@ function toViewItem(generatedItem, definition) {
     statusLabel: getStatusLabel(status),
     recommendationText: definition.recommendationText,
     whyItMattersText: definition.whyItMattersText,
+    evidenceTier: definition.evidenceTier ?? null,
+    requiresSharedDecision: Boolean(definition.requiresSharedDecision),
   };
 }
 
 export function buildHealthPlanReadModel(planSnapshot, options = {}) {
-  const definitions = options.definitions ?? LOCKED_PREVENTIVE_ITEM_DEFINITIONS;
-  const definitionIndex = toDefinitionIndex(definitions);
   const generatedItems = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
+  const generatedDefinitions = generatedItems.map(toDefinitionFromGeneratedItem);
+  const definitions = options.definitions ?? generatedDefinitions;
+  const definitionIndex = toDefinitionIndex(definitions);
 
   const checkups = [];
   const vaccinations = [];
+  const counseling = [];
   const byItemKey = {};
   const missingDefinitionKeys = [];
   const unavailableItemKeys = [];
@@ -81,6 +110,8 @@ export function buildHealthPlanReadModel(planSnapshot, options = {}) {
       checkups.push(item);
     } else if (item.category === PLAN_CATEGORIES.vaccination) {
       vaccinations.push(item);
+    } else if (item.category === PLAN_CATEGORIES.counseling) {
+      counseling.push(item);
     }
   }
 
@@ -88,7 +119,8 @@ export function buildHealthPlanReadModel(planSnapshot, options = {}) {
     generatedAt: planSnapshot?.generatedAt ?? null,
     checkups,
     vaccinations,
-    allItems: [...checkups, ...vaccinations],
+    counseling,
+    allItems: [...checkups, ...vaccinations, ...counseling],
     byItemKey,
     missingDefinitionKeys,
     unavailableItemKeys,
@@ -121,7 +153,11 @@ export function resolveDetailBackTarget({ origin, detailItem }) {
     return { destination: DETAIL_ORIGIN.dashboard };
   }
 
-  if (origin === DETAIL_ORIGIN.checkups || origin === DETAIL_ORIGIN.vaccinations) {
+  if (
+    origin === DETAIL_ORIGIN.checkups
+    || origin === DETAIL_ORIGIN.vaccinations
+    || origin === DETAIL_ORIGIN.counseling
+  ) {
     return { destination: origin };
   }
 
@@ -143,6 +179,12 @@ export function buildCategoryTabs(activeCategory) {
       category: PLAN_CATEGORIES.vaccination,
       label: getCategoryLabel(PLAN_CATEGORIES.vaccination),
       isActive: activeCategory === PLAN_CATEGORIES.vaccination,
+    },
+    {
+      key: DETAIL_ORIGIN.counseling,
+      category: PLAN_CATEGORIES.counseling,
+      label: getCategoryLabel(PLAN_CATEGORIES.counseling),
+      isActive: activeCategory === PLAN_CATEGORIES.counseling,
     },
   ];
 }

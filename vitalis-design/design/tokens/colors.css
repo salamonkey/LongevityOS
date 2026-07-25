@@ -1,0 +1,63 @@
+:root{
+  /* ---- Brand blue (primary) ---- */
+  --blue-50:#F5F8FA;
+  --blue-100:#EAF1F6;
+  --blue-200:#CFE0EC;
+  --blue-300:#9CC1DA;
+  --blue-400:#5B9FC9;
+  --blue-500:#3A8ABE;
+  --blue-600:#2B7FB8;   /* primary */
+  --blue-700:#1F5E8A;
+  --blue-800:#184B6E;
+
+  /* ---- Teal (secondary) ---- */
+  --teal-100:#E7F3F1;
+  --teal-300:#8FCFC9;
+  --teal-500:#2FA39C;
+  --teal-600:#268A84;
+
+  /* ---- Cool neutral slate ---- */
+  --slate-900:#1E2A36;  /* primary text */
+  --slate-800:#2B3A48;
+  --slate-700:#3A4A58;
+  --slate-600:#556472;
+  --slate-500:#5B6B78;  /* secondary text */
+  --slate-400:#8494A0;
+  --slate-300:#9AA8B3;  /* muted / icons off */
+  --slate-200:#CDD6DD;
+  --slate-150:#DDE4EA;
+  --slate-100:#E3EAF0;  /* hairline borders */
+  --slate-50:#F5F8FA;
+  --white:#FFFFFF;
+
+  /* ---- Semantic status hues ---- */
+  --green-500:#2E9E6B; --green-100:#E4F4EC;
+  --amber-500:#E0A04D; --amber-100:#FBF0DF;
+  --red-500:#D65745;   --red-100:#FBE7E3;
+
+  /* ================= SEMANTIC ALIASES ================= */
+  --surface-app:var(--blue-50);
+  --surface-card:var(--white);
+  --surface-sunken:var(--blue-100);
+  --border-subtle:var(--slate-100);
+  --border-strong:var(--slate-200);
+
+  --text-primary:var(--slate-900);
+  --text-secondary:var(--slate-500);
+  --text-muted:var(--slate-300);
+  --text-on-primary:var(--white);
+
+  --color-primary:var(--blue-600);
+  --color-primary-hover:var(--blue-700);
+  --color-primary-soft:var(--blue-100);
+  --color-primary-ink:var(--blue-700);
+  --color-secondary:var(--teal-500);
+  --color-secondary-soft:var(--teal-100);
+
+  --status-due:var(--blue-600);        --status-due-soft:var(--blue-100);
+  --status-done:var(--green-500);      --status-done-soft:var(--green-100);
+  --status-overdue:var(--red-500);     --status-overdue-soft:var(--red-100);
+  --status-upcoming:var(--amber-500);  --status-upcoming-soft:var(--amber-100);
+
+  --focus-ring:rgba(43,127,184,.35);
+}

@@ -1,0 +1,1332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitalis Design System — single-file reference</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z' fill='%232B7FB8'/%3E%3C/svg%3E">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap');
+
+/* ============================================================
+   VITALIS DESIGN TOKENS — canonical values.
+   This block is the source of truth. Copy verbatim into the app.
+   ============================================================ */
+:root{
+  /* ---- Brand blue (primary) ---- */
+  --blue-50:#F5F8FA;  --blue-100:#EAF1F6; --blue-200:#CFE0EC; --blue-300:#9CC1DA;
+  --blue-400:#5B9FC9; --blue-500:#3A8ABE; --blue-600:#2B7FB8; /* primary */
+  --blue-700:#1F5E8A; --blue-800:#184B6E;
+
+  /* ---- Teal (secondary) ---- */
+  --teal-100:#E7F3F1; --teal-300:#8FCFC9; --teal-500:#2FA39C; --teal-600:#268A84;
+
+  /* ---- Cool neutral slate ---- */
+  --slate-900:#1E2A36; --slate-800:#2B3A48; --slate-700:#3A4A58; --slate-600:#556472;
+  --slate-500:#5B6B78; --slate-400:#8494A0; --slate-300:#9AA8B3; --slate-200:#CDD6DD;
+  --slate-150:#DDE4EA; --slate-100:#E3EAF0; --slate-50:#F5F8FA; --white:#FFFFFF;
+
+  /* ---- Semantic status hues ---- */
+  --green-500:#2E9E6B; --green-100:#E4F4EC;
+  --amber-500:#E0A04D; --amber-100:#FBF0DF;
+  --red-500:#D65745;   --red-100:#FBE7E3;
+
+  /* ---- Semantic aliases (USE THESE IN PRODUCT CODE) ---- */
+  --surface-app:var(--blue-50);
+  --surface-card:var(--white);
+  --surface-sunken:var(--blue-100);
+  --border-subtle:var(--slate-100);
+  --border-strong:var(--slate-200);
+
+  --text-primary:var(--slate-900);
+  --text-secondary:var(--slate-500);
+  --text-muted:var(--slate-300);
+  --text-on-primary:var(--white);
+
+  --color-primary:var(--blue-600);
+  --color-primary-hover:var(--blue-700);
+  --color-primary-soft:var(--blue-100);
+  --color-primary-ink:var(--blue-700);
+  --color-secondary:var(--teal-500);
+  --color-secondary-soft:var(--teal-100);
+
+  --status-due:var(--blue-600);        --status-due-soft:var(--blue-100);
+  --status-done:var(--green-500);      --status-done-soft:var(--green-100);
+  --status-overdue:var(--red-500);     --status-overdue-soft:var(--red-100);
+  --status-upcoming:var(--amber-500);  --status-upcoming-soft:var(--amber-100);
+
+  --focus-ring:rgba(43,127,184,.35);
+
+  /* ---- Typography ---- */
+  --font-sans:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --text-display-size:28px;  --text-display-lh:34px;  --text-display-weight:700;
+  --text-title-size:20px;    --text-title-lh:26px;    --text-title-weight:700;
+  --text-headline-size:17px; --text-headline-lh:22px; --text-headline-weight:600;
+  --text-body-size:15px;     --text-body-lh:22px;     --text-body-weight:400;
+  --text-bodystrong-weight:600;
+  --text-callout-size:13px;  --text-callout-lh:18px;  --text-callout-weight:500;
+  --text-caption-size:12px;  --text-caption-lh:16px;  --text-caption-weight:500;
+  --text-overline-size:11px; --text-overline-lh:14px; --text-overline-weight:600;
+  --text-overline-tracking:0.04em;
+
+  /* ---- Spacing (4px base) ---- */
+  --space-0:0;   --space-1:4px;  --space-2:8px;  --space-3:12px; --space-4:16px;
+  --space-5:20px;--space-6:24px; --space-8:32px; --space-10:40px;--space-12:48px;--space-16:64px;
+  --screen-pad:20px;  /* default horizontal screen padding */
+  --tabbar-h:64px;    /* bottom nav height */
+  --tap-min:44px;     /* minimum tap target */
+
+  /* ---- Radius ---- */
+  --radius-xs:7px; --radius-sm:11px; --radius-md:14px; /* list rows */
+  --radius-lg:16px; /* cards */ --radius-xl:22px; --radius-2xl:28px; /* sheets */
+  --radius-full:999px;
+
+  /* ---- Shadows ---- */
+  --shadow-xs:0 1px 2px rgba(30,42,54,.06);
+  --shadow-sm:0 1px 4px rgba(30,42,54,.06);   /* default card */
+  --shadow-md:0 2px 10px rgba(30,42,54,.06);
+  --shadow-lg:0 8px 24px rgba(30,42,54,.09);  /* sheets, popovers */
+  --shadow-nav:0 -1px 0 rgba(30,42,54,.06);   /* tab bar top hairline */
+  --shadow-medallion:0 12px 26px -12px rgba(31,94,138,.30), 0 2px 6px rgba(30,42,54,.05);
+
+  /* ---- Motion ---- */
+  --ease-standard:cubic-bezier(.4,0,.2,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --dur-fast:180ms; --dur-base:260ms; --dur-slow:500ms;
+}
+
+/* ---- Required keyframes (components depend on these) ---- */
+@keyframes v-fade{from{opacity:0}to{opacity:1}}
+@keyframes v-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes v-slide{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes v-slidein{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes v-ping{0%{transform:scale(1);opacity:.55}70%,100%{transform:scale(2.3);opacity:0}}
+@keyframes v-dot{from{transform:translate(-50%,-50%) scale(0);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+@keyframes v-halo{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.5);opacity:0}}
+@keyframes v-draw{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+
+/* ============================================================
+   DOC CHROME (not part of the design system)
+   ============================================================ */
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font-sans);background:var(--surface-app);color:var(--text-primary);
+  font-size:var(--text-body-size);line-height:var(--text-body-lh);-webkit-font-smoothing:antialiased}
+a{color:var(--color-primary);text-decoration:none}
+a:hover{color:var(--color-primary-hover);text-decoration:underline}
+code,.mono{font-family:var(--font-mono);font-size:12.5px}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);gap:0;max-width:1400px;margin:0 auto}
+
+/* sidebar */
+aside{position:sticky;top:0;height:100vh;overflow-y:auto;padding:26px 18px 40px;
+  border-right:1px solid var(--border-subtle);background:var(--surface-card)}
+aside .brand{display:flex;align-items:center;gap:9px;margin-bottom:22px}
+aside .brand b{font-size:19px;font-weight:700;letter-spacing:-.01em}
+aside .vers{font-size:var(--text-caption-size);color:var(--text-muted);margin:-16px 0 22px 43px}
+nav a{display:block;padding:7px 10px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:500;
+  color:var(--text-secondary);text-decoration:none}
+nav a:hover{background:var(--surface-sunken);color:var(--color-primary-ink);text-decoration:none}
+nav .grp{font-size:var(--text-overline-size);font-weight:var(--text-overline-weight);
+  letter-spacing:var(--text-overline-tracking);text-transform:uppercase;color:var(--text-muted);
+  margin:20px 10px 7px}
+
+main{padding:44px 46px 120px;min-width:0}
+h1{font-size:38px;line-height:1.1;margin:0 0 10px;letter-spacing:-.02em}
+h2{font-size:24px;line-height:1.2;margin:0 0 6px;letter-spacing:-.01em;scroll-margin-top:24px}
+h3{font-size:16px;margin:26px 0 10px}
+.lead{font-size:16px;line-height:1.6;color:var(--text-secondary);max-width:70ch}
+.sec{margin-top:56px;padding-top:30px;border-top:1px solid var(--border-subtle)}
+.sec:first-of-type{border-top:none}
+.eyebrow{font-size:var(--text-overline-size);font-weight:var(--text-overline-weight);
+  letter-spacing:var(--text-overline-tracking);text-transform:uppercase;color:var(--color-secondary);margin-bottom:8px}
+p{max-width:74ch;line-height:1.6}
+.note{background:var(--surface-card);border:1px solid var(--border-subtle);border-left:none;
+  border-radius:var(--radius-lg);padding:14px 16px;font-size:13.5px;line-height:1.55;
+  color:var(--text-secondary);box-shadow:var(--shadow-sm);max-width:74ch;margin:16px 0}
+.note b{color:var(--text-primary)}
+.grid{display:grid;gap:14px}
+.panel{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);padding:18px}
+.demo{background:var(--surface-app);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);
+  padding:22px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0 6px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border-subtle);vertical-align:top}
+th{font-size:var(--text-overline-size);font-weight:var(--text-overline-weight);text-transform:uppercase;
+  letter-spacing:var(--text-overline-tracking);color:var(--text-muted)}
+td code{background:var(--surface-sunken);padding:1.5px 5px;border-radius:5px;color:var(--color-primary-ink)}
+tbody tr:last-child td{border-bottom:none}
+
+/* swatches */
+.ramp{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.sw{border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-subtle);background:var(--surface-card)}
+.sw .chip{height:56px}
+.sw .meta{padding:7px 9px;font-size:11px;line-height:1.45}
+.sw .meta b{display:block;font-size:11.5px}
+.sw .meta span{color:var(--text-muted);font-family:var(--font-mono);font-size:10.5px}
+
+/* do/dont */
+.dd{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.dd>div{border-radius:var(--radius-lg);padding:15px 17px;font-size:13.5px;line-height:1.55;
+  background:var(--surface-card);border:1px solid var(--border-subtle)}
+.dd h4{margin:0 0 8px;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+.dd .yes h4{color:var(--status-done)} .dd .no h4{color:var(--status-overdue)}
+.dd ul{margin:0;padding-left:17px} .dd li{margin-bottom:5px}
+
+/* ============================================================
+   COMPONENT SPECIMENS — these classes mirror the real components
+   ============================================================ */
+.v-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-sans);
+  font-weight:600;border:none;cursor:pointer;border-radius:var(--radius-full);min-height:var(--tap-min);
+  padding:0 22px;font-size:15px;transition:background var(--dur-fast) var(--ease-standard)}
+.v-btn.primary{background:var(--color-primary);color:var(--text-on-primary)}
+.v-btn.primary:hover{background:var(--color-primary-hover)}
+.v-btn.secondary{background:var(--color-primary-soft);color:var(--color-primary-ink)}
+.v-btn.ghost{background:transparent;color:var(--color-primary)}
+.v-btn.sm{min-height:36px;font-size:13.5px;padding:0 16px}
+.v-btn.lg{min-height:52px;font-size:16px;width:100%}
+.v-ico{width:44px;height:44px;border-radius:var(--radius-full);display:inline-flex;align-items:center;
+  justify-content:center;border:none;cursor:pointer}
+.v-ico.surface{background:var(--surface-card);color:var(--color-primary);box-shadow:var(--shadow-sm)}
+.v-ico.solid{background:var(--color-primary);color:#fff;box-shadow:var(--shadow-lg)}
+.v-ico.ghost{background:transparent;color:var(--text-secondary)}
+.v-field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
+.v-input{display:flex;align-items:center;gap:9px;background:var(--surface-card);
+  border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:0 14px;min-height:var(--tap-min)}
+.v-input:focus-within{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--focus-ring)}
+.v-input input{border:none;outline:none;flex:1;font-family:var(--font-sans);font-size:15px;
+  background:none;color:var(--text-primary);min-width:0}
+.v-card{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);padding:16px}
+.v-row{display:flex;align-items:center;gap:12px;background:var(--surface-card);
+  border:1px solid var(--border-subtle);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);
+  padding:12px 14px;width:100%;text-align:left;font-family:var(--font-sans);cursor:pointer}
+.v-row .lead-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;
+  justify-content:center;flex:none}
+.v-row .t{flex:1;min-width:0}
+.v-row .t b{display:block;font-size:15px;font-weight:600}
+.v-row .t span{display:block;font-size:12.5px;color:var(--text-secondary);margin-top:1px}
+.v-badge{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;padding:4px 10px;
+  border-radius:var(--radius-full)}
+.v-av{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-weight:700;color:#fff;background:var(--color-primary);width:44px;height:44px;font-size:15px}
+.v-tab{display:flex;background:var(--surface-card);border-top:1px solid var(--border-subtle);
+  height:var(--tabbar-h);box-shadow:var(--shadow-nav);border-radius:0 0 var(--radius-lg) var(--radius-lg);overflow:hidden}
+.v-tab button{flex:1;border:none;background:none;cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;font-family:var(--font-sans);font-size:9px;
+  font-weight:600;color:var(--text-muted)}
+.v-tab button.on{color:var(--color-primary)}
+.v-seg{display:flex;background:var(--surface-sunken);border-radius:var(--radius-full);padding:4px;gap:4px;max-width:280px}
+.v-seg button{flex:1;border:none;background:none;font-family:var(--font-sans);font-size:14px;font-weight:600;
+  padding:9px 14px;border-radius:var(--radius-full);cursor:pointer;color:var(--text-secondary)}
+.v-seg button.on{background:var(--surface-card);color:var(--color-primary-ink);box-shadow:var(--shadow-sm)}
+.v-chip{border:none;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:600;
+  padding:7px 14px;border-radius:var(--radius-full);background:var(--surface-card);
+  color:var(--text-secondary);box-shadow:var(--shadow-sm)}
+.v-chip.on{background:var(--color-primary);color:#fff;box-shadow:none}
+.v-sheet{background:var(--surface-card);border-radius:var(--radius-2xl) var(--radius-2xl) 0 0;
+  box-shadow:var(--shadow-lg);padding:18px 20px 22px;width:300px}
+.v-sheet .handle{width:38px;height:4px;border-radius:999px;background:var(--border-strong);margin:0 auto 14px}
+.v-medallion{background:#fff;border:1px solid var(--border-subtle);border-radius:20px;padding:11px 13px 8px;
+  box-shadow:var(--shadow-medallion);display:inline-flex;flex-direction:column;align-items:center}
+.tl-node{width:40px;height:40px;flex:none;box-sizing:border-box;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
+.type-row{display:flex;align-items:baseline;gap:20px;padding:11px 0;border-bottom:1px solid var(--border-subtle)}
+.type-row .lbl{width:150px;flex:none;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)}
+.sp-bar{background:var(--color-primary);height:15px;border-radius:3px}
+svg{display:block}
+[data-lucide]{stroke-width:2}
+.bm-fig{position:relative;flex:none}
+.bm-fig img{display:block;width:100%;height:auto}
+.bm-dot{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;border:none;background:none;
+  padding:0;cursor:pointer;display:grid;place-items:center}
+.bm-dot .ring{grid-area:1/1;width:22px;height:22px;border-radius:50%;opacity:.5;animation:v-ping 1.9s ease-out infinite}
+.bm-dot .halo{grid-area:1/1;border-radius:50%;opacity:.22}
+.bm-dot .core{grid-area:1/1;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(30,42,54,.35)}
+.bm-list button{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;border:none;
+  background:transparent;border-radius:var(--radius-sm);padding:7px 9px;cursor:pointer;font-family:var(--font-sans)}
+.bm-list button.on{background:var(--surface-sunken)}
+.bm-list .k{width:9px;height:9px;border-radius:999px;flex:none;margin-top:4px}
+.bm-list b{display:block;font-size:13px;font-weight:600;color:var(--text-primary)}
+.bm-list span.n{display:block;font-size:11.5px;color:var(--text-secondary);margin-top:1px;line-height:1.35}
+.bm-legend{display:flex;gap:14px;font-size:11px;color:var(--text-secondary);padding-top:6px;
+  border-top:1px solid var(--border-subtle);margin-top:10px}
+.bm-legend span{display:inline-flex;align-items:center;gap:5px}
+.bm-legend i{width:8px;height:8px;border-radius:999px;display:inline-block}
+
+/* Gantt specimen (static reproduction at real app metrics: 118px labels, 48px month columns) */
+.gantt{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);background:var(--surface-card);
+  box-shadow:var(--shadow-sm);overflow:hidden}
+.gantt .scroll{overflow-x:auto;overflow-y:hidden}
+.gantt .inner{position:relative;width:886px}
+.g-row{display:flex;height:44px;border-bottom:1px solid var(--border-subtle)}
+.g-lane{display:flex;align-items:center;height:26px;background:var(--surface-sunken);position:relative;z-index:4}
+.g-lab{position:sticky;left:0;width:118px;flex:none;box-sizing:border-box;padding:0 8px 0 10px;
+  background:var(--surface-card);border-right:1px solid var(--border-subtle);display:flex;align-items:center;
+  gap:7px;z-index:5}
+.g-lane .g-lab{background:var(--surface-sunken);border-right:none;font-size:10px;font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--text-secondary);height:26px}
+.g-lab .dot{width:7px;height:7px;border-radius:999px;flex:none}
+.g-lab .tx{min-width:0}
+.g-lab b{display:block;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-lab .d{display:block;font-size:9.5px;color:var(--text-secondary);white-space:nowrap}
+.g-time{position:relative;width:768px;flex:none}
+.g-bar{position:absolute;top:11px;height:22px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(30,42,54,.05)}
+.g-el{position:absolute;left:0;top:0;bottom:0;opacity:.26}
+.g-st{position:absolute;inset:0;opacity:.16}
+.g-mk{position:absolute;top:2px;transform:translateX(-50%);width:44px;height:40px;display:grid;
+  place-items:center;z-index:3}
+.g-mk .c{grid-area:1/1;box-sizing:border-box;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;box-shadow:var(--shadow-sm)}
+.g-mk .p{grid-area:1/1;border-radius:50%;opacity:.5;animation:v-ping 1.9s ease-out infinite}
+.g-ghost{position:absolute;top:8px;height:28px;display:flex;align-items:center;gap:4px;
+  box-sizing:border-box;border-radius:999px;padding:0 9px;font-size:10px;font-weight:700;
+  letter-spacing:.02em;opacity:.9;z-index:3}
+.g-head{display:flex;height:30px;position:relative;z-index:6;overflow:hidden}
+.g-head .g-lab{height:30px;align-items:flex-start;padding-top:4px;font-size:10px;font-weight:700;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted)}
+.g-col{position:absolute;top:3px;width:48px;text-align:center;font-size:9.5px;line-height:11px;font-weight:700;
+  letter-spacing:.02em;text-transform:uppercase;color:var(--text-muted)}
+.g-col .yy{display:block;font-size:8.5px;line-height:9px;font-weight:600;color:var(--text-muted)}
+.g-col.ys{color:var(--text-secondary)}
+.g-grid span{position:absolute;top:0;bottom:0;width:1px;background:var(--border-subtle)}
+.g-grid span.ys{background:var(--border-strong)}
+.g-today{position:absolute;top:24px;bottom:0;width:3px;margin-left:-1.5px;border-radius:2px;
+  background:linear-gradient(var(--color-primary),var(--teal-500));z-index:3}
+.g-todaydot{position:absolute;top:20px;transform:translateX(-50%);width:18px;height:18px;display:grid;place-items:center}
+.g-todaydot .h{grid-area:1/1;width:18px;height:18px;border-radius:50%;background:var(--color-primary);
+  opacity:.45;animation:v-halo 2s ease-out infinite}
+.g-todaydot .k{grid-area:1/1;width:11px;height:11px;border-radius:50%;background:var(--color-primary);
+  border:2.5px solid #fff;box-shadow:var(--shadow-md)}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}aside{position:static;height:auto;border-right:none;
+  border-bottom:1px solid var(--border-subtle)}main{padding:28px 22px 80px}.dd{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<aside>
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+      <path d="M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z" fill="var(--color-primary)"/>
+      <circle cx="50" cy="48" r="17" stroke="#fff" stroke-opacity=".34" stroke-width="6.5"/>
+      <path d="M50 31a17 17 0 1 1 -14.2 7.6" stroke="var(--teal-300)" stroke-width="6.5" stroke-linecap="round"/>
+    </svg>
+    <b>Vitalis</b>
+  </div>
+  <div class="vers">Design System v2</div>
+  <nav>
+    <div class="grp">Start</div>
+    <a href="#about">About &amp; principles</a>
+    <a href="#voice">Voice &amp; content</a>
+    <div class="grp">Foundations</div>
+    <a href="#color">Color</a>
+    <a href="#type">Typography</a>
+    <a href="#space">Spacing &amp; layout</a>
+    <a href="#radius">Radius &amp; elevation</a>
+    <a href="#motion">Motion</a>
+    <a href="#brand">Logo &amp; brand</a>
+    <div class="grp">Components</div>
+    <a href="#buttons">Buttons</a>
+    <a href="#inputs">Inputs &amp; controls</a>
+    <a href="#cards">Cards &amp; list rows</a>
+    <a href="#badges">Badges &amp; avatars</a>
+    <a href="#nav">Navigation</a>
+    <a href="#sheets">Sheets &amp; overlays</a>
+    <a href="#dataviz">Data viz</a>
+    <a href="#bodymap">BodyMap</a>
+    <div class="grp">Patterns</div>
+    <a href="#hero">Dashboard hero</a>
+    <a href="#timeline">Zeitstrahl</a>
+    <a href="#detail">Detail pages</a>
+    <a href="#profiles">Profiles &amp; settings</a>
+    <a href="#i18n">Localisation</a>
+    <div class="grp">Rules</div>
+    <a href="#a11y">Accessibility</a>
+    <a href="#dodont">Do &amp; don't</a>
+    <a href="#audit">Compliance checklist</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="eyebrow">Single-file reference · check into the repo</div>
+  <h1>Vitalis Design System</h1>
+  <p class="lead">The canonical specification for the Vitalis health-companion app: tokens, components,
+  patterns and rules. This file is self-contained — the <code>:root</code> block at the top of its
+  stylesheet is the <b>source of truth</b> for every token. Product code must reference token names,
+  never raw literals.</p>
+
+  <!-- ===================== ABOUT ===================== -->
+  <section class="sec" id="about">
+    <div class="eyebrow">Start</div>
+    <h2>About &amp; principles</h2>
+    <p>Vitalis organises personal health prevention — vaccinations, screenings, recurring
+    appointments and documents — for health-conscious adults from about 45, plus the family members
+    they administer. It never diagnoses and never replaces a doctor; it reminds, organises and
+    reassures.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:18px">
+      <div class="panel"><h3 style="margin:0 0 6px">Calm over urgent</h3>
+        <p style="margin:0;font-size:13.5px;color:var(--text-secondary)">Health data is sensitive. Muted
+        cool palette, generous whitespace, soft elevation. Red is reserved for genuinely due items —
+        never decoration.</p></div>
+      <div class="panel"><h3 style="margin:0 0 6px">One clear next action</h3>
+        <p style="margin:0;font-size:13.5px;color:var(--text-secondary)">Every screen answers "what do I do
+        now?". Status is always visible as colour + label, never colour alone.</p></div>
+      <div class="panel"><h3 style="margin:0 0 6px">Confident, not clinical</h3>
+        <p style="margin:0;font-size:13.5px;color:var(--text-secondary)">Rounded geometry, one warm teal
+        accent and restrained motion make prevention feel encouraging rather than medical.</p></div>
+      <div class="panel"><h3 style="margin:0 0 6px">Legible at arm's length</h3>
+        <p style="margin:0;font-size:13.5px;color:var(--text-secondary)">Body text never below 15px,
+        captions never below 11px, tap targets never below 44px.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================== VOICE ===================== -->
+  <section class="sec" id="voice">
+    <div class="eyebrow">Start</div>
+    <h2>Voice &amp; content</h2>
+    <p>German is the primary language and uses the informal <b>“du”</b>. Tone is calm, minimal and
+    casual — short sentences, no alarm, no jargon, no emoji. English is a full peer locale.</p>
+    <table>
+      <thead><tr><th>Rule</th><th>Write</th><th>Never</th></tr></thead>
+      <tbody>
+        <tr><td>Address</td><td>„Deine Grippeimpfung ist fällig.“</td><td>„Ihre Impfung ist überfällig!“</td></tr>
+        <tr><td>Status</td><td>Fällig · Demnächst · Erledigt · Später</td><td>Alarm, Warnung, Risiko</td></tr>
+        <tr><td>Encouragement</td><td>„Alles erledigt für heute — stark!“</td><td>„Du hast 3 Aufgaben verpasst.“</td></tr>
+        <tr><td>Medical framing</td><td>„Vitalis erinnert dich rechtzeitig.“</td><td>Any diagnosis, dosage or interpretation of results</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Mandatory disclaimer.</b> Any screen that recommends a screening must carry the
+    line: <i>“Empfehlungen ersetzen kein ärztliches Gespräch. Vitalis erinnert dich nur rechtzeitig.”</i>
+    (EN: “Recommendations do not replace medical advice. Vitalis just reminds you in time.”)</div>
+  </section>
+
+  <!-- ===================== COLOR ===================== -->
+  <section class="sec" id="color">
+    <div class="eyebrow">Foundations</div>
+    <h2>Color</h2>
+    <p>A cool, calm system: one brand blue, one teal accent, a cool slate neutral ramp and three
+    status hues. <b>Product code uses the semantic aliases only</b> — raw ramp steps are for building
+    new tokens, not for components.</p>
+
+    <h3>Brand blue</h3>
+    <div class="ramp">
+      <div class="sw"><div class="chip" style="background:var(--blue-50)"></div><div class="meta"><b>blue-50</b><span>#F5F8FA</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-100)"></div><div class="meta"><b>blue-100</b><span>#EAF1F6</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-200)"></div><div class="meta"><b>blue-200</b><span>#CFE0EC</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-300)"></div><div class="meta"><b>blue-300</b><span>#9CC1DA</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-400)"></div><div class="meta"><b>blue-400</b><span>#5B9FC9</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-500)"></div><div class="meta"><b>blue-500</b><span>#3A8ABE</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-600)"></div><div class="meta"><b>blue-600 · primary</b><span>#2B7FB8</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-700)"></div><div class="meta"><b>blue-700</b><span>#1F5E8A</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--blue-800)"></div><div class="meta"><b>blue-800</b><span>#184B6E</span></div></div>
+    </div>
+
+    <h3>Teal accent &amp; status hues</h3>
+    <div class="ramp">
+      <div class="sw"><div class="chip" style="background:var(--teal-100)"></div><div class="meta"><b>teal-100</b><span>#E7F3F1</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--teal-300)"></div><div class="meta"><b>teal-300</b><span>#8FCFC9</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--teal-500)"></div><div class="meta"><b>teal-500 · secondary</b><span>#2FA39C</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--teal-600)"></div><div class="meta"><b>teal-600</b><span>#268A84</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--green-500)"></div><div class="meta"><b>green-500 · done</b><span>#2E9E6B</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--amber-500)"></div><div class="meta"><b>amber-500 · upcoming</b><span>#E0A04D</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--red-500)"></div><div class="meta"><b>red-500 · overdue</b><span>#D65745</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--green-100)"></div><div class="meta"><b>green-100</b><span>#E4F4EC</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--amber-100)"></div><div class="meta"><b>amber-100</b><span>#FBF0DF</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--red-100)"></div><div class="meta"><b>red-100</b><span>#FBE7E3</span></div></div>
+    </div>
+
+    <h3>Cool slate neutrals</h3>
+    <div class="ramp">
+      <div class="sw"><div class="chip" style="background:var(--slate-900)"></div><div class="meta"><b>slate-900 · text</b><span>#1E2A36</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--slate-700)"></div><div class="meta"><b>slate-700</b><span>#3A4A58</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--slate-500)"></div><div class="meta"><b>slate-500 · 2nd text</b><span>#5B6B78</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--slate-300)"></div><div class="meta"><b>slate-300 · muted</b><span>#9AA8B3</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--slate-200)"></div><div class="meta"><b>slate-200 · border</b><span>#CDD6DD</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--slate-100)"></div><div class="meta"><b>slate-100 · hairline</b><span>#E3EAF0</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--slate-50)"></div><div class="meta"><b>slate-50</b><span>#F5F8FA</span></div></div>
+      <div class="sw"><div class="chip" style="background:var(--white);box-shadow:inset 0 0 0 1px var(--border-subtle)"></div><div class="meta"><b>white · card</b><span>#FFFFFF</span></div></div>
+    </div>
+
+    <h3>Semantic aliases — the only colors product code may name</h3>
+    <table>
+      <thead><tr><th>Token</th><th>Resolves to</th><th>Use for</th></tr></thead>
+      <tbody>
+        <tr><td><code>--surface-app</code></td><td>blue-50</td><td>Screen background — every screen</td></tr>
+        <tr><td><code>--surface-card</code></td><td>white</td><td>Cards, rows, sheets, tab bar</td></tr>
+        <tr><td><code>--surface-sunken</code></td><td>blue-100</td><td>Segmented tracks, selected rows, quiet info blocks</td></tr>
+        <tr><td><code>--border-subtle</code> / <code>--border-strong</code></td><td>slate-100 / slate-200</td><td>Hairlines / input borders &amp; dashed empty states</td></tr>
+        <tr><td><code>--text-primary</code> / <code>--text-secondary</code> / <code>--text-muted</code></td><td>slate-900 / 500 / 300</td><td>Titles / supporting copy / meta &amp; inactive icons</td></tr>
+        <tr><td><code>--color-primary</code> / <code>-hover</code> / <code>-soft</code> / <code>-ink</code></td><td>blue-600 / 700 / 100 / 700</td><td>Primary actions, active nav, soft icon tiles, text on soft</td></tr>
+        <tr><td><code>--color-secondary</code> / <code>-soft</code></td><td>teal-500 / 100</td><td>Accent — screenings, secondary icon tiles, gradient end</td></tr>
+        <tr><td><code>--status-due</code> · <code>-done</code> · <code>-overdue</code> · <code>-upcoming</code> (+ <code>-soft</code>)</td><td>blue-600 · green-500 · red-500 · amber-500</td><td>Badges, dots, timeline nodes, region status</td></tr>
+        <tr><td><code>--focus-ring</code></td><td>rgba(43,127,184,.35)</td><td>3px focus ring on all interactive elements</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Status semantics are fixed.</b> red = act now (überfällig/fällig heute) ·
+    amber = coming up (demnächst) · green = done (erledigt) · blue = scheduled/due · slate = later.
+    Never repurpose a status hue for branding or decoration, and never use more than one accent
+    gradient per screen.</div>
+  </section>
+
+  <!-- ===================== TYPE ===================== -->
+  <section class="sec" id="type">
+    <div class="eyebrow">Foundations</div>
+    <h2>Typography</h2>
+    <p><b>Public Sans</b> is the single typeface (400/500/600/700/800). One family, weight and size
+    carry all hierarchy — no second display face.</p>
+    <div class="panel" style="margin-top:14px">
+      <div class="type-row"><span class="lbl">display · 28/34 · 700</span><span style="font-size:28px;line-height:34px;font-weight:700;letter-spacing:-.01em">Guten Morgen, Anna</span></div>
+      <div class="type-row"><span class="lbl">title · 20/26 · 700</span><span style="font-size:20px;line-height:26px;font-weight:700">Vorsorge-Score</span></div>
+      <div class="type-row"><span class="lbl">headline · 17/22 · 600</span><span style="font-size:17px;line-height:22px;font-weight:600">Herz &amp; Kreislauf</span></div>
+      <div class="type-row"><span class="lbl">body · 15/22 · 400</span><span style="font-size:15px;line-height:22px">Behalte Impfungen, Vorsorge und Termine im Blick.</span></div>
+      <div class="type-row"><span class="lbl">body-strong · 15/22 · 600</span><span style="font-size:15px;line-height:22px;font-weight:600">Grippeimpfung</span></div>
+      <div class="type-row"><span class="lbl">callout · 13/18 · 500</span><span style="font-size:13px;line-height:18px;font-weight:500;color:var(--text-secondary)">Auffrischung fällig</span></div>
+      <div class="type-row"><span class="lbl">caption · 12/16 · 500</span><span style="font-size:12px;line-height:16px;font-weight:500;color:var(--text-secondary)">Dienstag, 24. Juni</span></div>
+      <div class="type-row"><span class="lbl">overline · 11/14 · 600 · .04em</span><span style="font-size:11px;line-height:14px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted)">Heute fällig</span></div>
+      <div class="type-row" style="border-bottom:none"><span class="lbl">micro · 8.5–10.5 · 600–700</span><span style="font-size:10px;line-height:13px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--text-muted)">Jun · Q3 26 · Impfen</span><span style="font-size:11.5px;color:var(--text-secondary)">— chart axes, tab labels, legends only</span></div>
+    </div>
+    <div class="note"><b>Rules.</b> Overline is always uppercase with <code>.04em</code> tracking and
+    <code>--text-muted</code>, used for section labels. Display/title get <code>-.01em</code> tracking.
+    Never use more than three sizes in one card.
+    <br><br><b>Minimum sizes.</b> <b>Content text never goes below 11px</b> — anything the user reads to
+    understand or act (titles, body, subtitles, badges, buttons, form labels, captions). A separate
+    <b>micro tier of 8.5–10.5px</b> is permitted <i>only</i> for chart axis labels, tab-bar labels, chart
+    legends and dense chart row captions, where the adjacent icon, bar or list row already carries the
+    meaning. Micro type is always 600–700 weight for legibility, and never the sole carrier of an
+    action or a status.</div>
+  </section>
+
+  <!-- ===================== SPACING ===================== -->
+  <section class="sec" id="space">
+    <div class="eyebrow">Foundations</div>
+    <h2>Spacing &amp; layout</h2>
+    <p>A 4px base scale. Screen padding is <code>--screen-pad</code> (20px) on every screen; card
+    padding is 16px; row gaps in a list are 10px; section label margin is 20px top / 10px bottom.</p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Token</th><th>Value</th><th>Bar</th><th>Typical use</th></tr></thead>
+        <tbody>
+          <tr><td><code>--space-1</code></td><td>4px</td><td><div class="sp-bar" style="width:4px"></div></td><td>Icon-to-label nudges</td></tr>
+          <tr><td><code>--space-2</code></td><td>8px</td><td><div class="sp-bar" style="width:8px"></div></td><td>Chip gaps, badge padding</td></tr>
+          <tr><td><code>--space-3</code></td><td>12px</td><td><div class="sp-bar" style="width:12px"></div></td><td>Row internal gap, card gap</td></tr>
+          <tr><td><code>--space-4</code></td><td>16px</td><td><div class="sp-bar" style="width:16px"></div></td><td>Card padding</td></tr>
+          <tr><td><code>--space-5</code></td><td>20px</td><td><div class="sp-bar" style="width:20px"></div></td><td>Screen padding</td></tr>
+          <tr><td><code>--space-6</code></td><td>24px</td><td><div class="sp-bar" style="width:24px"></div></td><td>Between major blocks</td></tr>
+          <tr><td><code>--space-8</code> … <code>--space-16</code></td><td>32 · 40 · 48 · 64px</td><td><div class="sp-bar" style="width:32px"></div></td><td>Hero breathing room, empty states</td></tr>
+        </tbody>
+      </table>
+      <table style="margin-top:18px">
+        <thead><tr><th>Layout constant</th><th>Value</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td><code>--screen-pad</code></td><td>20px</td><td>Horizontal padding of every screen's scroll body</td></tr>
+          <tr><td><code>--tabbar-h</code></td><td>64px</td><td>Bottom nav height; floating actions offset by this + 16px</td></tr>
+          <tr><td><code>--tap-min</code></td><td>44px</td><td>Minimum hit area for <b>every</b> interactive element</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== RADIUS ===================== -->
+  <section class="sec" id="radius">
+    <div class="eyebrow">Foundations</div>
+    <h2>Radius &amp; elevation</h2>
+    <p>Soft, generous corners carry the calm-but-friendly character. Elevation is subtle: shadows
+    tint cool (<code>rgba(30,42,54,…)</code>), never neutral black.</p>
+    <div class="demo" style="align-items:flex-end">
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-xs)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">xs · 7px</div></div>
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">sm · 11px</div></div>
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">md · 14px · rows</div></div>
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">lg · 16px · cards</div></div>
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-xl)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">xl · 22px</div></div>
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-2xl)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">2xl · 28px · sheets</div></div>
+      <div style="text-align:center"><div style="width:76px;height:56px;background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-full)"></div><div class="mono" style="margin-top:7px;color:var(--text-muted)">full · pills</div></div>
+    </div>
+    <div class="demo" style="margin-top:14px">
+      <div style="text-align:center"><div style="width:110px;height:60px;background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-xs)"></div><div class="mono" style="margin-top:8px;color:var(--text-muted)">shadow-xs</div></div>
+      <div style="text-align:center"><div style="width:110px;height:60px;background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)"></div><div class="mono" style="margin-top:8px;color:var(--text-muted)">shadow-sm · card</div></div>
+      <div style="text-align:center"><div style="width:110px;height:60px;background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-md)"></div><div class="mono" style="margin-top:8px;color:var(--text-muted)">shadow-md</div></div>
+      <div style="text-align:center"><div style="width:110px;height:60px;background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg)"></div><div class="mono" style="margin-top:8px;color:var(--text-muted)">shadow-lg · sheet</div></div>
+      <div style="text-align:center"><div style="width:110px;height:60px;background:#fff;border-radius:20px;box-shadow:var(--shadow-medallion)"></div><div class="mono" style="margin-top:8px;color:var(--text-muted)">shadow-medallion</div></div>
+    </div>
+    <div class="note"><b>Never</b> stack a heavy shadow on an element that sits near a card edge — it
+    pools and clips. Floating elements over cards use <code>--shadow-medallion</code> (a tight
+    highlight plus a wide, feathered cool drop).</div>
+  </section>
+
+  <!-- ===================== MOTION ===================== -->
+  <section class="sec" id="motion">
+    <div class="eyebrow">Foundations</div>
+    <h2>Motion</h2>
+    <p>Motion is purposeful and short: it explains where things came from and draws attention to what
+    needs action. Nothing loops except the two "needs attention" pulses.</p>
+    <table>
+      <thead><tr><th>Keyframe</th><th>Duration / easing</th><th>Applied to</th></tr></thead>
+      <tbody>
+        <tr><td><code>v-up</code></td><td>280ms ease, stagger 60ms</td><td>Screen content and timeline nodes entering</td></tr>
+        <tr><td><code>v-dot</code></td><td>500ms <code>--ease-spring</code>, stagger 80ms (120ms delay)</td><td>BodyMap status dots popping in</td></tr>
+        <tr><td><code>v-ping</code></td><td>1.9s ease-out, infinite</td><td>Ring around "act now" BodyMap dots</td></tr>
+        <tr><td><code>v-halo</code></td><td>2s ease-out, infinite</td><td>Halo behind the "Heute" timeline marker</td></tr>
+        <tr><td><code>v-slidein</code></td><td>260ms ease</td><td>Full-screen detail pages (region, event, task, settings)</td></tr>
+        <tr><td><code>v-slide</code></td><td>260ms ease</td><td>Bottom sheets rising</td></tr>
+        <tr><td><code>v-draw</code></td><td>500ms ease, origin top</td><td>Timeline spine drawing itself</td></tr>
+        <tr><td><code>v-fade</code></td><td>180ms</td><td>Scrims and overlays</td></tr>
+      </tbody>
+    </table>
+    <p>Numeric reveals (the score) count up once on mount over ~900ms. Respect
+    <code>prefers-reduced-motion</code>: disable the two infinite pulses and the count-up, keep the
+    slide-ins under 120ms.</p>
+  </section>
+
+  <!-- ===================== BRAND ===================== -->
+  <section class="sec" id="brand">
+    <div class="eyebrow">Foundations</div>
+    <h2>Logo &amp; brand</h2>
+    <p>The mark is a soft shield — protection, prevention — holding the <b>Vorsorge-Ring</b>, the same
+    progress ring used for the score. Shield in <code>--color-primary</code>, ring gap in
+    <code>--teal-300</code>.</p>
+    <div class="demo">
+      <span style="display:inline-flex;align-items:center;gap:10px">
+        <svg width="46" height="46" viewBox="0 0 100 100" fill="none">
+          <path d="M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z" fill="var(--color-primary)"/>
+          <circle cx="50" cy="48" r="17" stroke="#fff" stroke-opacity=".34" stroke-width="6.5"/>
+          <path d="M50 31a17 17 0 1 1 -14.2 7.6" stroke="var(--teal-300)" stroke-width="6.5" stroke-linecap="round"/>
+        </svg>
+        <span style="font-size:30px;font-weight:700;letter-spacing:-.01em">Vitalis</span>
+      </span>
+      <svg width="36" height="36" viewBox="0 0 100 100" fill="none" style="margin-left:22px">
+        <path d="M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z" fill="var(--color-primary)"/>
+        <circle cx="50" cy="48" r="17" stroke="#fff" stroke-opacity=".34" stroke-width="6.5"/>
+        <path d="M50 31a17 17 0 1 1 -14.2 7.6" stroke="var(--teal-300)" stroke-width="6.5" stroke-linecap="round"/>
+      </svg>
+      <span style="display:inline-flex;align-items:center;gap:9px;padding:16px 20px;border-radius:16px;background:var(--color-primary);margin-left:22px">
+        <svg width="30" height="30" viewBox="0 0 100 100" fill="none">
+          <path d="M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z" fill="#fff"/>
+          <circle cx="50" cy="48" r="17" stroke="rgba(43,127,184,.4)" stroke-width="6.5"/>
+          <path d="M50 31a17 17 0 1 1 -14.2 7.6" stroke="var(--color-primary)" stroke-width="6.5" stroke-linecap="round"/>
+        </svg>
+        <span style="font-size:22px;font-weight:700;color:#fff">Vitalis</span>
+      </span>
+    </div>
+    <table>
+      <thead><tr><th>Variant</th><th>Prop</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>Lockup (mark + wordmark)</td><td><code>&lt;Logo size={46} wordSize={30} /&gt;</code></td><td>Onboarding welcome</td></tr>
+        <tr><td>Mark only</td><td><code>word={false}</code></td><td>Dashboard header (15px), onboarding step accent (30px), detail page top bars (24px)</td></tr>
+        <tr><td>Reversed</td><td><code>reversed</code></td><td>On primary-blue or gradient surfaces</td></tr>
+        <tr><td>App icon / favicon</td><td>—</td><td>Mark on a primary-blue rounded tile</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Clear space</b> equals the ring's diameter on all sides. Never recolour the
+    shield outside the two approved variants, never add effects, never stretch, and never set the
+    wordmark in another face.</div>
+  </section>
+
+  <!-- ===================== BUTTONS ===================== -->
+  <section class="sec" id="buttons">
+    <div class="eyebrow">Components</div>
+    <h2>Buttons</h2>
+    <p>Fully rounded (<code>--radius-full</code>). One primary action per screen. Minimum height is
+    always <code>--tap-min</code>.</p>
+    <div class="demo">
+      <button class="v-btn primary">Los geht's</button>
+      <button class="v-btn secondary">Dokument hochladen</button>
+      <button class="v-btn ghost">Abmelden</button>
+      <button class="v-btn primary sm">Speichern</button>
+      <button class="v-ico surface" aria-label="Benachrichtigungen">
+        <i data-lucide="bell" width="20" height="20"></i>
+      </button>
+      <button class="v-ico solid" aria-label="Hinzufügen">
+        <i data-lucide="plus" width="22" height="22"></i>
+      </button>
+    </div>
+    <div style="max-width:320px;margin-top:14px"><button class="v-btn primary lg">Fertig</button></div>
+    <table>
+      <thead><tr><th>Prop</th><th>Values</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>variant</code></td><td><code>primary</code> · <code>secondary</code> · <code>ghost</code></td><td>primary = filled blue; secondary = soft blue tint; ghost = text only</td></tr>
+        <tr><td><code>size</code></td><td><code>sm</code> (36) · default (44) · <code>lg</code> (52)</td><td><code>lg</code> is the standard full-width form/sheet submit</td></tr>
+        <tr><td><code>fullWidth</code></td><td>boolean</td><td>Sheets, form submits, onboarding advance</td></tr>
+        <tr><td><code>iconLeft</code> / <code>iconRight</code></td><td>Lucide icon name</td><td>8px gap; icon inherits text color</td></tr>
+        <tr><td colspan="3"><b>IconButton</b>: <code>variant</code> = <code>surface</code> (white + shadow-sm, on app background) · <code>solid</code> (blue + shadow-lg, floating action) · <code>ghost</code> (bare, top bars). Always 44px, always <code>label</code> for a11y.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== INPUTS ===================== -->
+  <section class="sec" id="inputs">
+    <div class="eyebrow">Components</div>
+    <h2>Inputs &amp; controls</h2>
+    <div class="demo" style="align-items:flex-start;gap:20px">
+      <div class="v-field" style="width:250px">
+        <label>Geburtsdatum</label>
+        <div class="v-input">
+          <i data-lucide="calendar" width="18" height="18" style="color:var(--text-muted)"></i>
+          <input placeholder="TT.MM.JJJJ">
+        </div>
+      </div>
+      <div class="v-field" style="width:250px">
+        <label>Geschlecht</label>
+        <div class="v-seg"><button class="on">Weiblich</button><button>Männlich</button></div>
+      </div>
+      <div class="v-field">
+        <label>Filter</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="v-chip on">Alle</button><button class="v-chip">Impfpass</button><button class="v-chip">Befunde</button><button class="v-chip">Rezepte</button>
+        </div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Control</th><th>Spec</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td><b>Input</b></td><td>44px min-height, <code>--radius-md</code>, 1px <code>--border-strong</code>, optional leading Lucide icon in <code>--text-muted</code>; focus = primary border + 3px <code>--focus-ring</code></td><td>All single-line text/date entry. Label above, 13px/600.</td></tr>
+        <tr><td><b>Segmented</b></td><td><code>--surface-sunken</code> pill track, 4px padding; active thumb white + <code>--shadow-sm</code> + <code>--color-primary-ink</code></td><td>2–3 exclusive options: sex, language, timeline scope</td></tr>
+        <tr><td><b>Chip</b></td><td>Pill, 13px/600; idle white + shadow-sm; active <code>--color-primary</code> on white text, no shadow</td><td>Document-safe category filters</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Sex is binary in Vitalis</b> (weiblich / männlich) because screening and
+    vaccination schedules are derived from it clinically. Do not add further options to this control.</div>
+  </section>
+
+  <!-- ===================== CARDS ===================== -->
+  <section class="sec" id="cards">
+    <div class="eyebrow">Components</div>
+    <h2>Cards &amp; list rows</h2>
+    <p>The <b>ListRow</b> is the workhorse: a soft-tinted icon tile, title, subtitle, optional status
+    badge and chevron. Rows in a list are separate cards spaced 10px apart — never hairline-divided
+    inside one container.</p>
+    <div class="demo" style="flex-direction:column;align-items:stretch;max-width:420px">
+      <button class="v-row">
+        <span class="lead-ico" style="background:var(--color-primary-soft);color:var(--color-primary)">
+          <i data-lucide="syringe" width="20" height="20"></i>
+        </span>
+        <span class="t"><b>Grippeimpfung</b><span>Auffrischung fällig</span></span>
+        <span class="v-badge" style="background:var(--status-due-soft);color:var(--status-due)">Fällig</span>
+      </button>
+      <button class="v-row">
+        <span class="lead-ico" style="background:var(--color-secondary-soft);color:var(--color-secondary)">
+          <i data-lucide="shield-check" width="20" height="20"></i>
+        </span>
+        <span class="t"><b>Hautkrebs-Screening</b><span>in 2 Wochen</span></span>
+        <span class="v-badge" style="background:var(--status-upcoming-soft);color:var(--status-upcoming)">Demnächst</span>
+      </button>
+      <button class="v-row">
+        <span class="lead-ico" style="background:var(--status-done-soft);color:var(--status-done)">
+          <i data-lucide="check" width="20" height="20"></i>
+        </span>
+        <span class="t"><b>Tetanus / Diphtherie</b><span>erledigt 2021</span></span>
+        <span class="v-badge" style="background:var(--status-done-soft);color:var(--status-done)">Erledigt</span>
+      </button>
+      <div class="v-card" style="text-align:center;color:var(--text-secondary);font-size:14px;border:1px dashed var(--border-strong);box-shadow:none;padding:22px 16px">Alles erledigt für heute — stark!</div>
+    </div>
+    <table>
+      <thead><tr><th>Prop</th><th>Values</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>icon</code></td><td>Lucide name</td><td>Sits in a 40×40 / <code>12px</code> radius tile</td></tr>
+        <tr><td><code>tone</code></td><td><code>primary</code> · <code>teal</code> · <code>green</code> · <code>amber</code> · <code>red</code> · <code>neutral</code></td><td>Tile background = <code>-soft</code>, glyph = solid hue</td></tr>
+        <tr><td><code>title</code> / <code>subtitle</code></td><td>string</td><td>15px/600 and 12.5px <code>--text-secondary</code></td></tr>
+        <tr><td><code>badge</code> / <code>badgeStatus</code></td><td>label + <code>due</code>|<code>done</code>|<code>upcoming</code>|<code>neutral</code></td><td>Status must also be readable as text, not colour alone</td></tr>
+        <tr><td><code>trailingChevron</code></td><td>boolean (default true when <code>onClick</code>)</td><td>Show only when the row navigates</td></tr>
+        <tr><td colspan="3"><b>Card</b>: <code>padding</code> (default 16), <code>elevated</code> (default true → <code>--shadow-sm</code>), <code>--radius-lg</code>, 1px <code>--border-subtle</code>.</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Tapping a row never mutates data.</b> Rows navigate to a detail page where the
+    user explicitly confirms ("Als erledigt markieren", "Verschieben"). Never toggle-and-vanish.</div>
+  </section>
+
+  <!-- ===================== BADGES ===================== -->
+  <section class="sec" id="badges">
+    <div class="eyebrow">Components</div>
+    <h2>Badges &amp; avatars</h2>
+    <div class="demo">
+      <span class="v-badge" style="background:var(--status-due-soft);color:var(--status-due)">Fällig</span>
+      <span class="v-badge" style="background:var(--status-upcoming-soft);color:var(--status-upcoming)">Demnächst</span>
+      <span class="v-badge" style="background:var(--status-done-soft);color:var(--status-done)">Erledigt</span>
+      <span class="v-badge" style="background:var(--status-overdue-soft);color:var(--status-overdue)">Überfällig</span>
+      <span class="v-badge" style="background:var(--surface-sunken);color:var(--text-secondary)">Später</span>
+      <span class="v-badge" style="background:var(--color-primary-soft);color:var(--color-primary-ink)">Diese Woche</span>
+      <span style="width:22px"></span>
+      <span class="v-av" style="width:56px;height:56px;font-size:19px">AB</span>
+      <span class="v-av" style="background:var(--color-secondary)">TB</span>
+      <span class="v-av" style="width:36px;height:36px;font-size:13px;background:var(--blue-700)">MB</span>
+    </div>
+    <table>
+      <thead><tr><th>Component</th><th>Spec</th></tr></thead>
+      <tbody>
+        <tr><td><b>Badge</b></td><td>Pill, 11.5px/600, 4×10px padding. <code>status</code> maps to the <code>-soft</code> background + solid hue text. <code>neutral</code> = sunken + secondary text.</td></tr>
+        <tr><td><b>Avatar</b></td><td>Circle with 700-weight initials on a brand hue derived deterministically from the name. Sizes in use: 36 (compact), 40–42 (header/profile rows), 56 (settings hero).</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== NAV ===================== -->
+  <section class="sec" id="nav">
+    <div class="eyebrow">Components</div>
+    <h2>Navigation</h2>
+    <p>Five fixed tabs — Start · Impfen · Vorsorge · Termine · Safe. Detail views are full-screen
+    slide-ins <i>above</i> the tab bar, opened from a row or dot and closed with a back chevron in a
+    <b>TopBar</b> that also carries the mark on the right.</p>
+    <div class="demo" style="flex-direction:column;align-items:stretch;max-width:390px;padding:0;overflow:hidden;gap:0">
+      <div style="display:flex;align-items:center;gap:6px;padding:12px;background:var(--surface-card)">
+        <button class="v-ico ghost" aria-label="Zurück"><i data-lucide="chevron-left" width="20" height="20"></i></button>
+        <div style="flex:1;font-size:18px;font-weight:700">Herz &amp; Kreislauf</div>
+        <svg width="24" height="24" viewBox="0 0 100 100" fill="none" style="margin-right:8px"><path d="M50 11 L79 22 Q84 24 84 40 C84 63 70 82 50 90 C30 82 16 63 16 40 Q16 24 21 22 Z" fill="var(--color-primary)"/><circle cx="50" cy="48" r="17" stroke="#fff" stroke-opacity=".34" stroke-width="6.5"/><path d="M50 31a17 17 0 1 1 -14.2 7.6" stroke="var(--teal-300)" stroke-width="6.5" stroke-linecap="round"/></svg>
+      </div>
+      <div class="v-tab">
+        <button class="on"><i data-lucide="layout-grid" width="23" height="23"></i>Start</button>
+        <button><i data-lucide="syringe" width="23" height="23"></i>Impfen</button>
+        <button><i data-lucide="shield-check" width="23" height="23"></i>Vorsorge</button>
+        <button><i data-lucide="calendar" width="23" height="23"></i>Termine</button>
+        <button><i data-lucide="lock" width="23" height="23"></i>Safe</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Element</th><th>Spec</th></tr></thead>
+      <tbody>
+        <tr><td><b>TabBar</b></td><td>64px, white, top hairline + <code>--shadow-nav</code>. Icon 23px over a 9px label (600 active / 500 idle) — micro tier. Active = <code>--color-primary</code>; inactive = <code>--text-muted</code>. Exactly five items, order fixed.</td></tr>
+        <tr><td><b>TopBar</b></td><td>Ghost back chevron (44px) + 18px/700 title + 24px mark. Used by every full-screen detail page.</td></tr>
+        <tr><td><b>Section label</b></td><td>Overline style, 20px above / 10px below, groups every list on a screen.</td></tr>
+        <tr><td><b>Floating action</b></td><td><code>IconButton variant="solid" size="lg"</code>, offset <code>--tabbar-h</code> + 16px from the bottom, 18px from the right.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== SHEETS ===================== -->
+  <section class="sec" id="sheets">
+    <div class="eyebrow">Components</div>
+    <h2>Sheets &amp; overlays</h2>
+    <p>Bottom sheets are for short, single-purpose input (quick add, profile switch). Anything with
+    history, status changes or more than two fields is a full-screen page instead.</p>
+    <div class="demo" style="align-items:flex-end">
+      <div class="v-sheet">
+        <div class="handle"></div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:14px">Impfung eintragen</div>
+        <div class="v-field" style="margin-bottom:12px"><label>Impfung</label><div class="v-input"><input placeholder="z. B. Grippe"></div></div>
+        <button class="v-btn primary lg">Speichern</button>
+      </div>
+      <div class="v-sheet" style="width:280px">
+        <div class="handle"></div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:12px">Profil wechseln</div>
+        <button class="v-row" style="background:var(--color-primary-soft);border-color:transparent;box-shadow:none;margin-bottom:8px">
+          <span class="v-av" style="width:42px;height:42px;font-size:14px">AB</span>
+          <span class="t"><b>Anna Berger</b><span>Du</span></span>
+          <i data-lucide="check-circle-2" width="20" height="20" style="color:var(--color-primary)"></i>
+        </button>
+        <button style="display:flex;align-items:center;gap:12px;width:100%;background:none;border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);padding:12px;cursor:pointer;font-family:var(--font-sans);color:var(--color-primary);font-weight:600;font-size:14px">
+          <span style="width:42px;height:42px;border-radius:50%;background:var(--color-primary-soft);display:flex;align-items:center;justify-content:center">
+            <i data-lucide="plus" width="20" height="20"></i>
+          </span>Profil hinzufügen
+        </button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Prop / part</th><th>Spec</th></tr></thead>
+      <tbody>
+        <tr><td><code>open</code> / <code>onClose</code></td><td>Scrim <code>rgba(30,42,54,.36)</code> fades (<code>v-fade</code>), panel rises (<code>v-slide</code>, 260ms)</td></tr>
+        <tr><td><code>title</code></td><td>18px/700, below a 38×4 grab handle in <code>--border-strong</code></td></tr>
+        <tr><td>Panel</td><td>White, <code>--radius-2xl</code> top corners, <code>--shadow-lg</code>, 18/20/22px padding</td></tr>
+        <tr><td>Dismissal</td><td>Scrim tap + handle drag. Destructive actions always need an explicit button.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== DATAVIZ ===================== -->
+  <section class="sec" id="dataviz">
+    <div class="eyebrow">Components</div>
+    <h2>Data visualisation</h2>
+    <p>Only two chart forms exist: the <b>ProgressRing</b> (Vorsorge-Score) and the
+    <b>Zeitstrahl</b> rails. No pies, no bar charts, no gauges.</p>
+    <div class="demo">
+      <div class="v-medallion">
+        <svg width="72" height="72" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--surface-sunken)" stroke-width="9"/>
+          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--color-primary)" stroke-width="9"
+            stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="73.9" transform="rotate(-90 50 50)"/>
+          <text x="50" y="49" text-anchor="middle" font-family="Public Sans" font-size="24" font-weight="700" fill="var(--text-primary)">72%</text>
+          <text x="50" y="65" text-anchor="middle" font-family="Public Sans" font-size="11" font-weight="600" fill="var(--text-secondary)">Score</text>
+        </svg>
+      </div>
+      <div style="max-width:330px;font-size:13.5px;color:var(--text-secondary);line-height:1.55">
+        <b style="color:var(--text-primary);display:block;font-size:15px;margin-bottom:3px">ProgressRing</b>
+        9px stroke, round cap, track <code>--surface-sunken</code>, progress <code>--color-primary</code>,
+        starts at 12 o'clock. Value counts up once on mount. <code>label</code> is 700-weight,
+        <code>sublabel</code> 11px/600 secondary. Sizes 72–78px in the hero medallion.
+      </div>
+    </div>
+    <div class="demo" style="margin-top:14px;align-items:stretch">
+      <div style="display:flex;gap:14px;align-items:flex-start">
+        <div style="position:relative;width:40px;display:flex;justify-content:center;padding-top:8px">
+          <span class="tl-node" style="background:var(--surface-card);color:var(--status-done);border:2px solid var(--status-done)">
+            <i data-lucide="check" width="18" height="18"></i>
+          </span>
+        </div>
+        <div class="v-card" style="flex:1;padding:13px;opacity:.78;min-width:190px">
+          <div style="font-size:11px;font-weight:600;color:var(--status-done);margin-bottom:2px">18. Jun</div>
+          <div style="font-size:14px;font-weight:600">Blutdruck gemessen</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:1px">128/82 mmHg</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-left:24px">
+        <div style="position:relative;width:40px;display:flex;justify-content:center;padding-top:8px">
+          <span class="tl-node" style="background:var(--color-primary-soft);color:var(--color-primary);border:2px solid var(--color-primary)">
+            <i data-lucide="stethoscope" width="18" height="18"></i>
+          </span>
+        </div>
+        <div class="v-card" style="flex:1;padding:13px;display:flex;align-items:center;gap:10px;min-width:190px">
+          <div style="flex:1">
+            <div style="font-size:11px;font-weight:600;color:var(--color-primary);margin-bottom:2px">27. Jun</div>
+            <div style="font-size:14px;font-weight:600">Hausarzt — Dr. Weber</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:1px">09:30 Uhr</div>
+          </div>
+          <span class="v-badge" style="background:var(--status-due-soft);color:var(--status-due)">Diese Woche</span>
+        </div>
+      </div>
+    </div>
+    <div class="note"><b>Timeline nodes are always perfect circles</b> — 40×40, <code>flex:none</code>,
+    <code>box-sizing:border-box</code>, top-aligned with 8px padding. A stretching flex parent
+    (<code>align-items:stretch</code>) turns them into ovals; pin them explicitly. Past nodes are white
+    with a green border and a check glyph; future nodes are tone-soft filled with their own icon.</div>
+  </section>
+
+  <!-- ===================== BODYMAP ===================== -->
+  <section class="sec" id="bodymap">
+    <div class="eyebrow">Components</div>
+    <h2>BodyMap — Körper-Übersicht</h2>
+    <p>The signature component and the hero of the Start page: a real human silhouette (distinct male
+    and female artwork, chosen by the profile's sex) overlaid with tappable status dots that map
+    <i>where</i> the user needs to act.</p>
+
+    <div class="demo" style="align-items:flex-start;gap:26px">
+      <div style="display:flex;flex-direction:column;gap:0">
+        <div style="display:flex;gap:14px;align-items:center">
+          <div class="bm-fig" id="bm-fig-w" style="width:132px">
+            <img data-body="female" alt="Weibliche Silhouette" draggable="false">
+          </div>
+          <div class="bm-list" id="bm-list-w" style="width:210px;display:flex;flex-direction:column;gap:4px"></div>
+        </div>
+        <div class="bm-legend">
+          <span><i style="background:var(--status-overdue)"></i>Handeln</span>
+          <span><i style="background:var(--status-upcoming)"></i>Bald dran</span>
+          <span><i style="background:var(--status-done)"></i>Erledigt</span>
+        </div>
+        <div class="mono" style="margin-top:10px;color:var(--text-muted)">sex="w" · showList · showLegend</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0">
+        <div class="bm-fig" id="bm-fig-m" style="width:132px">
+          <img data-body="male" alt="Männliche Silhouette" draggable="false">
+        </div>
+        <div class="mono" style="margin-top:10px;color:var(--text-muted)">sex="m" · showList={false}</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text-secondary);margin-top:10px">Dots above sit at their exact
+    canonical percentages. The <b>Impfschutz</b> and <b>Herz &amp; Kreislauf</b> dots are
+    <code>action</code> and carry the pulsing ring; <b>Impfschutz</b> is shown selected (larger core +
+    tinted list row revealing its note).</p>
+    <table>
+      <thead><tr><th>Prop</th><th>Type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>points</code></td><td><code>{id, label, x, y, status, note}[]</code></td><td><code>x</code>/<code>y</code> are percentages (0–100) of the silhouette image box, hand-tuned per region</td></tr>
+        <tr><td><code>sex</code></td><td><code>'w' | 'm'</code></td><td>Selects the silhouette artwork; follows the active profile</td></tr>
+        <tr><td><code>status</code></td><td><code>action</code> · <code>soon</code> · <code>ok</code></td><td>red + pulsing ring · amber · green</td></tr>
+        <tr><td><code>showList</code></td><td>boolean (default true)</td><td>Region list beside the figure; selected row reveals its <code>note</code></td></tr>
+        <tr><td><code>showLegend</code></td><td>boolean (default true)</td><td>Handeln / Bald dran / Erledigt key. <code>false</code> in the hero.</td></tr>
+        <tr><td><code>figWidth</code></td><td>number (default 118)</td><td>Silhouette width in px; height scales</td></tr>
+        <tr><td><code>onOpen</code></td><td><code>(regionId) =&gt; void</code></td><td>A dot or row tap opens that region's full-screen drill-down</td></tr>
+      </tbody>
+    </table>
+    <h3>Dot construction</h3>
+    <p>Three stacked layers in a 26px grid cell: an optional pulsing ring (<code>v-ping</code>, action
+    only), a 16–20px halo of the hue at 22% opacity, and an 11–13px solid core with a 2px white border
+    and a tight shadow. The selected dot is the larger variant — <b>size means selection, not
+    severity</b>. Dots enter with <code>v-dot</code>, 80ms stagger.</p>
+    <div class="note"><b>Assets.</b> Silhouettes live at <code>assets/body-male.png</code> and
+    <code>assets/body-female.png</code> (palette-tinted, alpha), and are additionally embedded as data
+    URIs in <code>assets/body-silhouettes.js</code> (<code>window.VITALIS_BODY</code>) so the map renders
+    without an external image fetch. Six canonical regions: <code>kopf</code>, <code>impf</code>,
+    <code>herz</code>, <code>haut</code>, <code>bauch</code>, <code>beine</code>.</div>
+  </section>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="sec" id="hero">
+    <div class="eyebrow">Patterns</div>
+    <h2>Dashboard hero</h2>
+    <p>The Start page opens with one unified hero card that fuses the three former separate blocks:
+    the <b>BodyMap</b> silhouette as the centrepiece, the <b>Vorsorge-Score</b> medallion floating at
+    its top-right, the region list to the right of the figure, and a horizontal <b>Zeitstrahl</b> rail
+    beneath.</p>
+    <table>
+      <thead><tr><th>Layer</th><th>Spec</th></tr></thead>
+      <tbody>
+        <tr><td>Card</td><td><code>--radius-lg</code>, white, <code>--shadow-sm</code>; a soft radial teal/blue glow bleeds from the top-right corner at very low alpha (≤.13)</td></tr>
+        <tr><td>Score medallion</td><td>White, 20px radius, <code>--shadow-medallion</code>, 72–78px ring; sits top-right, overlapping the figure column</td></tr>
+        <tr><td>Figure + list</td><td><code>BodyMap</code> with <code>showLegend={false}</code>; region rows to the right, selected row shows its note</td></tr>
+        <tr><td>Zeitstrahl rail</td><td>Horizontal scroll of round nodes with date captions; ends in an "Alle ansehen" affordance opening the full Gantt timeline</td></tr>
+        <tr><td>Below the hero</td><td>"Heute fällig" list → "Demnächst" list, each under an overline section label</td></tr>
+      </tbody>
+    </table>
+    <div class="note">Keep exactly <b>one</b> gradient/glow moment per screen. The hero owns it on
+    Start; the full Zeitstrahl page owns it in the "Heute" marker.</div>
+  </section>
+
+  <!-- ===================== TIMELINE ===================== -->
+  <section class="sec" id="timeline">
+    <div class="eyebrow">Patterns</div>
+    <h2>Zeitstrahl (full page)</h2>
+    <p>The full-page Zeitstrahl is a <b>Gantt chart</b>, not a point-event list — because prevention
+    items have <i>duration</i>: a vaccination protects until a date, a screening recurs on an interval.
+    Bars express those coverage and interval windows; markers express single moments. The Start-page
+    rail stays a compact horizontal node rail and links here.</p>
+
+    <div class="gantt" style="margin:18px 0 8px">
+      <div class="scroll" id="g-scroll">
+        <div class="inner">
+          <div class="g-grid" id="g-grid" style="position:absolute;left:118px;top:30px;bottom:0;right:0"></div>
+          <div class="g-today" style="left:299px"></div>
+
+          <div class="g-head">
+            <span class="g-lab">2026</span>
+            <div class="g-time" id="g-head-cols">
+              <span class="g-todaydot" style="left:181px"><span class="h"></span><span class="k"></span></span>
+            </div>
+          </div>
+
+          <div class="g-lane"><span class="g-lab">Impfschutz</span></div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--status-overdue)"></span><span class="tx"><b>Grippeimpfung</b><span class="d">jetzt fällig</span></span></span>
+            <div class="g-time">
+              <span class="g-bar" style="left:0;width:181px;border-radius:3px 999px 999px 3px;background:var(--status-overdue-soft)">
+                <span class="g-el" style="width:181px;background:var(--status-overdue)"></span></span>
+              <span class="g-mk" style="left:181px">
+                <span class="p" style="width:20px;height:20px;border:2px solid var(--status-overdue)"></span>
+                <span class="c" style="width:20px;height:20px;background:var(--status-overdue-soft);border:2px solid var(--status-overdue)"></span></span>
+            </div>
+          </div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--status-done)"></span><span class="tx"><b>Tetanus / Diphtherie</b><span class="d">2021 – 2031</span></span></span>
+            <div class="g-time">
+              <span class="g-bar" style="left:0;width:768px;border-radius:3px;background:var(--status-done-soft)">
+                <span class="g-el" style="width:181px;background:var(--status-done)"></span></span>
+            </div>
+          </div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--status-upcoming)"></span><span class="tx"><b>FSME (Zecken)</b><span class="d">Mitte Juli</span></span></span>
+            <div class="g-time">
+              <span class="g-mk" style="left:189.6px"><span class="c" style="width:26px;height:26px;background:var(--status-upcoming-soft);border:2px solid var(--status-upcoming);color:var(--status-upcoming)"><i data-lucide="syringe" width="13" height="13"></i></span></span>
+            </div>
+          </div>
+
+          <div class="g-lane"><span class="g-lab">Vorsorge</span></div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--status-upcoming)"></span><span class="tx"><b>Hautkrebs-Screening</b><span class="d">in 2 Wochen</span></span></span>
+            <div class="g-time">
+              <span class="g-bar" style="left:0;width:201.6px;border-radius:3px 999px 999px 3px;background:var(--status-upcoming-soft)">
+                <span class="g-el" style="width:181px;background:var(--status-upcoming)"></span>
+                <span class="g-st" style="background:repeating-linear-gradient(115deg,transparent 0 7px,var(--status-upcoming) 7px 8px)"></span></span>
+              <span class="g-mk" style="left:201.6px"><span class="c" style="width:20px;height:20px;background:var(--status-upcoming-soft);border:2px solid var(--status-upcoming)"></span></span>
+            </div>
+          </div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--status-done)"></span><span class="tx"><b>Zahnvorsorge</b><span class="d">nächste: Dez</span></span></span>
+            <div class="g-time">
+              <span class="g-bar" style="left:0;width:432px;border-radius:3px 999px 999px 3px;background:var(--status-done-soft)">
+                <span class="g-el" style="width:181px;background:var(--status-done)"></span>
+                <span class="g-st" style="background:repeating-linear-gradient(115deg,transparent 0 7px,var(--status-done) 7px 8px)"></span></span>
+              <span class="g-mk" style="left:432px"><span class="c" style="width:20px;height:20px;background:var(--status-done-soft);border:2px solid var(--status-done)"></span></span>
+            </div>
+          </div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--slate-500)"></span><span class="tx"><b>Darmkrebs-Früherkennung</b><span class="d">ab 2029</span></span></span>
+            <div class="g-time">
+              <span class="g-ghost" style="left:440px;border:1px dashed var(--slate-500);background:var(--surface-sunken);color:var(--slate-500)">ab 2029 <i data-lucide="chevron-right" width="12" height="12"></i></span>
+            </div>
+          </div>
+
+          <div class="g-lane"><span class="g-lab">Termine</span></div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--color-primary)"></span><span class="tx"><b>Hausarzt — Dr. Weber</b><span class="d">27. Jun</span></span></span>
+            <div class="g-time">
+              <span class="g-mk" style="left:185.8px"><span class="c" style="width:26px;height:26px;background:var(--color-primary-soft);border:2px solid var(--color-primary);color:var(--color-primary)"><i data-lucide="stethoscope" width="13" height="13"></i></span></span>
+            </div>
+          </div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--color-secondary)"></span><span class="tx"><b>Zahnreinigung</b><span class="d">15. Jul</span></span></span>
+            <div class="g-time">
+              <span class="g-mk" style="left:215px"><span class="c" style="width:26px;height:26px;background:var(--color-secondary-soft);border:2px solid var(--color-secondary);color:var(--color-secondary)"><i data-lucide="calendar" width="13" height="13"></i></span></span>
+            </div>
+          </div>
+
+          <div class="g-lane"><span class="g-lab">Kontrollen</span></div>
+          <div class="g-row">
+            <span class="g-lab"><span class="dot" style="background:var(--status-overdue)"></span><span class="tx"><b>Blutdruck</b><span class="d">heute</span></span></span>
+            <div class="g-time">
+              <span class="g-bar" style="left:0;width:432px;border-radius:3px 999px 999px 3px;background:var(--status-overdue-soft)">
+                <span class="g-el" style="width:181px;background:var(--status-overdue)"></span>
+                <span class="g-st" style="background:repeating-linear-gradient(115deg,transparent 0 7px,var(--status-overdue) 7px 8px)"></span></span>
+              <span class="g-mk" style="left:181px">
+                <span class="p" style="width:20px;height:20px;border:2px solid var(--status-overdue)"></span>
+                <span class="c" style="width:20px;height:20px;background:var(--status-overdue-soft);border:2px solid var(--status-overdue)"></span></span>
+            </div>
+          </div>
+          <div class="g-row" style="border-bottom:none">
+            <span class="g-lab"><span class="dot" style="background:var(--status-done)"></span><span class="tx"><b>Augenarzt-Kontrolle</b><span class="d">12. Mär</span></span></span>
+            <div class="g-time">
+              <span class="g-mk" style="left:19.2px"><span class="c" style="width:26px;height:26px;background:var(--surface-card);border:2px solid var(--status-done);color:var(--status-done)"><i data-lucide="check" width="13" height="13"></i></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:10.5px;color:var(--text-secondary);align-items:center;margin-bottom:6px">
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:26px;height:10px;border-radius:999px;background:var(--color-primary-soft);box-shadow:inset 0 0 0 1px rgba(30,42,54,.06)"></span>Schutz / Intervall</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:13px;height:13px;border-radius:50%;border:2px solid var(--status-overdue);box-sizing:border-box"></span>Fällig</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:15px;height:15px;border-radius:50%;background:var(--color-secondary-soft);border:2px solid var(--color-secondary);box-sizing:border-box"></span>Termin</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:3px;height:14px;border-radius:2px;background:var(--color-primary)"></span>Heute</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:26px;height:12px;border-radius:999px;border:1px dashed var(--slate-500);box-sizing:border-box"></span>Außerhalb des Zeitraums</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--text-muted);max-width:74ch">Static reproduction at the real app
+    metrics — 118px sticky label column, 48px month columns, 44px rows, 26px lane headers. Scroll it
+    sideways: the labels stay pinned while the time axis moves, exactly as in the app.</p>
+    <table>
+      <thead><tr><th>Part</th><th>Spec</th></tr></thead>
+      <tbody>
+        <tr><td>Frame</td><td>One <code>Card</code> (<code>padding: 0</code>, <code>overflow: hidden</code>) containing a horizontal scroller. Sticky 118px label column on the left; time area scrolls under it.</td></tr>
+        <tr><td>Scope control</td><td>Segmented: <b>12 Monate</b> (month columns, 48px) · <b>5 Jahre</b> (quarter columns, 36px). On mount and on scope change the view auto-scrolls so today sits ~96px from the left.</td></tr>
+        <tr><td>Axis header</td><td>30px row: 9.5px/700 uppercase column labels in <code>--text-muted</code>; year starts take <code>--text-secondary</code> plus a <code>'yy</code> sub-label. Corner cell shows the year.</td></tr>
+        <tr><td>Grid</td><td>1px column rules in <code>--border-subtle</code>; year boundaries in <code>--border-strong</code>.</td></tr>
+        <tr><td>Heute line</td><td>3px vertical <code>--color-primary</code> → <code>--teal-500</code> gradient across all lanes, drawn on mount with <code>v-draw</code>; an 11px dot with a <code>v-halo</code> pulse caps it in the header.</td></tr>
+        <tr><td>Lanes</td><td>Four groups — Impfschutz · Vorsorge · Termine · Kontrollen — each introduced by a 26px <code>--surface-sunken</code> header row with an overline label.</td></tr>
+        <tr><td>Item row</td><td>44px, hairline separated. Sticky label cell: 7px status dot + 11.5px/600 truncated title + 9.5px date caption; tapping it opens the detail page.</td></tr>
+        <tr><td>Bar (coverage / interval)</td><td>22px tall pill in the tone's <code>-soft</code> fill with a 1px inset hairline. The elapsed portion (bar start → today) is overlaid in the solid tone at 26% opacity. Recurring items add a 115° repeating-stripe overlay at 16%. Bars running past the visible range get 3px square ends on that side to signal continuation.</td></tr>
+        <tr><td>Due marker</td><td>20px ring at the bar's due point: 2px solid tone border on white (past) or tone-soft fill. Items needing action add the <code>v-ping</code> pulse.</td></tr>
+        <tr><td>Milestone</td><td>26px circle, tone-soft fill, 2px solid tone border, 13px event icon (a check when already completed). Sits centred on its date; hit area is 44×40px.</td></tr>
+        <tr><td>Legend</td><td>Below the card: bar = Schutz / Intervall · ring = Fällig · circle = Termin · line = Heute, plus a one-line scroll/tap hint.</td></tr>
+        <tr><td>Interaction</td><td>Any bar, marker or label tap opens that item's full-screen detail page (the shared detail anatomy). Rows never mutate state.</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Why a Gantt.</b> It answers “how long am I covered?” and “when does this cycle
+    come round again?” at a glance — e.g. Tetanus as one long green span to 2031 versus a flu booster
+    whose window has just run out. Keep it calm: no more than four lanes, no bar labels inside bars,
+    and the only motion is the spine draw plus the action pulses.</div>
+  </section>
+
+  <!-- ===================== DETAIL ===================== -->
+  <section class="sec" id="detail">
+    <div class="eyebrow">Patterns</div>
+    <h2>Full-screen detail pages</h2>
+    <p>Region, event and task details all share one anatomy, slide in with <code>v-slidein</code> over
+    the tab bar, and are dismissed with the TopBar chevron.</p>
+    <ol style="max-width:74ch;line-height:1.7;font-size:14.5px">
+      <li><b>TopBar</b> — back chevron, title, mark.</li>
+      <li><b>Hero card</b> — 54px tone-soft icon tile, title, one-line status sentence.</li>
+      <li><b>Sections</b> — "Offen", "Anstehend", "Verlauf" as overline-labelled ListRow groups (empty sections are omitted entirely, never shown as empty shells).</li>
+      <li><b>Primary action</b> — full-width <code>lg</code> button: "Als erledigt markieren", "Verschieben", "Impfung eintragen", "Termin planen".</li>
+    </ol>
+    <div class="note"><b>Status changes are always explicit and reversible.</b> Marking done navigates
+    back with the item moved to "Verlauf"; snoozing offers a date. Nothing silently disappears from a
+    list on tap.</div>
+  </section>
+
+  <!-- ===================== PROFILES ===================== -->
+  <section class="sec" id="profiles">
+    <div class="eyebrow">Patterns</div>
+    <h2>Profiles &amp; settings</h2>
+    <table>
+      <thead><tr><th>Concern</th><th>Rule</th></tr></thead>
+      <tbody>
+        <tr><td>Entry points</td><td>Dashboard header: gear icon → Settings (full screen); avatar → profile switcher (bottom sheet)</td></tr>
+        <tr><td>Profiles</td><td>The signed-in user plus <b>up to 10</b> managed profiles (partner, children, parents). Sheet groups "Du" and "Verwaltete Profile · n von 10 Profilen", with a dashed "Profil hinzufügen" affordance while under the cap.</td></tr>
+        <tr><td>Switching</td><td>Changes greeting, avatar, BodyMap silhouette and all plan data. The active profile carries a check-circle in the sheet and a soft-blue row background.</td></tr>
+        <tr><td>Settings anatomy</td><td>Avatar hero (56px + name + role) → "Persönliche Daten" (name, birthdate, country, sex — all correctable) → "Einstellungen" (language segmented control) → navigation rows (Profile verwalten, Benachrichtigungen, Datenschutz &amp; Sicherheit) → ghost "Abmelden".</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== I18N ===================== -->
+  <section class="sec" id="i18n">
+    <div class="eyebrow">Patterns</div>
+    <h2>Localisation</h2>
+    <p>German and English are peers, switchable in-app (Settings → Sprache) with immediate effect on
+    every string — tabs, labels, sample data, dates and formats. No reload, no restart.</p>
+    <table>
+      <thead><tr><th>Rule</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>No hard-coded copy</td><td>Every user-visible string resolves through the dictionary (<code>t('key')</code>). Data records carry <code>{ de, en }</code> pairs resolved by a helper.</td></tr>
+        <tr><td>Formats follow locale</td><td>DE: <code>TT.MM.JJJJ</code>, "Dienstag, 24. Juni", "09:30 Uhr". EN: <code>DD/MM/YYYY</code>, "Tuesday, June 24", "09:30".</td></tr>
+        <tr><td>Layout tolerance</td><td>German runs ~25% longer. Never fix a label's width; tab labels must survive "Vorsorge" at 10.5px without truncation.</td></tr>
+        <tr><td>Keys are semantic</td><td><code>badge_due</code>, <code>sec_history</code> — never English-word keys that drift from meaning.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== A11Y ===================== -->
+  <section class="sec" id="a11y">
+    <div class="eyebrow">Rules</div>
+    <h2>Accessibility</h2>
+    <table>
+      <thead><tr><th>Requirement</th><th>Standard</th></tr></thead>
+      <tbody>
+        <tr><td>Text contrast</td><td><code>--text-primary</code> on card/app surfaces ≥ 7:1; <code>--text-secondary</code> ≥ 4.5:1. Never place <code>--text-muted</code> on anything but white/blue-50.</td></tr>
+        <tr><td>Status never colour-only</td><td>Every coloured dot, node or badge is accompanied by a text label or an <code>aria-label</code> naming the status.</td></tr>
+        <tr><td>Tap targets</td><td>≥ 44×44px, including BodyMap dots (26px visual in a 44px hit area) and top-bar chevrons.</td></tr>
+        <tr><td>Focus</td><td>Visible 3px <code>--focus-ring</code> on every interactive element; never <code>outline:none</code> without a replacement.</td></tr>
+        <tr><td>Labels</td><td>Icon-only buttons always carry an accessible label; BodyMap dots use the region name.</td></tr>
+        <tr><td>Type scale</td><td>Respect OS text scaling up to 200%; layouts must reflow, not clip. Content text ≥ 11px at default scale; the 8.5–10.5px micro tier is limited to chart axes, tab labels and legends, and never carries an action or status on its own.</td></tr>
+        <tr><td>Reduced motion</td><td>Honour <code>prefers-reduced-motion</code>: no infinite pulses, no count-up, minimal slide-ins.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===================== DO / DONT ===================== -->
+  <section class="sec" id="dodont">
+    <div class="eyebrow">Rules</div>
+    <h2>Do &amp; don't</h2>
+    <div class="dd">
+      <div class="yes"><h4>Do</h4><ul>
+        <li>Reference semantic tokens (<code>--color-primary</code>, <code>--space-4</code>) in all product code.</li>
+        <li>Give every screen one primary action and one accent moment.</li>
+        <li>Navigate to a detail page for any status change.</li>
+        <li>Keep list rows as separate cards with a 10px gap, laid out with flex/grid <code>gap</code>.</li>
+        <li>Pair every status colour with a word.</li>
+        <li>Pin circular elements with explicit size + <code>flex:none</code>.</li>
+        <li>Route all copy through the dictionary, both locales.</li>
+      </ul></div>
+      <div class="no"><h4>Don't</h4><ul>
+        <li>Hard-code hex values, px radii or shadows that duplicate a token.</li>
+        <li>Introduce a new font, a second display face, or emoji.</li>
+        <li>Use red for anything other than "act now".</li>
+        <li>Stack multiple gradients or glows on one screen.</li>
+        <li>Mutate data on row tap, or let items vanish without confirmation.</li>
+        <li>Add a third sex option to the clinical sex control.</li>
+        <li>Ship any string that exists in only one language.</li>
+        <li>Diagnose, interpret results, or omit the medical disclaimer.</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- ===================== AUDIT ===================== -->
+  <section class="sec" id="audit">
+    <div class="eyebrow">Rules</div>
+    <h2>Compliance checklist</h2>
+    <p>Use this as the acceptance criteria when auditing or aligning the app. Every line is
+    objectively checkable in code.</p>
+    <table>
+      <thead><tr><th>#</th><th>Check</th><th>Pass condition</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Token usage</td><td>No raw hex, rgb or hsl literal in component code that duplicates a token value; colors come from semantic aliases.</td></tr>
+        <tr><td>2</td><td>Spacing</td><td>All padding/margin/gap values are scale steps (4px multiples); screen padding is 20px; list gaps 10px.</td></tr>
+        <tr><td>3</td><td>Radius</td><td>Cards 16px, rows 14px, sheets 28px top, buttons/badges/chips pill. No stray radii.</td></tr>
+        <tr><td>4</td><td>Elevation</td><td>Only the five shadow tokens (+ medallion) appear; shadows are cool-tinted, never black.</td></tr>
+        <tr><td>5</td><td>Typography</td><td>Public Sans only; sizes map to the named steps; overline uppercase with .04em; content text ≥ 11px, with sub-11px type only in the documented micro tier (chart axes, tab labels, legends) at 600–700 weight.</td></tr>
+        <tr><td>6</td><td>Status semantics</td><td>red=act now, amber=upcoming, green=done, blue=due/scheduled, slate=later — no exceptions, and always with a text label.</td></tr>
+        <tr><td>7</td><td>Tap targets</td><td>Every interactive element ≥44×44px hit area.</td></tr>
+        <tr><td>8</td><td>Focus rings</td><td>3px <code>--focus-ring</code> present and visible on all focusable controls.</td></tr>
+        <tr><td>9</td><td>Row behaviour</td><td>No row tap mutates state; all status changes happen on a detail page with an explicit button.</td></tr>
+        <tr><td>10</td><td>Circles</td><td>Timeline nodes, avatars, dots are true circles (fixed size, <code>flex:none</code>, <code>box-sizing:border-box</code>).</td></tr>
+        <tr><td>11</td><td>Navigation</td><td>Exactly five tabs in the fixed order; detail views are full-screen slide-ins with a TopBar back chevron.</td></tr>
+        <tr><td>12</td><td>Sheets vs pages</td><td>Sheets only for ≤2-field quick input or profile switching; everything else is a page.</td></tr>
+        <tr><td>13</td><td>Localisation</td><td>No hard-coded user-visible strings; DE + EN complete; locale-correct date/time formats.</td></tr>
+        <tr><td>14</td><td>Profiles</td><td>Self + up to 10 managed; switching updates greeting, avatar, silhouette and data; cap enforced.</td></tr>
+        <tr><td>15</td><td>Brand</td><td>Only approved logo variants; clear space respected; mark present in onboarding, dashboard header and detail top bars.</td></tr>
+        <tr><td>16</td><td>Motion</td><td>Only the named keyframes, at the specified durations; <code>prefers-reduced-motion</code> honoured.</td></tr>
+        <tr><td>17</td><td>Voice</td><td>German informal "du"; calm phrasing; no alarm language; no emoji; disclaimer present on recommendation screens.</td></tr>
+        <tr><td>18</td><td>Medical boundary</td><td>No diagnosis, dosage advice or result interpretation anywhere in the product copy.</td></tr>
+        <tr><td>19</td><td>Data viz</td><td>Only two chart forms exist — the ProgressRing (score) and the Zeitstrahl (Start-page rail + full-page Gantt). No pies, bars or gauges.</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:20px"><b>Repo placement.</b> Keep this file at
+    <code>design/vitalis-design-system.html</code> and treat it as reviewed documentation: any visual
+    or behavioural change to the app that contradicts it must update this file in the same pull
+    request. The machine-readable token layer lives beside it in
+    <code>design/tokens/*.css</code> (imported by <code>design/styles.css</code>).</div>
+  </section>
+
+  <p style="margin-top:56px;padding-top:22px;border-top:1px solid var(--border-subtle);font-size:12.5px;color:var(--text-muted)">
+    Vitalis Design System · v2 · single-file reference · generated for repository inclusion
+  </p>
+</main>
+</div>
+
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="../assets/body-silhouettes.js"></script>
+<script>
+(function () {
+  if (window.lucide) window.lucide.createIcons();
+
+  // Gantt specimen: month grid + axis header (start -3 months from June 2026, 16 month columns)
+  (function () {
+    var COL = 48, COLS = 16, START = -3, TODAY_M = 5, TODAY_Y = 2026;
+    var NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+    var grid = document.getElementById('g-grid'), head = document.getElementById('g-head-cols');
+    if (!grid || !head) return;
+    for (var i = 0; i < COLS; i++) {
+      var abs = TODAY_M + START + i;
+      var y = TODAY_Y + Math.floor(abs / 12);
+      var mo = ((abs % 12) + 12) % 12;
+      var ys = mo === 0;
+      var line = document.createElement('span');
+      line.style.left = (i * COL) + 'px';
+      if (ys) line.className = 'ys';
+      grid.appendChild(line);
+      var lab = document.createElement('span');
+      lab.className = 'g-col' + (ys ? ' ys' : '');
+      lab.style.left = (i * COL) + 'px';
+      lab.innerHTML = NAMES[mo] + (ys ? '<span class="yy">\'' + String(y).slice(2) + '</span>' : '');
+      head.appendChild(lab);
+    }
+    var sc = document.getElementById('g-scroll');
+    if (sc) sc.scrollLeft = 0;
+  })();
+
+  var HUE = { action: 'var(--status-overdue)', soon: 'var(--status-upcoming)', ok: 'var(--status-done)' };
+  var POINTS = [
+    { id: 'kopf',  label: 'Kopf & Sinne',      x: 50.6, y: 5.7,  status: 'ok',     note: 'Augenarzt-Kontrolle erledigt' },
+    { id: 'impf',  label: 'Impfschutz',        x: 11.5, y: 21.8, status: 'action', note: 'Grippeimpfung fällig' },
+    { id: 'herz',  label: 'Herz & Kreislauf',  x: 58.9, y: 23.8, status: 'action', note: 'Blutdruck heute notieren' },
+    { id: 'haut',  label: 'Haut',              x: 71.4, y: 34.8, status: 'soon',   note: 'Hautkrebs-Screening in 2 Wochen' },
+    { id: 'bauch', label: 'Verdauung',         x: 51.1, y: 41.6, status: 'soon',   note: 'Darmkrebs-Vorsorge ab 50' },
+    { id: 'beine', label: 'Bewegung',          x: 38.3, y: 76.7, status: 'ok',     note: 'Aktiv — alles gut' }
+  ];
+  var SELECTED = 'impf';
+
+  // Silhouettes: prefer the embedded data URIs, fall back to the PNG files.
+  var EMB = window.VITALIS_BODY || null;
+  Array.prototype.forEach.call(document.querySelectorAll('img[data-body]'), function (img) {
+    var which = img.getAttribute('data-body');
+    img.src = (EMB && EMB[which]) || ('../assets/body-' + which + '.png');
+  });
+
+  function dot(p, i) {
+    var col = HUE[p.status], on = p.id === SELECTED;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'bm-dot'; b.setAttribute('aria-label', p.label + ' — ' + p.status);
+    b.style.left = p.x + '%'; b.style.top = p.y + '%';
+    b.style.animation = 'v-dot .5s var(--ease-spring) both';
+    b.style.animationDelay = (120 + i * 80) + 'ms';
+    var html = '';
+    if (p.status === 'action') html += '<span class="ring" style="border:2px solid ' + col + '"></span>';
+    html += '<span class="halo" style="width:' + (on ? 20 : 16) + 'px;height:' + (on ? 20 : 16) + 'px;background:' + col + '"></span>';
+    html += '<span class="core" style="width:' + (on ? 13 : 11) + 'px;height:' + (on ? 13 : 11) + 'px;background:' + col + '"></span>';
+    b.innerHTML = html;
+    return b;
+  }
+  ['bm-fig-w', 'bm-fig-m'].forEach(function (id) {
+    var fig = document.getElementById(id);
+    if (fig) POINTS.forEach(function (p, i) { fig.appendChild(dot(p, i)); });
+  });
+
+  var list = document.getElementById('bm-list-w');
+  if (list) POINTS.forEach(function (p) {
+    var on = p.id === SELECTED;
+    var b = document.createElement('button');
+    b.type = 'button'; if (on) b.className = 'on';
+    b.innerHTML = '<span class="k" style="background:' + HUE[p.status] + '"></span>' +
+      '<span style="flex:1;min-width:0"><b>' + p.label + '</b>' +
+      (on ? '<span class="n">' + p.note + '</span>' : '') + '</span>';
+    list.appendChild(b);
+  });
+})();
+</script>
+</body>
+</html>
