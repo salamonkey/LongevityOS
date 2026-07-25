@@ -116,6 +116,55 @@
   margin-top: 2px;
 }
 
+.vitalis-convert-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  cursor: pointer;
+}
+
+.vitalis-convert-form {
+  margin-bottom: 8px;
+}
+
+.vitalis-convert-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vitalis-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vitalis-chip-row button {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-app);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.vitalis-chip-row button.is-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
 .vitalis-timeline-empty {
   margin: 20px 2px 0;
   padding: 16px;

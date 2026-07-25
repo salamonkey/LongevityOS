@@ -22,7 +22,9 @@ import {
   updateHealthProfileRiskFlags,
   listAppointmentsForProfile,
   createAppointment,
+  linkAppointmentToPlanItem,
 } from './lib/persistence/supabaseLivePlans.js';
+import { addCustomItemToSnapshot } from './features/item-completion-and-reminder-actions/actions.js';
 import {
   isSupabaseCatalogConfigured,
   loadPreventiveCatalogFromSupabase,
@@ -436,6 +438,37 @@ export default function App() {
       setAppointments((previous) => [...previous, created].sort(
         (a, b) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
       ));
+      return true;
+    } catch (error) {
+      setAppointmentSaveError(resolveErrorMessage(error, t('appError.appointmentSaveFailed')));
+      return false;
+    }
+  };
+
+  const handleConvertAppointment = async (appointment, input) => {
+    if (!runtimeProfile?.profileId || !runtimePlanSnapshot) {
+      return false;
+    }
+
+    setAppointmentSaveError('');
+
+    try {
+      const result = addCustomItemToSnapshot(runtimePlanSnapshot, runtimeProfile.profileId, input);
+      await saveLivePlanForProfile(runtimeProfile.profileId, result.planSnapshot);
+      setRuntimePlanSnapshot(result.planSnapshot);
+
+      const planItemId = await linkAppointmentToPlanItem(
+        runtimeProfile.profileId,
+        appointment.id,
+        result.item.catalogItemId,
+      );
+
+      setAppointments((previous) => previous.map((existing) => (
+        existing.id === appointment.id
+          ? { ...existing, planItemId, catalogItemId: result.item.catalogItemId }
+          : existing
+      )));
+
       return true;
     } catch (error) {
       setAppointmentSaveError(resolveErrorMessage(error, t('appError.appointmentSaveFailed')));
@@ -1061,6 +1094,7 @@ export default function App() {
           appointments={appointments}
           appointmentsPending={appointmentsPending}
           onCreateAppointment={handleCreateAppointment}
+          onConvertAppointment={handleConvertAppointment}
           appointmentSaveError={appointmentSaveError}
         />
       );

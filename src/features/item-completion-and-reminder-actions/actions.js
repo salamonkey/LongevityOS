@@ -7,7 +7,13 @@ import {
 } from './model.js';
 import {
   resolveRecurrenceDays,
+  resolveSoonWindowDaysFromRecurrence,
 } from '../self-onboarding-to-first-dashboard/dashboard.js';
+import { ALLOWED_PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
+import {
+  resolveInterventionTypeForCatalogItem,
+  getInterventionTypeLabel,
+} from '../self-onboarding-to-first-dashboard/catalog-model.js';
 
 function cloneSnapshotItems(items) {
   return items.map((item) => ({
@@ -154,6 +160,79 @@ export function scheduleItemReminderInSnapshot(planSnapshot, profileId, itemId, 
     planSnapshot: updatedSnapshot,
     item: updatedItem,
     reminder,
+  };
+}
+
+function generateCustomItemId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `custom-${crypto.randomUUID()}`;
+  }
+  return `custom-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+}
+
+// Turns a user-authored item (e.g. converting an unlinked appointment like
+// "Physiotherapie") into a first-class plan item, tagged source: 'custom' so
+// it stays clearly distinct from anything the rules engine generated from
+// the locked catalog -- see the [SL-001] invariant test, which only ever
+// asserts on generateInitialPlanSnapshot's own output and is untouched by
+// items added here, after generation, through this separate path.
+export function addCustomItemToSnapshot(planSnapshot, profileId, input = {}, clock = () => new Date()) {
+  assertProfileScope(planSnapshot, profileId);
+  const now = resolveNow(clock);
+
+  const name = String(input?.name ?? '').trim();
+  if (!name) {
+    throw new Error('A name is required.');
+  }
+
+  const category = ALLOWED_PLAN_CATEGORIES.includes(input?.category) ? input.category : null;
+  if (!category) {
+    throw new Error('Please choose a category.');
+  }
+
+  const recurrenceDays = Number.isFinite(Number(input?.recurrenceDays)) && Number(input.recurrenceDays) > 0
+    ? Number(input.recurrenceDays)
+    : null;
+  const cadenceLabel = String(input?.cadenceLabel ?? '').trim() || undefined;
+  const interventionType = resolveInterventionTypeForCatalogItem({ category });
+  const startDate = input?.startDate ? (parseIsoDateInput(input.startDate) ?? toIsoDate(now)) : toIsoDate(now);
+  const note = String(input?.note ?? '').trim() || null;
+
+  const item = {
+    catalogItemId: generateCustomItemId(),
+    name,
+    category,
+    interventionType,
+    interventionTypeLabel: getInterventionTypeLabel(interventionType),
+    effortLevel: 'medium',
+    cadenceLabel,
+    recurrence: {
+      intervalDays: recurrenceDays,
+      soonWindowDays: resolveSoonWindowDaysFromRecurrence(recurrenceDays),
+    },
+    whyItMatters: note,
+    recommendationText: null,
+    evidenceTier: null,
+    uspstfGrade: null,
+    requiresSharedDecision: false,
+    targetAge: null,
+    priorityOrder: 0,
+    initialDueDate: startDate,
+    nextDueDate: startDate,
+    initialBucket: null,
+    status: 'pending',
+    source: 'custom',
+    clinicalRegion: input?.clinicalRegion || null,
+  };
+
+  const currentItems = Array.isArray(planSnapshot?.items) ? cloneSnapshotItems(planSnapshot.items) : [];
+
+  return {
+    planSnapshot: {
+      ...planSnapshot,
+      items: [...currentItems, item],
+    },
+    item,
   };
 }
 

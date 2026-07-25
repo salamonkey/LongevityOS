@@ -80,7 +80,7 @@ function groupItemsByRegion(planItems) {
   const items = Array.isArray(planItems) ? planItems : [];
   const itemsByRegion = new Map();
   for (const item of items) {
-    const regionId = resolveRegionIdForItemKey(item?.catalogItemId);
+    const regionId = item?.clinicalRegion || resolveRegionIdForItemKey(item?.catalogItemId);
     if (!itemsByRegion.has(regionId)) {
       itemsByRegion.set(regionId, []);
     }

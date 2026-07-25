@@ -298,6 +298,7 @@ export function buildPlanReadModelForSlice(planSnapshot, options = {}) {
       status,
       nextDueDate: source?.nextDueDate ?? null,
       recurrenceIntervalDays: source?.recurrence?.intervalDays ?? null,
+      clinicalRegion: source?.clinicalRegion ?? null,
     };
   };
 

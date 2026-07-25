@@ -126,6 +126,8 @@ function toPlanSnapshot(profileId, planRow, itemRows = []) {
       completedOn: formatDateOnly(itemRow.completed_on),
       reminder: toReminder(itemRow),
       updatedAt: toIsoDateString(itemRow.updated_at) ?? null,
+      source: itemRow.source ?? 'catalog',
+      clinicalRegion: itemRow.clinical_region ?? null,
     })),
   };
 }
@@ -161,6 +163,8 @@ function toPlanItemRow(planId, item) {
     reminder_timing_type: item?.reminder?.timingType ?? null,
     reminder_scheduled_for: item?.reminder?.scheduledFor ?? null,
     reminder_created_at: item?.reminder?.createdAt ?? null,
+    source: item.source ?? 'catalog',
+    clinical_region: item.clinicalRegion ?? null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -1011,4 +1015,29 @@ export async function createAppointment(profileId, input = {}) {
     provider: data.provider ?? '',
     location: data.location ?? '',
   };
+}
+
+// Relinks an appointment to a plan item after conversion (see
+// addCustomItemToSnapshot) -- the newly-created custom item was just synced
+// to Supabase via saveLivePlanForProfile, so it already has a plan_items row
+// by the time this resolves its id from its catalogItemId.
+export async function linkAppointmentToPlanItem(profileId, appointmentId, catalogItemId) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const normalizedProfileId = parseProfileId(profileId);
+  const planItemId = await resolvePlanItemDbId(client, normalizedProfileId, catalogItemId);
+
+  const { error } = await client
+    .from('appointments')
+    .update({ plan_item_id: planItemId, updated_at: new Date().toISOString() })
+    .eq('id', appointmentId);
+
+  if (error) {
+    throw error;
+  }
+
+  return planItemId;
 }

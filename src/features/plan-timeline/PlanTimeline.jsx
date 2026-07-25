@@ -12,6 +12,8 @@ import {
 import { resolveEffectiveItemStatus } from '../self-onboarding-to-first-dashboard/dashboard.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
+import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
+import { BODY_REGIONS } from '../self-onboarding-to-first-dashboard/bodyRegions.js';
 
 function parseDateValue(value) {
   if (!value) return null;
@@ -256,6 +258,117 @@ function AddAppointmentForm({ planItems, onSubmit, onCancel, pending, errorMessa
   );
 }
 
+const RECURRENCE_PRESETS = Object.freeze([
+  { key: 'one_time', days: null },
+  { key: 'weekly', days: 7 },
+  { key: 'biweekly', days: 14 },
+  { key: 'monthly', days: 30 },
+  { key: 'custom', days: null },
+]);
+
+function ConvertAppointmentPanel({ appointment, onSubmit, onCancel, pending, t }) {
+  const [category, setCategory] = useState(PLAN_CATEGORIES.checkup);
+  const [recurrenceKey, setRecurrenceKey] = useState('biweekly');
+  const [customDays, setCustomDays] = useState('30');
+  const [regionId, setRegionId] = useState(BODY_REGIONS[0]?.id ?? '');
+  const [note, setNote] = useState('');
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const preset = RECURRENCE_PRESETS.find((option) => option.key === recurrenceKey);
+    const recurrenceDays = recurrenceKey === 'custom' ? Number(customDays) : preset?.days ?? null;
+    const cadenceLabel = recurrenceKey === 'custom'
+      ? t('appointments.recurrenceCustomLabel', { days: recurrenceDays })
+      : t(`appointments.recurrence.${recurrenceKey}`);
+
+    onSubmit({
+      name: appointment.title,
+      category,
+      recurrenceDays,
+      cadenceLabel,
+      clinicalRegion: regionId,
+      note,
+      startDate: String(appointment.scheduledFor).slice(0, 10),
+    });
+  };
+
+  return (
+    <form className="vitalis-appt-form vitalis-convert-form" onSubmit={handleSubmit}>
+      <p className="vitalis-convert-title">{t('appointments.convertTitle', { name: appointment.title })}</p>
+
+      <div className="vds-input">
+        <span className="vds-input-label">{t('appointments.category')}</span>
+        <div className="vitalis-chip-row">
+          {[PLAN_CATEGORIES.checkup, PLAN_CATEGORIES.counseling, PLAN_CATEGORIES.vaccination].map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={category === option ? 'is-active' : ''}
+              onClick={() => setCategory(option)}
+            >
+              {t(getCategoryLabelKey(option, 'singular'))}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="vds-input">
+        <span className="vds-input-label">{t('appointments.recurrence')}</span>
+        <div className="vitalis-chip-row">
+          {RECURRENCE_PRESETS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className={recurrenceKey === option.key ? 'is-active' : ''}
+              onClick={() => setRecurrenceKey(option.key)}
+            >
+              {t(`appointments.recurrence.${option.key}`)}
+            </button>
+          ))}
+        </div>
+        {recurrenceKey === 'custom' ? (
+          <span className="vds-input-field" style={{ marginTop: 8 }}>
+            <Icon name="clock" size={18} color="var(--text-muted)" />
+            <input
+              type="number"
+              min="1"
+              value={customDays}
+              onChange={(event) => setCustomDays(event.target.value)}
+            />
+          </span>
+        ) : null}
+      </div>
+
+      <label className="vds-input">
+        <span className="vds-input-label">{t('appointments.clinicalRegion')}</span>
+        <span className="vds-input-field">
+          <Icon name="map-pin" size={18} color="var(--text-muted)" />
+          <select value={regionId} onChange={(event) => setRegionId(event.target.value)}>
+            {BODY_REGIONS.map((region) => (
+              <option key={region.id} value={region.id}>{t(region.labelKey)}</option>
+            ))}
+          </select>
+        </span>
+      </label>
+
+      <label className="vds-input">
+        <span className="vds-input-label">{t('appointments.noteOptional')}</span>
+        <span className="vds-input-field">
+          <Icon name="info" size={18} color="var(--text-muted)" />
+          <input type="text" value={note} onChange={(event) => setNote(event.target.value)} placeholder={t('appointments.notePlaceholder')} />
+        </span>
+      </label>
+
+      <Button type="submit" variant="primary" fullWidth disabled={pending}>
+        {pending ? t('appointments.saving') : t('appointments.convertSave')}
+      </Button>
+      <Button type="button" variant="ghost" fullWidth onClick={onCancel} disabled={pending}>
+        {t('common.cancel')}
+      </Button>
+    </form>
+  );
+}
+
 export default function PlanTimeline({
   planSnapshot,
   onOpenItem,
@@ -266,11 +379,14 @@ export default function PlanTimeline({
   appointmentsPending = false,
   onCreateAppointment,
   appointmentSaveError = '',
+  onConvertAppointment,
 }) {
   const { t, locale: uiLocale } = useTranslation();
   const [timelineTab, setTimelineTab] = useState('gantt');
   const [showAddForm, setShowAddForm] = useState(false);
   const [savePending, setSavePending] = useState(false);
+  const [convertingId, setConvertingId] = useState(null);
+  const [convertPending, setConvertPending] = useState(false);
 
   const planItems = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
 
@@ -281,6 +397,16 @@ export default function PlanTimeline({
     setSavePending(false);
     if (succeeded) {
       setShowAddForm(false);
+    }
+  };
+
+  const handleConvert = async (appointment, input) => {
+    if (typeof onConvertAppointment !== 'function') return;
+    setConvertPending(true);
+    const succeeded = await onConvertAppointment(appointment, input);
+    setConvertPending(false);
+    if (succeeded) {
+      setConvertingId(null);
     }
   };
 
@@ -355,19 +481,41 @@ export default function PlanTimeline({
           {appointments.map((appointment) => {
             const { day, month } = formatAgendaDate(appointment.scheduledFor, uiLocale);
             const time = formatAgendaTime(appointment.scheduledFor, uiLocale);
+            const isUnlinked = !appointment.catalogItemId;
             return (
-              <div key={appointment.id} className="vitalis-appt-card">
-                <div className={`vitalis-appt-date${appointment.catalogItemId ? '' : ' is-custom'}`}>
-                  <span className="vitalis-appt-date-d">{day}</span>
-                  <span className="vitalis-appt-date-m">{month}</span>
-                </div>
-                <div className="vitalis-appt-main">
-                  <div className="vitalis-appt-title">{appointment.title}</div>
-                  <div className="vitalis-appt-sub">
-                    {[time, appointment.provider, appointment.location].filter(Boolean).join(' · ')}
+              <React.Fragment key={appointment.id}>
+                <div className="vitalis-appt-card">
+                  <div className={`vitalis-appt-date${isUnlinked ? ' is-custom' : ''}`}>
+                    <span className="vitalis-appt-date-d">{day}</span>
+                    <span className="vitalis-appt-date-m">{month}</span>
+                  </div>
+                  <div className="vitalis-appt-main">
+                    <div className="vitalis-appt-title">{appointment.title}</div>
+                    <div className="vitalis-appt-sub">
+                      {[time, appointment.provider, appointment.location].filter(Boolean).join(' · ')}
+                    </div>
+                    {isUnlinked && typeof onConvertAppointment === 'function' ? (
+                      <button
+                        type="button"
+                        className="vitalis-convert-btn"
+                        onClick={() => setConvertingId(convertingId === appointment.id ? null : appointment.id)}
+                      >
+                        <Icon name="rotate-ccw" size={11} />
+                        {t('appointments.convert')}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
-              </div>
+                {convertingId === appointment.id ? (
+                  <ConvertAppointmentPanel
+                    appointment={appointment}
+                    onSubmit={(input) => handleConvert(appointment, input)}
+                    onCancel={() => setConvertingId(null)}
+                    pending={convertPending}
+                    t={t}
+                  />
+                ) : null}
+              </React.Fragment>
             );
           })}
         </div>

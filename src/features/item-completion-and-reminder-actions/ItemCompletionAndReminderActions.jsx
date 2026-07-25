@@ -202,7 +202,7 @@ function RegionGroupedList({ items, onOpen, t }) {
   const groups = useMemo(() => {
     const byRegion = new Map();
     for (const item of items) {
-      const regionId = resolveRegionIdForItemKey(item.itemKey);
+      const regionId = item.clinicalRegion || resolveRegionIdForItemKey(item.itemKey);
       if (!byRegion.has(regionId)) {
         byRegion.set(regionId, []);
       }
