@@ -95,13 +95,13 @@ export default function RiskProfileStep({
   return (
     <AppShell title={null}>
       <div className="vitalis-enrollment-stack">
-        <Card padding={20} className="vitalis-enrollment-intro" aria-label="Risk profile overview">
+        <Card padding={20} className="vitalis-enrollment-intro" aria-label={t('riskProfile.overviewAriaLabel')}>
           <Logo size={30} word={false} />
           <h1>{t('riskProfile.heading')}</h1>
           <p className="vitalis-enrollment-description">{t('riskProfile.description')}</p>
         </Card>
 
-        <Card padding={20} className="vitalis-enrollment-form-card" aria-label="Risk profile form">
+        <Card padding={20} className="vitalis-enrollment-form-card" aria-label={t('riskProfile.formAriaLabel')}>
           <form className="vitalis-enrollment-form" onSubmit={handleSubmit} noValidate>
             {errorMessage ? <p className="vitalis-form-error-banner" role="alert">{errorMessage}</p> : null}
 

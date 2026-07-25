@@ -4,6 +4,7 @@
   "nav.checkups": "Checkups",
   "nav.appointments": "Appointments",
   "nav.documents": "Documents",
+  "nav.primaryNavigationAriaLabel": "Primary navigation",
 
   "common.save": "Save",
   "common.cancel": "Cancel",
@@ -155,6 +156,7 @@
   "reminderForm.chooseDate": "Choose date",
   "reminderForm.reminderDate": "Reminder date",
 
+  "enrollment.formAriaLabel": "User enrollment form",
   "enrollment.headingEnroll": "Tell us about yourself",
   "enrollment.headingAddFamilyMember": "Add family member",
   "enrollment.descriptionAddFamilyMember": "Create a profile you own and generate a dedicated persisted plan.",
@@ -191,6 +193,8 @@
   "enrollment.errorHeightRange": "Height must be between 140 and 210 cm.",
   "enrollment.errorWeightRange": "Weight must be between 50 and 150 kg.",
 
+  "riskProfile.overviewAriaLabel": "Risk profile overview",
+  "riskProfile.formAriaLabel": "Risk profile form",
   "riskProfile.heading": "Tell us more about your health",
   "riskProfile.description": "Optional — a few of your plan items depend on personal risk factors. Skip this and add it later from your profile if you'd rather not answer now.",
   "riskProfile.question": "Do any of these apply to you?",
@@ -242,6 +246,7 @@
   "auth.signingIn": "Signing in...",
   "auth.alreadyHaveAccount": "Already have an account? Sign in",
   "auth.needAccount": "Need an account? Create one",
+  "auth.formAriaLabel": "Email and password authentication",
   "auth.errorInvalidEmail": "Enter a valid email address.",
   "auth.errorPasswordTooShort": "Password must be at least 8 characters.",
   "auth.errorConfirmPasswordRequired": "Confirm your password.",

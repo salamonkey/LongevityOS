@@ -195,7 +195,7 @@ export default function LiveEnrollment({
           {currentHeading.description ? <p className="vitalis-enrollment-description">{currentHeading.description}</p> : null}
         </div>
 
-        <Card padding={20} className="vitalis-enrollment-form-card" aria-label="User enrollment form">
+        <Card padding={20} className="vitalis-enrollment-form-card" aria-label={t('enrollment.formAriaLabel')}>
           <form className="vitalis-enrollment-form" onSubmit={handleAdvance} noValidate>
             {errorMessage ? <p className="vitalis-form-error-banner" role="alert">{errorMessage}</p> : null}
 
@@ -242,7 +242,7 @@ export default function LiveEnrollment({
                   aria-invalid={Boolean(errors.birthdate)}
                 />
 
-                <div className="vds-input" role="radiogroup" aria-label="Gender">
+                <div className="vds-input" role="radiogroup" aria-label={t('enrollment.gender')}>
                   <span className="vds-input-label">{t('enrollment.gender')}</span>
                   <div className="vitalis-seg">
                     {GENDER_OPTION_KEYS.map((option) => (

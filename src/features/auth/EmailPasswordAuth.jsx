@@ -84,13 +84,13 @@ export default function EmailPasswordAuth({
   return (
     <AppShell title={null} centeredFooter>
       <div className="vitalis-auth-stack">
-        <Card padding={20} className="vitalis-auth-intro" aria-label="Sign in">
+        <Card padding={20} className="vitalis-auth-intro" aria-label={t('auth.signIn')}>
           <Logo size={30} word={false} />
           <h1>{isSignUp ? t('auth.createAccount') : t('auth.signIn')}</h1>
           {isSignUp ? <p className="vitalis-auth-notice">{t('auth.createAccountDescription')}</p> : null}
         </Card>
 
-        <Card padding={20} className="vitalis-auth-form-card" aria-label="Email and password auth">
+        <Card padding={20} className="vitalis-auth-form-card" aria-label={t('auth.formAriaLabel')}>
           <form className="vitalis-auth-form" onSubmit={handleSubmit} noValidate>
             {errorMessage ? <p className="vitalis-auth-notice vitalis-auth-notice--error" role="alert">{errorMessage}</p> : null}
             {infoMessage ? <p className="vitalis-auth-notice" role="status">{infoMessage}</p> : null}

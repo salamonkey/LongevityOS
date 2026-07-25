@@ -45,6 +45,7 @@ export default function PrimaryNav({
       active={showActiveSelection ? activeView : undefined}
       onChange={navigate}
       className={navLocked ? 'vds-tabbar--locked' : ''}
+      aria-label={t('nav.primaryNavigationAriaLabel')}
     />
   );
 }
