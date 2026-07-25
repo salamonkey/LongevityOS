@@ -188,6 +188,41 @@
   color: var(--text-muted);
 }
 
+.vitalis-dash-hero-chip-row {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+  margin-top: 10px;
+}
+
+.vitalis-risk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 6px 10px 6px 9px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.vitalis-risk-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-muted);
+}
+
+.vitalis-risk-chip.is-reviewed .vitalis-risk-chip-dot {
+  background: var(--color-secondary);
+}
+
 .vitalis-dash-hero-bodymap {
   margin-top: 6px;
   position: relative;

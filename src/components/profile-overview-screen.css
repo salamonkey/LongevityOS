@@ -1,0 +1,96 @@
+.vitalis-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 2px 6px;
+  margin-bottom: 4px;
+}
+
+.vitalis-profile-head-name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vitalis-profile-head-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.vitalis-profile-strength {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.vitalis-profile-strength-pct {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.vitalis-profile-strength-t1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vitalis-profile-strength-t2 {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.vitalis-profile-personal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.vitalis-profile-risk {
+  margin-bottom: 4px;
+}
+
+.vitalis-profile-risk-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.vitalis-profile-risk-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: var(--radius-full);
+  background: var(--color-secondary-soft);
+  color: var(--color-secondary);
+}
+
+.vitalis-profile-risk-empty {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.vitalis-profile-explain {
+  display: flex;
+  gap: 9px;
+  padding: 12px 13px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  margin-bottom: 12px;
+}
+
+.vitalis-profile-explain p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-primary-ink);
+}

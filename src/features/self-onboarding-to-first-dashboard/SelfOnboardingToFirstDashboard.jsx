@@ -271,6 +271,7 @@ export default function SelfOnboardingToFirstDashboard({
   onOpenHealthPlan,
   onOpenSettings,
   onOpenProfile,
+  onOpenProfileOverview,
   onOpenTimeline,
   catalogGeneration = 0,
 }) {
@@ -435,6 +436,13 @@ export default function SelfOnboardingToFirstDashboard({
   const dateLabel = new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric' }).format(now);
   const sex = profile?.gender === 'male' ? 'm' : 'w';
   const dueTodayCount = projection.sections.find((section) => section.priority === 'today')?.items.length ?? 0;
+  // An empty riskFlags array can't be told apart from "skipped the step
+  // entirely" without a dedicated reviewed-at column (out of scope for this
+  // pass) -- so this treats "no flags saved yet" as not-reviewed, which
+  // under-serves the rare case of someone explicitly confirming zero risk
+  // factors apply.
+  const riskFlags = Array.isArray(profile?.riskFlags) ? profile.riskFlags : [];
+  const riskProfileReviewed = riskFlags.length > 0;
 
   return (
     <>
@@ -476,6 +484,22 @@ export default function SelfOnboardingToFirstDashboard({
               <p className="vitalis-dash-hero-ring-label">{t('dashboard.scoreTitle')}</p>
             </div>
           </div>
+
+          {typeof onOpenProfileOverview === 'function' ? (
+            <div className="vitalis-dash-hero-chip-row">
+              <button
+                type="button"
+                className={`vitalis-risk-chip ${riskProfileReviewed ? 'is-reviewed' : 'is-unreviewed'}`}
+                onClick={onOpenProfileOverview}
+              >
+                <span className="vitalis-risk-chip-dot" aria-hidden="true" />
+                {riskProfileReviewed
+                  ? t('dashboard.riskProfileReviewed', { count: riskFlags.length })
+                  : t('dashboard.riskProfileNotReviewed')}
+                <Icon name="chevron-right" size={14} color="var(--text-muted)" />
+              </button>
+            </div>
+          ) : null}
 
           {bodyMapPoints.length > 0 ? (
             <>

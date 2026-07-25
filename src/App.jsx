@@ -32,6 +32,7 @@ import PrimaryNav from './components/PrimaryNav.jsx';
 import ComingSoonSurface from './components/ComingSoonSurface.jsx';
 import LandingSplash from './components/LandingSplash.jsx';
 import SettingsScreen from './components/SettingsScreen.jsx';
+import ProfileOverviewScreen from './components/ProfileOverviewScreen.jsx';
 import ProfileSheet from './components/ProfileSheet.jsx';
 import { AppShell } from './features/self-onboarding-to-first-dashboard/components.jsx';
 import { Card } from './design-system/components/index.js';
@@ -47,6 +48,7 @@ function normalizeView(value) {
   if (normalized === 'safe' || normalized === 'documents' || normalized === 'dokumentensafe') return 'safe';
   if (normalized === 'timeline') return 'timeline';
   if (normalized === 'settings') return 'settings';
+  if (normalized === 'your-profile' || normalized === 'profile-overview') return 'your-profile';
   if (normalized === 'profile' || normalized === 'profiles' || normalized === 'preferences') return 'profile';
   return 'start';
 }
@@ -196,6 +198,7 @@ export default function App() {
   const [startupTimedOut, setStartupTimedOut] = useState(false);
   const [showLandingSplash, setShowLandingSplash] = useState(true);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [profileOverviewOrigin, setProfileOverviewOrigin] = useState('start');
   const [showRiskProfileStep, setShowRiskProfileStep] = useState(false);
   const [riskProfilePending, setRiskProfilePending] = useState(false);
   const [riskProfileError, setRiskProfileError] = useState('');
@@ -943,6 +946,10 @@ export default function App() {
       onOpenVaccinations={openVaccinations}
       onOpenSettings={() => handlePrimaryNavNavigate('settings')}
       onOpenProfile={() => setShowProfileSheet(true)}
+      onOpenProfileOverview={() => {
+        setProfileOverviewOrigin('start');
+        handlePrimaryNavNavigate('your-profile');
+      }}
       onOpenTimeline={() => handlePrimaryNavNavigate('timeline')}
       catalogGeneration={catalogGeneration}
     />
@@ -1028,12 +1035,24 @@ export default function App() {
           locale={locale}
           onSetLocale={setLocale}
           onOpenProfiles={() => setShowProfileSheet(true)}
+          onOpenProfileOverview={() => {
+            setProfileOverviewOrigin('settings');
+            handlePrimaryNavNavigate('your-profile');
+          }}
           onSignOut={handleLiveSignOut}
           onBack={() => handlePrimaryNavNavigate('start')}
           signOutPending={liveState.signOutPending}
+        />
+      );
+    } else if (activeView === 'your-profile') {
+      activeSurface = (
+        <ProfileOverviewScreen
+          profile={runtimeProfile}
+          onBack={() => handlePrimaryNavNavigate(profileOverviewOrigin)}
           onSaveProfileDetails={handleSaveProfileDetails}
           profileDetailsPending={profileDetailsPending}
           profileDetailsError={profileDetailsError}
+          onReviewRiskProfile={() => setShowRiskProfileStep(true)}
         />
       );
     } else if (activeView === 'termine' || activeView === 'safe') {

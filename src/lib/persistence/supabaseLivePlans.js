@@ -546,6 +546,22 @@ export async function updateHealthProfile(profileId, updates = {}, options = {})
     patch.country_code = countryCode;
   }
 
+  if (updates.heightCm !== undefined) {
+    const heightCm = Number(updates.heightCm);
+    if (!Number.isFinite(heightCm) || heightCm < 140 || heightCm > 210) {
+      throw new Error('Height is out of range.');
+    }
+    patch.height_cm = heightCm;
+  }
+
+  if (updates.weightKg !== undefined) {
+    const weightKg = Number(updates.weightKg);
+    if (!Number.isFinite(weightKg) || weightKg < 50 || weightKg > 150) {
+      throw new Error('Weight is out of range.');
+    }
+    patch.weight_kg = weightKg;
+  }
+
   const { data: profileRow, error } = await client
     .from('health_profiles')
     .update(patch)
