@@ -150,12 +150,9 @@ function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGene
   }
 
   return (
-    <div>
+    <Card padding={16} className="vitalis-dash-timeline-card">
       <div className="vitalis-rail-header">
-        <div className="vitalis-rail-header-title">
-          <span className="vitalis-rail-icon-chip"><Icon name="audio-waveform" size={17} /></span>
-          <span>{t('dashboard.timelineTitle')}</span>
-        </div>
+        <h3 className="vitalis-dash-card-title">{t('dashboard.timelineTitle')}</h3>
         <button type="button" className="vitalis-rail-link" onClick={onOpen}>
           {t('dashboard.timelineViewAll')}
           <Icon name="chevron-right" size={15} />
@@ -192,7 +189,7 @@ function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGene
           ))}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -375,7 +372,7 @@ export default function SelfOnboardingToFirstDashboard({
           <div className="vitalis-dash-hero-glow" aria-hidden="true" />
           <div className="vitalis-dash-hero-top">
             <div className="vitalis-dash-hero-copy">
-              <p className="vitalis-dash-hero-label">{t('bodyRegions.title')}</p>
+              <h3 className="vitalis-dash-card-title">{t('bodyRegions.title')}</h3>
               {typeof onOpenRiskProfile === 'function' ? (
                 <button
                   type="button"
@@ -411,26 +408,23 @@ export default function SelfOnboardingToFirstDashboard({
           </div>
 
           {bodyMapPoints.length > 0 ? (
-            <>
-              <div className="vitalis-dash-hero-bodymap">
-                <BodyMap points={bodyMapPoints} sex={sex} onOpen={setOpenRegionId} showLegend={false} />
-              </div>
-              <div className="vitalis-dash-hero-divider" />
-            </>
+            <div className="vitalis-dash-hero-bodymap">
+              <BodyMap points={bodyMapPoints} sex={sex} onOpen={setOpenRegionId} showLegend={false} />
+            </div>
           ) : null}
-
-          <TimelineRail
-            planSnapshot={planSnapshot}
-            todayItems={todayItems}
-            soonItems={soonItems}
-            locale={locale}
-            catalogGeneration={catalogGeneration}
-            onOpen={onOpenTimeline}
-            onOpenItem={openHealthPlanFromTimelineItem}
-            onOpenDashboardItem={openHealthPlanFromDashboardItem}
-            t={t}
-          />
         </Card>
+
+        <TimelineRail
+          planSnapshot={planSnapshot}
+          todayItems={todayItems}
+          soonItems={soonItems}
+          locale={locale}
+          catalogGeneration={catalogGeneration}
+          onOpen={onOpenTimeline}
+          onOpenItem={openHealthPlanFromTimelineItem}
+          onOpenDashboardItem={openHealthPlanFromDashboardItem}
+          t={t}
+        />
       </AppShell>
       {openRegionDetail ? (
         <RegionDetailView
