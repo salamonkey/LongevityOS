@@ -415,7 +415,7 @@ export default function PlanTimeline({
       title={t('dashboard.timelineTitle')}
       onBack={onBack}
       backLabel={t('common.back')}
-      headerAction={(
+      headerAction={timelineTab === 'upcoming' ? (
         <button
           type="button"
           className="vitalis-appt-fab"
@@ -424,7 +424,7 @@ export default function PlanTimeline({
         >
           <Icon name="plus" size={17} color="#fff" />
         </button>
-      )}
+      ) : null}
     >
       {showAddForm ? (
         <AddAppointmentForm

@@ -4,6 +4,8 @@ import PlanTimelineRoute from './routes/plan-timeline.jsx';
 import SelfOnboardingToFirstDashboardRoute from './routes/self-onboarding-to-first-dashboard.jsx';
 import LiveEnrollment from './features/live-enrollment/LiveEnrollment.jsx';
 import RiskProfileStep from './features/live-enrollment/RiskProfileStep.jsx';
+import StatusQuoStep from './features/live-enrollment/StatusQuoStep.jsx';
+import { buildStatusQuoGroups } from './features/live-enrollment/statusQuo.js';
 import EmailPasswordAuth from './features/auth/EmailPasswordAuth.jsx';
 import { DETAIL_ORIGIN, PLAN_CATEGORIES } from './features/health-plan-browsing-and-item-detail/model.js';
 import { generateInitialPlanSnapshot } from './features/self-onboarding-to-first-dashboard/plan.js';
@@ -24,7 +26,7 @@ import {
   createAppointment,
   linkAppointmentToPlanItem,
 } from './lib/persistence/supabaseLivePlans.js';
-import { addCustomItemToSnapshot } from './features/item-completion-and-reminder-actions/actions.js';
+import { addCustomItemToSnapshot, markItemDoneInSnapshot } from './features/item-completion-and-reminder-actions/actions.js';
 import {
   isSupabaseCatalogConfigured,
   loadPreventiveCatalogFromSupabase,
@@ -206,6 +208,14 @@ export default function App() {
   const [showRiskProfileStep, setShowRiskProfileStep] = useState(false);
   const [riskProfilePending, setRiskProfilePending] = useState(false);
   const [riskProfileError, setRiskProfileError] = useState('');
+  // True only while the risk-profile step is running as part of first-time
+  // signup -- distinguishes that from a later "review risk factors" visit
+  // from the dashboard/profile screen, which should never chain into the
+  // status-quo step again.
+  const [riskProfileIsOnboarding, setRiskProfileIsOnboarding] = useState(false);
+  const [showStatusQuoStep, setShowStatusQuoStep] = useState(false);
+  const [statusQuoPending, setStatusQuoPending] = useState(false);
+  const [statusQuoError, setStatusQuoError] = useState('');
   const [profileDetailsPending, setProfileDetailsPending] = useState(false);
   const [profileDetailsError, setProfileDetailsError] = useState('');
   const [appointments, setAppointments] = useState([]);
@@ -531,6 +541,17 @@ export default function App() {
       return;
     }
 
+    if (target?.destination === DETAIL_ORIGIN.timeline) {
+      setRuntimePlanEntry({
+        initialItemKey: undefined,
+        initialOrigin: undefined,
+        initialCategory: PLAN_CATEGORIES.checkup,
+        initialReturnToVaccinationTracker: false,
+      });
+      setActiveView('timeline');
+      return;
+    }
+
     if (target?.destination === DETAIL_ORIGIN.vaccinations) {
       setRuntimePlanEntry({
         initialItemKey: undefined,
@@ -612,7 +633,7 @@ export default function App() {
 
     setRuntimePlanEntry({
       initialItemKey: item.itemKey,
-      initialOrigin: DETAIL_ORIGIN.dashboard,
+      initialOrigin: DETAIL_ORIGIN.timeline,
       initialCategory: category,
       initialReturnToVaccinationTracker: false,
     });
@@ -667,9 +688,12 @@ export default function App() {
       setRuntimeProfile(activeProfile);
       setRuntimePlanSnapshot(activePlan);
       setActiveView('start');
-      if (options.requireAdult !== false) {
-        setShowRiskProfileStep(true);
-      }
+      // Every newly created profile goes through this, not just the primary
+      // signup -- a managed family member's plan deserves the same
+      // personalization as the account holder's own, not a raw age/gender
+      // default.
+      setRiskProfileIsOnboarding(true);
+      setShowRiskProfileStep(true);
     } catch (error) {
       const message = resolveErrorMessage(
         error,
@@ -684,7 +708,7 @@ export default function App() {
     }
   };
 
-  const handleSaveRiskProfile = async (riskFlags) => {
+  const handleSaveRiskProfile = async (riskFlags, extra = {}) => {
     if (!runtimeProfile?.profileId) {
       setShowRiskProfileStep(false);
       return;
@@ -694,8 +718,10 @@ export default function App() {
     setRiskProfileError('');
 
     try {
-      const normalizedRiskFlags = await updateHealthProfileRiskFlags(runtimeProfile.profileId, riskFlags);
-      const updatedProfile = { ...runtimeProfile, riskFlags: normalizedRiskFlags };
+      const saved = await updateHealthProfileRiskFlags(runtimeProfile.profileId, riskFlags, {
+        pregnancyDueDate: extra.pregnancyDueDate ?? null,
+      });
+      const updatedProfile = { ...runtimeProfile, riskFlags: saved.riskFlags, pregnancyDueDate: saved.pregnancyDueDate };
       const resolvedCatalog = await ensureCatalogReady();
       const regeneratedPlan = generateInitialPlanSnapshot(updatedProfile, {
         catalog: resolvedCatalog.catalog,
@@ -705,6 +731,12 @@ export default function App() {
       setRuntimeProfile(updatedProfile);
       handlePlanSnapshotChange(regeneratedPlan);
       setShowRiskProfileStep(false);
+      if (riskProfileIsOnboarding) {
+        setRiskProfileIsOnboarding(false);
+        if (buildStatusQuoGroups(regeneratedPlan).length > 0) {
+          setShowStatusQuoStep(true);
+        }
+      }
     } catch (error) {
       setRiskProfileError(resolveErrorMessage(
         error,
@@ -717,6 +749,51 @@ export default function App() {
 
   const handleSkipRiskProfile = () => {
     setShowRiskProfileStep(false);
+    if (riskProfileIsOnboarding) {
+      setRiskProfileIsOnboarding(false);
+      if (buildStatusQuoGroups(runtimePlanSnapshot).length > 0) {
+        setShowStatusQuoStep(true);
+      }
+    }
+  };
+
+  const handleSaveStatusQuo = async (completions) => {
+    if (!runtimeProfile?.profileId || !runtimePlanSnapshot) {
+      setShowStatusQuoStep(false);
+      return;
+    }
+
+    if (!Array.isArray(completions) || completions.length === 0) {
+      setShowStatusQuoStep(false);
+      return;
+    }
+
+    setStatusQuoPending(true);
+    setStatusQuoError('');
+
+    try {
+      let updatedSnapshot = runtimePlanSnapshot;
+      for (const completion of completions) {
+        const result = markItemDoneInSnapshot(updatedSnapshot, runtimeProfile.profileId, completion.itemKey, {
+          customDate: completion.date,
+        });
+        updatedSnapshot = result.planSnapshot;
+      }
+
+      handlePlanSnapshotChange(updatedSnapshot);
+      setShowStatusQuoStep(false);
+    } catch (error) {
+      setStatusQuoError(resolveErrorMessage(
+        error,
+        t('appError.statusQuoSaveFailed'),
+      ));
+    } finally {
+      setStatusQuoPending(false);
+    }
+  };
+
+  const handleSkipStatusQuo = () => {
+    setShowStatusQuoStep(false);
   };
 
   const handleSaveProfileDetails = async (updates) => {
@@ -1032,10 +1109,7 @@ export default function App() {
       onOpenVaccinations={openVaccinations}
       onOpenSettings={() => handlePrimaryNavNavigate('settings')}
       onOpenProfile={() => setShowProfileSheet(true)}
-      onOpenProfileOverview={() => {
-        setProfileOverviewOrigin('start');
-        handlePrimaryNavNavigate('your-profile');
-      }}
+      onOpenRiskProfile={() => { setRiskProfileIsOnboarding(false); setShowRiskProfileStep(true); }}
       onOpenTimeline={() => handlePrimaryNavNavigate('timeline')}
       catalogGeneration={catalogGeneration}
     />
@@ -1109,6 +1183,9 @@ export default function App() {
             setProfileOverviewOrigin('settings');
             handlePrimaryNavNavigate('your-profile');
           }}
+          onSaveAccountDetails={handleSaveProfileDetails}
+          accountDetailsPending={profileDetailsPending}
+          accountDetailsError={profileDetailsError}
           onSignOut={handleLiveSignOut}
           onBack={() => handlePrimaryNavNavigate('start')}
           signOutPending={liveState.signOutPending}
@@ -1122,7 +1199,7 @@ export default function App() {
           onSaveProfileDetails={handleSaveProfileDetails}
           profileDetailsPending={profileDetailsPending}
           profileDetailsError={profileDetailsError}
-          onReviewRiskProfile={() => setShowRiskProfileStep(true)}
+          onReviewRiskProfile={() => { setRiskProfileIsOnboarding(false); setShowRiskProfileStep(true); }}
         />
       );
     } else if (activeView === 'safe') {
@@ -1134,10 +1211,23 @@ export default function App() {
     activeSurface = (
       <RiskProfileStep
         initialRiskFlags={runtimeProfile?.riskFlags ?? []}
+        initialPregnancyDueDate={runtimeProfile?.pregnancyDueDate ?? ''}
         onSave={handleSaveRiskProfile}
         onSkip={handleSkipRiskProfile}
         pending={riskProfilePending}
         errorMessage={riskProfileError}
+      />
+    );
+  }
+
+  if (!showEnrollment && showStatusQuoStep) {
+    activeSurface = (
+      <StatusQuoStep
+        planSnapshot={runtimePlanSnapshot}
+        onSave={handleSaveStatusQuo}
+        onSkip={handleSkipStatusQuo}
+        pending={statusQuoPending}
+        errorMessage={statusQuoError}
       />
     );
   }

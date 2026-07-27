@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Activity,
   ArrowRight,
+  AudioWaveform,
   Baby,
   BatteryFull,
   Bell,
@@ -67,6 +68,7 @@ const ICONS_BY_NAME = Object.freeze({
   wifi: Wifi,
   'battery-full': BatteryFull,
   'arrow-right': ArrowRight,
+  'audio-waveform': AudioWaveform,
   check: Check,
   plus: Plus,
   'chevron-left': ChevronLeft,

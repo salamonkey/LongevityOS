@@ -12,15 +12,17 @@ const TONE_BY_STATUS = Object.freeze({
   [PLAN_STATUSES.planned]: 'teal',
   soon: 'amber',
   overdue: 'red',
+  opted_out: 'neutral',
 });
 
 const BADGE_STATUS_BY_STATUS = Object.freeze({
   [PLAN_STATUSES.done]: 'done',
   [PLAN_STATUSES.due]: 'due',
   [PLAN_STATUSES.pending]: 'neutral',
-  [PLAN_STATUSES.planned]: 'neutral',
+  [PLAN_STATUSES.planned]: 'planned',
   soon: 'upcoming',
   overdue: 'overdue',
+  opted_out: 'neutral',
 });
 
 const TONE_COLORS = Object.freeze({
@@ -45,6 +47,7 @@ const LABEL_KEY_BY_STATUS = Object.freeze({
   [PLAN_STATUSES.planned]: 'status.planned',
   soon: 'status.soon',
   overdue: 'status.overdue',
+  opted_out: 'status.optedOut',
 });
 
 const LABEL_KEY_BY_CATEGORY = Object.freeze({

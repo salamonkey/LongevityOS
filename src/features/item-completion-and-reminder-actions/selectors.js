@@ -75,7 +75,7 @@ function toDisplayItem(item, options = {}) {
   const interventionTypeLabel = item?.interventionTypeLabel
     ?? (item?.category === PLAN_CATEGORIES.vaccination ? 'Vaccination' : 'Preventive care');
   const reminderDate = item?.reminder?.scheduledFor;
-  const status = toDisplayStatus(resolveEffectiveItemStatus(item, options), reminderDate);
+  const status = resolveEffectiveItemStatus(item, options);
 
   return {
     ...item,
@@ -86,14 +86,6 @@ function toDisplayItem(item, options = {}) {
     reminderDate,
     reminderDateLabel: reminderDate ? formatDateForConfirmation(reminderDate) : null,
   };
-}
-
-function toDisplayStatus(status, reminderDate) {
-  if (status === PLAN_STATUSES.planned) {
-    return PLAN_STATUSES.pending;
-  }
-
-  return status;
 }
 
 function toItems(snapshot, options = {}) {
@@ -285,8 +277,7 @@ export function buildPlanReadModelForSlice(planSnapshot, options = {}) {
     const source = planSnapshot?.items?.find((sourceItem) => sourceItem.catalogItemId === item.itemKey);
     const reminderDate = source?.reminder?.scheduledFor ?? null;
     const completedOn = source?.completedOn ?? null;
-    const liveStatus = resolveEffectiveItemStatus(source ?? item, options);
-    const status = toDisplayStatus(liveStatus, reminderDate);
+    const status = resolveEffectiveItemStatus(source ?? item, options);
 
     return {
       ...item,
@@ -299,6 +290,7 @@ export function buildPlanReadModelForSlice(planSnapshot, options = {}) {
       nextDueDate: source?.nextDueDate ?? null,
       recurrenceIntervalDays: source?.recurrence?.intervalDays ?? null,
       clinicalRegion: source?.clinicalRegion ?? null,
+      optOut: source?.optOut ?? null,
     };
   };
 

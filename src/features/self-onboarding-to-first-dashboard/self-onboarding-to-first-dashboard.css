@@ -31,13 +31,6 @@
 
 .sl001-shell-footer {
   margin-top: var(--space-8);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-subtle);
-}
-
-.sl001-shell-footer--centered {
-  border-top: none;
-  text-align: center;
 }
 
 .sl001-support-copy {
@@ -74,11 +67,21 @@
 }
 
 .vitalis-dash-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-6);
-  margin-bottom: var(--space-4);
+  margin: 0 calc(-1 * var(--screen-pad)) var(--space-4);
+  padding: var(--space-3) var(--screen-pad) var(--space-2);
+  background: var(--surface-app);
+}
+
+.vitalis-dash-header-copy {
+  flex: 1;
+  min-width: 0;
 }
 
 .vitalis-dash-header-sub {
@@ -92,10 +95,11 @@
 
 .vitalis-dash-header-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.01em;
+  overflow-wrap: break-word;
 }
 
 .vitalis-dash-header-actions {
@@ -141,7 +145,13 @@
 }
 
 .vitalis-dash-hero-copy {
+  flex: 1;
+  min-width: 0;
   padding-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .vitalis-dash-hero-label {
@@ -151,14 +161,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
-}
-
-.vitalis-dash-hero-status {
-  margin: 3px 0 0;
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
 }
 
 .vitalis-dash-hero-ring-card {
@@ -188,20 +190,32 @@
   color: var(--text-muted);
 }
 
-.vitalis-dash-hero-chip-row {
-  display: flex;
-  justify-content: flex-end;
-  position: relative;
-  margin-top: 10px;
+.vitalis-dash-score-info-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.vitalis-dash-score-explainer {
+  margin: 0;
+  padding: 4px 4px 8px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
 }
 
 .vitalis-risk-chip {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
+  max-width: 100%;
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   padding: 6px 10px 6px 9px;
   font-family: var(--font-sans);
   font-size: 11.5px;
@@ -209,14 +223,17 @@
   color: var(--text-secondary);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
+  text-align: left;
+  line-height: 1.4;
 }
 
 .vitalis-risk-chip-dot {
+  margin-top: 3px;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   flex: none;
-  background: var(--text-muted);
+  background: var(--color-primary);
 }
 
 .vitalis-risk-chip.is-reviewed .vitalis-risk-chip-dot {
@@ -310,6 +327,8 @@
 .vitalis-rail-node {
   flex: none;
   width: 78px;
+  min-width: 78px;
+  max-width: 78px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -365,15 +384,19 @@
 .vitalis-rail-node-date {
   font-size: 10px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .vitalis-rail-node-title {
+  width: 100%;
   font-size: 10.5px;
   color: var(--text-secondary);
   text-align: center;
   line-height: 1.2;
   height: 26px;
   overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -382,62 +405,6 @@
   }
 }
 
-.vitalis-dash-sections {
-  display: flex;
-  flex-direction: column;
-}
-
-.vitalis-dash-section-toggle {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  margin: 20px 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  cursor: pointer;
-  text-align: left;
-}
-
-.vitalis-dash-section-toggle .sec-label {
-  margin: 0;
-}
-
-.vitalis-dash-section-toggle:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.vitalis-dash-section-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.vitalis-dash-section-chevron {
-  display: inline-block;
-  transition: transform 0.15s ease;
-}
-
-.vitalis-dash-section-chevron.is-open {
-  transform: rotate(180deg);
-}
-
-.vitalis-dash-empty {
-  margin: 0;
-  padding: 16px;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-}
 
 .vitalis-region-detail {
   position: fixed;

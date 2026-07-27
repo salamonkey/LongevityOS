@@ -77,6 +77,7 @@ function toRuntimeProfile(row) {
     heightCm: Number(row.height_cm),
     weightKg: Number(row.weight_kg),
     riskFlags: normalizeRiskFlagsInput(row.risk_flags),
+    pregnancyDueDate: row.pregnancy_due_date ?? null,
     createdAt: row.created_at,
   };
 }
@@ -90,6 +91,18 @@ function toReminder(itemRow) {
     timingType: itemRow.reminder_timing_type || 'custom_date',
     scheduledFor: itemRow.reminder_scheduled_for,
     createdAt: itemRow.reminder_created_at || new Date().toISOString(),
+  };
+}
+
+function toOptOut(itemRow) {
+  if (!itemRow.opt_out_preset) {
+    return undefined;
+  }
+
+  return {
+    preset: itemRow.opt_out_preset,
+    until: formatDateOnly(itemRow.opt_out_until),
+    decidedOn: formatDateOnly(itemRow.opt_out_decided_on),
   };
 }
 
@@ -125,6 +138,7 @@ function toPlanSnapshot(profileId, planRow, itemRows = []) {
       status: itemRow.status,
       completedOn: formatDateOnly(itemRow.completed_on),
       reminder: toReminder(itemRow),
+      optOut: toOptOut(itemRow),
       updatedAt: toIsoDateString(itemRow.updated_at) ?? null,
       source: itemRow.source ?? 'catalog',
       clinicalRegion: itemRow.clinical_region ?? null,
@@ -163,6 +177,9 @@ function toPlanItemRow(planId, item) {
     reminder_timing_type: item?.reminder?.timingType ?? null,
     reminder_scheduled_for: item?.reminder?.scheduledFor ?? null,
     reminder_created_at: item?.reminder?.createdAt ?? null,
+    opt_out_preset: item?.optOut?.preset ?? null,
+    opt_out_until: item?.optOut?.until ?? null,
+    opt_out_decided_on: item?.optOut?.decidedOn ?? null,
     source: item.source ?? 'catalog',
     clinical_region: item.clinicalRegion ?? null,
     updated_at: new Date().toISOString(),
@@ -177,6 +194,9 @@ function toPlanItemMutableUpdateRow(item, updatedAtIso) {
     reminder_timing_type: item?.reminder?.timingType ?? null,
     reminder_scheduled_for: item?.reminder?.scheduledFor ?? null,
     reminder_created_at: item?.reminder?.createdAt ?? null,
+    opt_out_preset: item?.optOut?.preset ?? null,
+    opt_out_until: item?.optOut?.until ?? null,
+    opt_out_decided_on: item?.optOut?.decidedOn ?? null,
     updated_at: updatedAtIso,
   };
 }
@@ -196,6 +216,9 @@ function hasMutablePlanItemChanges(existingRow, mutableUpdateRow) {
     'reminder_timing_type',
     'reminder_scheduled_for',
     'reminder_created_at',
+    'opt_out_preset',
+    'opt_out_until',
+    'opt_out_decided_on',
   ];
 
   return fields.some((field) => (
@@ -482,7 +505,7 @@ export async function setLiveActiveProfile(profileId) {
   }
 }
 
-export async function updateHealthProfileRiskFlags(profileId, riskFlags) {
+export async function updateHealthProfileRiskFlags(profileId, riskFlags, options = {}) {
   const client = getSupabaseClient();
   if (!client) {
     throw new Error('Supabase live-plan persistence is not configured.');
@@ -490,17 +513,22 @@ export async function updateHealthProfileRiskFlags(profileId, riskFlags) {
 
   const normalizedProfileId = parseProfileId(profileId);
   const normalizedRiskFlags = normalizeRiskFlagsInput(riskFlags);
+  const pregnancyDueDate = options.pregnancyDueDate ? String(options.pregnancyDueDate).trim() : null;
 
   const { error } = await client
     .from('health_profiles')
-    .update({ risk_flags: normalizedRiskFlags, updated_at: new Date().toISOString() })
+    .update({
+      risk_flags: normalizedRiskFlags,
+      pregnancy_due_date: pregnancyDueDate || null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', normalizedProfileId);
 
   if (error) {
     throw error;
   }
 
-  return normalizedRiskFlags;
+  return { riskFlags: normalizedRiskFlags, pregnancyDueDate: pregnancyDueDate || null };
 }
 
 export async function updateHealthProfile(profileId, updates = {}, options = {}) {

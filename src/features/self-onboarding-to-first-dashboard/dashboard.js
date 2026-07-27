@@ -21,6 +21,7 @@ const STATUS_LABELS = {
   soon: 'Coming up',
   planned: 'Planned',
   overdue: 'Overdue',
+  opted_out: 'Skipped',
 };
 
 const HEALTH_READINESS_CATEGORIES = ['checkup', 'vaccination', 'counseling'];
@@ -40,11 +41,17 @@ const HEALTH_READINESS_BUCKET_MULTIPLIERS = {
   later: 1.0,
 };
 
+// A conscious opt-out earns the same credit as being up to date: the
+// Vorsorge-Score measures active, considered engagement with the plan, not
+// raw compliance -- a deliberate "no" is handled, not a gap. See
+// resolveActiveOptOut/resolveEffectiveItemStatus below for how "opted_out"
+// is derived.
 const HEALTH_READINESS_STATUS_CREDITS = {
   up_to_date: 1.0,
   planned: 0.6,
   due_soon: 0.4,
   overdue: 0.0,
+  opted_out: 1.0,
 };
 // Grace window between an item's due date and it being treated as genuinely
 // "overdue" rather than just "due now" — flat, not scaled by recurrence,
@@ -222,11 +229,12 @@ export function selectHighlightedItem(bucketed) {
 
 function normalizeScoreStatus(item, today) {
   const explicit = String(item?.scoreStatus || '').trim().toLowerCase();
-  if (explicit === 'up_to_date' || explicit === 'planned' || explicit === 'due_soon' || explicit === 'overdue') {
+  if (explicit === 'up_to_date' || explicit === 'planned' || explicit === 'due_soon' || explicit === 'overdue' || explicit === 'opted_out') {
     return explicit;
   }
 
   const status = resolveEffectiveItemStatus(item, { today });
+  if (status === 'opted_out') return 'opted_out';
   if (status === 'done') return 'up_to_date';
   if (status === 'planned') return 'planned';
   if (status === 'due' || status === 'overdue') return 'overdue';
@@ -360,6 +368,30 @@ function resolveStatusFromDueDate(dueDate, recurrenceDays, today) {
   return 'pending';
 }
 
+// An opt-out ({ until: ISO-date | null, decidedOn }) is active when `until`
+// is null (opted out forever) or still in the future. Once `until` passes,
+// the opt-out lapses on its own -- same "never advances, always recomputed"
+// discipline as the rest of this file -- and the item falls back through to
+// its normal due-date logic below, so a "skip this season" choice doesn't
+// silently become "skip forever".
+function resolveActiveOptOut(item, now) {
+  const optOut = item?.optOut;
+  if (!optOut) {
+    return null;
+  }
+
+  if (optOut.until == null) {
+    return optOut;
+  }
+
+  const untilDate = parseDateValue(optOut.until);
+  if (!untilDate) {
+    return null;
+  }
+
+  return now.getTime() < startOfDay(untilDate).getTime() ? optOut : null;
+}
+
 /**
  * The single source of truth for an item's user-facing status. Persisted
  * status (written at plan generation, or by markItemDone/scheduleReminder)
@@ -373,6 +405,11 @@ function resolveStatusFromDueDate(dueDate, recurrenceDays, today) {
 export function resolveEffectiveItemStatus(item, options = {}) {
   const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
   const now = startOfDay(today);
+
+  if (resolveActiveOptOut(item, now)) {
+    return 'opted_out';
+  }
+
   const recurrenceDays = resolveRecurrenceDays(item);
   const completedOn = parseDateValue(item?.completedOn);
 
@@ -434,6 +471,16 @@ function resolveItemDueDate(item) {
     return reminderDate;
   }
 
+  // Once an item has been completed, its pre-completion initialDueDate/
+  // initialDueAt is stale history, not a live due date -- markItemDone
+  // clears dueDate/dueAt/nextDueAt but never touches those two fields, so a
+  // one-time (non-recurring) done item must not fall back to them here or
+  // it would read as permanently "due today" on the body-map/region view
+  // even though resolveEffectiveItemStatus correctly already calls it done.
+  if (item?.completedOn) {
+    return resolveDoneItemDueDate(item);
+  }
+
   const explicitDueDate = parseDateValue(
     item?.dueDate
     || item?.dueAt
@@ -453,6 +500,15 @@ function resolveItemDueDate(item) {
 export function resolveDashboardBucketForDisplay(item, options = {}) {
   const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
   const liveStatus = resolveEffectiveItemStatus(item, { today });
+
+  // Opted-out items never surface as due/soon/later urgency -- that's the
+  // entire point of opting out ("no reminders"). They stay visible in the
+  // full plan-browsing list and the region drill-in's own skipped section,
+  // just not in any dashboard priority bucket.
+  if (liveStatus === 'opted_out') {
+    return null;
+  }
+
   const dueDate = resolveItemDueDate(item);
   const recurrenceDays = resolveRecurrenceDays(item);
   const derivedBucket = resolveBucketFromDueDate({

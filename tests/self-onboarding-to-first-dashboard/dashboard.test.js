@@ -157,6 +157,42 @@ test('done items move between Later/Soon/Today based on time remaining to next d
   assert.equal(projectionToday.sections.find((section) => section.priority === 'today')?.items.length, 1);
 });
 
+test('a completed one-time (non-recurring) item never reappears as Today, even though its stale pre-completion initialDueDate is in the past', () => {
+  // Mirrors what markItemDoneInSnapshot actually produces for a one-time
+  // item: dueDate/dueAt/nextDueAt cleared, nextDueDate left unset (no
+  // recurrence to compute one from), but initialDueDate/initialDueAt -- the
+  // due date from before it was completed -- untouched and still in the past.
+  const doneOneTimeItem = {
+    catalogItemId: 'one-time-done-item',
+    name: 'MMR catch-up dose',
+    category: 'vaccination',
+    whyItMatters: 'Why',
+    targetAge: 40,
+    priorityOrder: 1,
+    status: 'done',
+    completedOn: '2020-03-15',
+    initialDueDate: '2020-01-01',
+    initialBucket: 'today',
+  };
+
+  const projection = buildDashboardProjection(
+    { items: [doneOneTimeItem], generatedAt: '2026-07-26T08:00:00.000Z' },
+    { name: 'You' },
+    { today: new Date('2026-07-26T08:00:00.000Z') },
+  );
+
+  const bucketedItem = projection.sections.flatMap((section) => section.items).find((item) => item.catalogItemId === doneOneTimeItem.catalogItemId);
+  assert.ok(bucketedItem, 'the completed item should still be present somewhere in the dashboard');
+  assert.equal(bucketedItem.status, 'done');
+
+  const todaySection = projection.sections.find((section) => section.priority === 'today');
+  assert.equal(
+    todaySection?.items.some((item) => item.catalogItemId === doneOneTimeItem.catalogItemId),
+    false,
+    'a completed one-time item must not be flagged as due today just because its old pre-completion due date is in the past',
+  );
+});
+
 test('overdue queue is staged into Today, Soon, and Later buckets by lowest-friction priority', () => {
   const urgentItems = buildUrgentDueItems(10);
   const projection = buildDashboardProjection(

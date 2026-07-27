@@ -13,11 +13,10 @@ export function AppShell({
   topBarRight,
   children,
   shellClassName = '',
-  centeredFooter = false,
+  showVersion = false,
 }) {
   const hasHeaderRow = Boolean(title) || Boolean(headerAction);
   const appShellClassName = shellClassName ? `app-shell ${shellClassName}` : 'app-shell';
-  const footerClassName = centeredFooter ? 'sl001-shell-footer sl001-shell-footer--centered' : 'sl001-shell-footer';
 
   return (
     <main className={appShellClassName}>
@@ -35,9 +34,11 @@ export function AppShell({
           ) : null}
         </header>
         {children}
-        <footer className={footerClassName}>
-          <p className="sl001-kicker">v{APP_VERSION}</p>
-        </footer>
+        {showVersion ? (
+          <footer className="sl001-shell-footer">
+            <p className="sl001-kicker">v{APP_VERSION}</p>
+          </footer>
+        ) : null}
       </section>
     </main>
   );

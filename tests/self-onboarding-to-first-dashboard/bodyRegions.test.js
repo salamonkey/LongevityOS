@@ -132,6 +132,27 @@ test('a region with only done/far-future items is flagged ok', () => {
   assert.equal(heartPoint.status, 'ok');
 });
 
+test('a completed one-time item does not keep flagging its region as action via a stale pre-completion initialDueDate', () => {
+  const today = new Date('2026-07-27T08:00:00.000Z');
+  const points = buildBodyMapPoints([
+    makeItem({
+      catalogItemId: 'mmr-vaccine',
+      name: 'MMR catch-up dose',
+      category: 'vaccination',
+      cadenceLabel: 'One-time catch-up dose',
+      status: 'done',
+      completedOn: '2020-03-15',
+      initialDueDate: '2020-01-01',
+      recurrence: undefined,
+      nextDueDate: undefined,
+    }),
+  ], { today });
+
+  const immunizationsPoint = points.find((point) => point.id === 'immunizations');
+  assert.ok(immunizationsPoint);
+  assert.equal(immunizationsPoint.status, 'ok');
+});
+
 test('regions with no plan items are omitted from the returned points', () => {
   const points = buildBodyMapPoints([], {});
   assert.deepEqual(points, []);

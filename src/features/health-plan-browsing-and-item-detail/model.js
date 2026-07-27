@@ -38,6 +38,7 @@ export const CATEGORY_LABELS = Object.freeze({
 
 export const DETAIL_ORIGIN = Object.freeze({
   dashboard: 'dashboard',
+  timeline: 'timeline',
   checkups: 'checkups',
   vaccinations: 'vaccinations',
   counseling: 'counseling',

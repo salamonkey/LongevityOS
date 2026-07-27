@@ -12,7 +12,23 @@ const COUNTRY_LABEL_KEY_BY_CODE = Object.freeze({
   OTHER: 'enrollment.countryOther',
 });
 
+const COUNTRY_FLAG_BY_CODE = Object.freeze({
+  DE: '🇩🇪',
+  AT: '🇦🇹',
+  CH: '🇨🇭',
+});
+
 const COUNTRY_CODES = Object.freeze(['DE', 'AT', 'CH', 'OTHER']);
+
+const GENDER_LABEL_KEY_BY_VALUE = Object.freeze({
+  female: 'enrollment.genderFemale',
+  male: 'enrollment.genderMale',
+});
+
+const LOCALE_TAG_BY_LOCALE = Object.freeze({
+  de: 'de-DE',
+  en: 'en-GB',
+});
 
 const RISK_FLAG_LABEL_KEY_BY_VALUE = Object.freeze(
   RISK_PROFILE_OPTION_KEYS.reduce((index, option) => {
@@ -21,13 +37,21 @@ const RISK_FLAG_LABEL_KEY_BY_VALUE = Object.freeze(
   }, {}),
 );
 
+function formatBirthdate(birthdate, locale) {
+  if (!birthdate) return '';
+  const parsed = new Date(`${birthdate}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return birthdate;
+  return parsed.toLocaleDateString(LOCALE_TAG_BY_LOCALE[locale] ?? 'en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 function buildFormFromProfile(profile) {
   return {
-    firstName: profile?.firstName ?? '',
-    lastName: profile?.lastName ?? '',
-    birthdate: profile?.birthdate ?? '',
     countryCode: profile?.countryCode ?? '',
-    gender: profile?.gender ?? '',
     heightCm: profile?.heightCm ? String(profile.heightCm) : '',
     weightKg: profile?.weightKg ? String(profile.weightKg) : '',
   };
@@ -41,7 +65,7 @@ export default function ProfileOverviewScreen({
   profileDetailsError = '',
   onReviewRiskProfile,
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const displayName = profile?.name || profile?.displayLabel || '';
   const [form, setForm] = useState(() => buildFormFromProfile(profile));
   const [savedAt, setSavedAt] = useState(0);
@@ -57,12 +81,19 @@ export default function ProfileOverviewScreen({
   const riskProfileReviewed = riskFlags.length > 0;
   const strengthPercent = riskProfileReviewed ? 100 : 75;
 
+  const pregnancyDuePassed = Boolean(
+    profile?.pregnancyDueDate && new Date(`${profile.pregnancyDueDate}T00:00:00.000Z`) < new Date(),
+  );
+
+  const genderLabel = profile?.gender && GENDER_LABEL_KEY_BY_VALUE[profile.gender]
+    ? t(GENDER_LABEL_KEY_BY_VALUE[profile.gender])
+    : '';
+  const bornSummary = profile?.birthdate
+    ? t('profileOverview.bornSummary', { date: formatBirthdate(profile.birthdate, locale), gender: genderLabel })
+    : '';
+
   const isDirty = profile ? (
-    form.firstName !== (profile.firstName ?? '')
-    || form.lastName !== (profile.lastName ?? '')
-    || form.birthdate !== (profile.birthdate ?? '')
-    || form.countryCode !== (profile.countryCode ?? '')
-    || form.gender !== (profile.gender ?? '')
+    form.countryCode !== (profile.countryCode ?? '')
     || form.heightCm !== (profile.heightCm ? String(profile.heightCm) : '')
     || form.weightKg !== (profile.weightKg ? String(profile.weightKg) : '')
   ) : false;
@@ -78,11 +109,7 @@ export default function ProfileOverviewScreen({
     }
 
     const updates = {};
-    if (form.firstName !== (profile.firstName ?? '')) updates.firstName = form.firstName;
-    if (form.lastName !== (profile.lastName ?? '')) updates.lastName = form.lastName;
-    if (form.birthdate !== (profile.birthdate ?? '')) updates.birthdate = form.birthdate;
     if (form.countryCode !== (profile.countryCode ?? '')) updates.countryCode = form.countryCode;
-    if (form.gender !== (profile.gender ?? '')) updates.gender = form.gender;
     if (form.heightCm !== (profile.heightCm ? String(profile.heightCm) : '')) updates.heightCm = Number(form.heightCm);
     if (form.weightKg !== (profile.weightKg ? String(profile.weightKg) : '')) updates.weightKg = Number(form.weightKg);
 
@@ -123,30 +150,16 @@ export default function ProfileOverviewScreen({
       </Card>
 
       <p className="sec-label">{t('settings.personalData')}</p>
+      {bornSummary ? <p className="fixed-fact">{bornSummary}</p> : null}
       <form className="vitalis-profile-personal" onSubmit={handleSave}>
-        <Input
-          label={t('enrollment.firstName')}
-          icon="user"
-          value={form.firstName}
-          onChange={(event) => setField('firstName')(event.target.value)}
-        />
-        <Input
-          label={t('enrollment.lastName')}
-          icon="user"
-          value={form.lastName}
-          onChange={(event) => setField('lastName')(event.target.value)}
-        />
-        <Input
-          label={t('enrollment.birthdate')}
-          icon="calendar"
-          type="date"
-          value={form.birthdate}
-          onChange={(event) => setField('birthdate')(event.target.value)}
-        />
         <label className="vds-input">
           <span className="vds-input-label">{t('enrollment.countryOfResidence')}</span>
           <span className="vds-input-field">
-            <Icon name="map-pin" size={18} color="var(--text-muted)" />
+            {COUNTRY_FLAG_BY_CODE[form.countryCode] ? (
+              <span className="flag-swatch">{COUNTRY_FLAG_BY_CODE[form.countryCode]}</span>
+            ) : (
+              <Icon name="map-pin" size={18} color="var(--text-muted)" />
+            )}
             <select value={form.countryCode} onChange={(event) => setField('countryCode')(event.target.value)}>
               {COUNTRY_CODES.map((code) => (
                 <option key={code} value={code}>{t(COUNTRY_LABEL_KEY_BY_CODE[code])}</option>
@@ -154,25 +167,6 @@ export default function ProfileOverviewScreen({
             </select>
           </span>
         </label>
-        <div className="vds-input">
-          <span className="vds-input-label">{t('enrollment.gender')}</span>
-          <div className="vitalis-seg">
-            <button
-              type="button"
-              className={form.gender === 'female' ? 'is-active' : ''}
-              onClick={() => setField('gender')('female')}
-            >
-              {t('enrollment.genderFemale')}
-            </button>
-            <button
-              type="button"
-              className={form.gender === 'male' ? 'is-active' : ''}
-              onClick={() => setField('gender')('male')}
-            >
-              {t('enrollment.genderMale')}
-            </button>
-          </div>
-        </div>
         <Input
           label={t('enrollment.heightCm')}
           icon="ruler"
@@ -203,19 +197,33 @@ export default function ProfileOverviewScreen({
       </form>
 
       <p className="sec-label">{t('profileOverview.riskSectionTitle')}</p>
-      <Card padding={14} className="vitalis-profile-risk">
-        {riskFlags.length > 0 ? (
-          <div className="vitalis-profile-risk-tags">
-            {riskFlags.map((value) => (
-              <span key={value} className="vitalis-profile-risk-tag">
-                {RISK_FLAG_LABEL_KEY_BY_VALUE[value] ? t(RISK_FLAG_LABEL_KEY_BY_VALUE[value]) : value}
-              </span>
-            ))}
+      {pregnancyDuePassed ? (
+        <div className="vitalis-profile-due-banner">
+          <Icon name="info" size={15} color="var(--color-primary-ink)" />
+          <div>
+            <p className="t1">{t('profileOverview.pregnancyDuePassedTitle')}</p>
+            <p className="t2">{t('profileOverview.pregnancyDuePassedBody')}</p>
           </div>
-        ) : (
-          <p className="vitalis-profile-risk-empty">{t('profileOverview.riskEmpty')}</p>
-        )}
-        <Button type="button" variant="ghost" fullWidth onClick={onReviewRiskProfile}>
+        </div>
+      ) : null}
+      <Card padding={16} className="vitalis-profile-risk-doorway">
+        <span className="vitalis-profile-risk-doorway-icon">
+          <Icon name="heart-pulse" size={22} />
+        </span>
+        <div className="vitalis-profile-risk-doorway-copy">
+          {riskFlags.length > 0 ? (
+            <div className="vitalis-profile-risk-tags">
+              {riskFlags.map((value) => (
+                <span key={value} className="vitalis-profile-risk-tag">
+                  {RISK_FLAG_LABEL_KEY_BY_VALUE[value] ? t(RISK_FLAG_LABEL_KEY_BY_VALUE[value]) : value}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="vitalis-profile-risk-empty">{t('profileOverview.riskEmpty')}</p>
+          )}
+        </div>
+        <Button type="button" variant="primary" fullWidth onClick={onReviewRiskProfile}>
           {t('profileOverview.reviewRiskFactors')}
         </Button>
       </Card>

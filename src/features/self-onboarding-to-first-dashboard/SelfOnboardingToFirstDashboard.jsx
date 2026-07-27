@@ -1,71 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components';
-import { Card, ProgressRing, ListRow, BodyMap, IconButton, Logo, Icon, Button, Avatar } from '../../design-system/components/index.js';
+import { Card, ProgressRing, ListRow, BodyMap, IconButton, Logo, Icon, Button, Avatar, Sheet } from '../../design-system/components/index.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { buildDashboardProjection } from './dashboard';
 import { buildBodyMapPoints, buildRegionDetailData, resolveRegionRouteForRegionId } from './bodyRegions.js';
 import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
-import { getCategoryIcon, getStatusBadgeStatus, getStatusLabelKey, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
+import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { buildTimelineItems, buildTimelineGroups } from '../plan-timeline/index.js';
 
-const DASHBOARD_SECTION_VISIBILITY_STORAGE_KEY = 'sl001.dashboard.section-visibility.v1';
-const COLLAPSIBLE_SECTION_PRIORITIES = new Set(['soon', 'later']);
-const DEFAULT_DASHBOARD_SECTION_VISIBILITY = Object.freeze({
-  soon: false,
-  later: false,
-});
-
-function normalizeDashboardSectionVisibility(value) {
-  const candidate = value && typeof value === 'object' ? value : {};
-  return {
-    soon: typeof candidate.soon === 'boolean' ? candidate.soon : DEFAULT_DASHBOARD_SECTION_VISIBILITY.soon,
-    later: typeof candidate.later === 'boolean' ? candidate.later : DEFAULT_DASHBOARD_SECTION_VISIBILITY.later,
-  };
-}
-
-function readDashboardSectionVisibilityByProfile() {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-
-  try {
-    const raw = window.localStorage.getItem(DASHBOARD_SECTION_VISIBILITY_STORAGE_KEY);
-    if (!raw) return {};
-
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function loadDashboardSectionVisibility(profileId) {
-  const normalizedProfileId = String(profileId ?? '').trim() || 'default';
-  const byProfile = readDashboardSectionVisibilityByProfile();
-  return normalizeDashboardSectionVisibility(byProfile[normalizedProfileId]);
-}
-
-function persistDashboardSectionVisibility(profileId, visibility) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const normalizedProfileId = String(profileId ?? '').trim() || 'default';
-  const normalizedVisibility = normalizeDashboardSectionVisibility(visibility);
-
-  try {
-    const byProfile = readDashboardSectionVisibilityByProfile();
-    byProfile[normalizedProfileId] = normalizedVisibility;
-    window.localStorage.setItem(DASHBOARD_SECTION_VISIBILITY_STORAGE_KEY, JSON.stringify(byProfile));
-  } catch {
-    // Ignore persistence failures and keep in-memory behavior.
-  }
-}
-
-const SECTION_TITLE_KEY_BY_PRIORITY = Object.freeze({
-  today: 'dashboard.sectionToday',
-  soon: 'dashboard.sectionSoon',
-  later: 'dashboard.sectionLater',
+// Temporal bucket -> icon tone, reusing the app's existing status tokens
+// (blue/due-now for today, amber/upcoming for soon) rather than the item's
+// own fine-grained clinical status — this is what actually gives Heute vs.
+// Demnächst a consistent, at-a-glance color meaning on the dashboard.
+const PRIORITY_TONE = Object.freeze({
+  today: 'primary',
+  soon: 'amber',
+  later: 'neutral',
 });
 
 function resolveGreetingKey(now) {
@@ -73,56 +23,6 @@ function resolveGreetingKey(now) {
   if (hour < 12) return 'dashboard.greetingMorning';
   if (hour < 18) return 'dashboard.greetingAfternoon';
   return 'dashboard.greetingEvening';
-}
-
-function DashboardSection({ priority, items, onOpenDetail, collapsible, isOpen, onToggle, t }) {
-  const canToggle = collapsible && typeof onToggle === 'function';
-  const expanded = canToggle ? Boolean(isOpen) : true;
-  const headingId = `dashboard-section-${priority}`;
-  const contentId = `${headingId}-content`;
-  const title = t(SECTION_TITLE_KEY_BY_PRIORITY[priority] ?? 'dashboard.sectionLater');
-
-  return (
-    <section aria-labelledby={headingId}>
-      {canToggle ? (
-        <button
-          type="button"
-          className="vitalis-dash-section-toggle"
-          aria-expanded={expanded}
-          aria-controls={contentId}
-          onClick={onToggle}
-        >
-          <span id={headingId} className="sec-label">{title}</span>
-          <span className="vitalis-dash-section-count" aria-hidden="true">
-            {items.length}
-            <span className={`vitalis-dash-section-chevron${expanded ? ' is-open' : ''}`}>▾</span>
-          </span>
-        </button>
-      ) : (
-        <p id={headingId} className="sec-label">{title}</p>
-      )}
-      {expanded ? (
-        <div id={contentId} className="rows">
-          {items.length === 0 ? (
-            <p className="vitalis-dash-empty">{t('dashboard.emptySection')}</p>
-          ) : (
-            items.map((item) => (
-              <ListRow
-                key={item.catalogItemId}
-                icon={getCategoryIcon(item.category)}
-                tone={getStatusTone(item.status)}
-                title={item.name}
-                subtitle={item.cadenceLabel}
-                badge={t(getStatusLabelKey(item.status))}
-                badgeStatus={getStatusBadgeStatus(item.status)}
-                onClick={typeof onOpenDetail === 'function' ? () => onOpenDetail(item) : undefined}
-              />
-            ))
-          )}
-        </div>
-      ) : null}
-    </section>
-  );
 }
 
 const REGION_TONE_COLORS = Object.freeze({
@@ -164,7 +64,7 @@ function RegionDetailView({ region, onBack, onViewInTab, onOpenItem, t }) {
       <div className="vitalis-region-detail-header">
         <IconButton icon="chevron-left" variant="ghost" label={t('common.back')} onClick={onBack} />
         <span className="vitalis-region-detail-title">{region.label}</span>
-        <Logo size={24} word={false} style={{ marginRight: 8 }} />
+        <Logo size={36} word={false} style={{ marginRight: 8 }} />
       </div>
       <div className="vitalis-region-detail-body">
         <div className="vitalis-region-detail-summary">
@@ -180,6 +80,7 @@ function RegionDetailView({ region, onBack, onViewInTab, onOpenItem, t }) {
         <RegionDetailSection label={t('bodyRegionDetail.sectionOpen')} items={region.dueItems} onOpenItem={onOpenItem} />
         <RegionDetailSection label={t('bodyRegionDetail.sectionUpcoming')} items={region.soonItems} onOpenItem={onOpenItem} />
         <RegionDetailSection label={t('bodyRegionDetail.sectionHistory')} items={region.historyItems} onOpenItem={onOpenItem} />
+        <RegionDetailSection label={t('bodyRegionDetail.sectionSkipped')} items={region.skippedItems} onOpenItem={onOpenItem} />
 
         {region.hasItems ? (
           <Button variant="primary" size="lg" fullWidth iconLeft="plus" onClick={onViewInTab} className="vitalis-region-detail-cta">
@@ -191,10 +92,19 @@ function RegionDetailView({ region, onBack, onViewInTab, onOpenItem, t }) {
   );
 }
 
-function TimelineRailNode({ item, kind, onOpen, t }) {
+function formatItemDueDate(item, locale) {
+  const raw = item?.reminder?.scheduledFor || item?.nextDueDate || item?.dueDate || item?.initialDueDate;
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed);
+}
+
+function TimelineRailNode({ item, kind, tone: toneOverride, dateLabel, onOpen, t }) {
   const isToday = kind === 'today';
-  const tone = isToday ? 'primary' : getStatusTone(item?.status);
+  const tone = isToday ? 'primary' : (toneOverride ?? getStatusTone(item?.status));
   const [chipBg, chipFg] = getToneColors(tone);
+  const label = isToday ? t('dashboard.timelineToday') : (dateLabel ?? item?.dateLabel);
 
   return (
     <button type="button" className="vitalis-rail-node" onClick={onOpen}>
@@ -212,14 +122,20 @@ function TimelineRailNode({ item, kind, onOpen, t }) {
         </span>
       )}
       <span className="vitalis-rail-node-date" style={{ color: isToday ? 'var(--color-primary)' : chipFg }}>
-        {isToday ? t('dashboard.timelineToday') : item.dateLabel}
+        {label}
       </span>
       <span className="vitalis-rail-node-title">{isToday ? '' : item.name}</span>
     </button>
   );
 }
 
-function TimelineRail({ planSnapshot, locale, catalogGeneration, onOpen, onOpenItem, t }) {
+// The rail is the Start page's single temporal element: recent history, the
+// present moment, then every Heute (due-today) and Demnächst (soon) item as
+// its own bullet — no separate list below it. Heute/Demnächst items use the
+// same blue/amber tone convention as their bucket, not their own clinical
+// status, so the rail keeps reading as "today" vs. "soon" regardless of what
+// each item actually is.
+function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGeneration, onOpen, onOpenItem, onOpenDashboardItem, t }) {
   const items = useMemo(() => {
     if (!planSnapshot) return [];
     return buildTimelineItems(planSnapshot, { locale });
@@ -228,12 +144,8 @@ function TimelineRail({ planSnapshot, locale, catalogGeneration, onOpen, onOpenI
   const groups = useMemo(() => buildTimelineGroups(items), [items]);
 
   const past = (groups.find((group) => group.label === 'Completed and past')?.items ?? []).slice(-2);
-  const future = groups
-    .filter((group) => group.label === 'Next 90 days' || group.label === 'Later')
-    .flatMap((group) => group.items)
-    .slice(0, 3);
 
-  if (past.length === 0 && future.length === 0) {
+  if (past.length === 0 && todayItems.length === 0 && soonItems.length === 0) {
     return null;
   }
 
@@ -241,7 +153,7 @@ function TimelineRail({ planSnapshot, locale, catalogGeneration, onOpen, onOpenI
     <div>
       <div className="vitalis-rail-header">
         <div className="vitalis-rail-header-title">
-          <span className="vitalis-rail-icon-chip"><Icon name="git-commit-horizontal" size={17} /></span>
+          <span className="vitalis-rail-icon-chip"><Icon name="audio-waveform" size={17} /></span>
           <span>{t('dashboard.timelineTitle')}</span>
         </div>
         <button type="button" className="vitalis-rail-link" onClick={onOpen}>
@@ -256,8 +168,27 @@ function TimelineRail({ planSnapshot, locale, catalogGeneration, onOpen, onOpenI
             <TimelineRailNode key={`past-${index}`} item={item} kind="past" onOpen={() => onOpenItem(item)} t={t} />
           ))}
           <TimelineRailNode key="today" kind="today" onOpen={onOpen} t={t} />
-          {future.map((item, index) => (
-            <TimelineRailNode key={`future-${index}`} item={item} kind="future" onOpen={() => onOpenItem(item)} t={t} />
+          {todayItems.map((item) => (
+            <TimelineRailNode
+              key={`today-${item.catalogItemId}`}
+              item={item}
+              kind="future"
+              tone={PRIORITY_TONE.today}
+              dateLabel={t('dashboard.timelineToday')}
+              onOpen={() => onOpenDashboardItem(item)}
+              t={t}
+            />
+          ))}
+          {soonItems.map((item) => (
+            <TimelineRailNode
+              key={`soon-${item.catalogItemId}`}
+              item={item}
+              kind="future"
+              tone={PRIORITY_TONE.soon}
+              dateLabel={formatItemDueDate(item, locale)}
+              onOpen={() => onOpenDashboardItem(item)}
+              t={t}
+            />
           ))}
         </div>
       </div>
@@ -271,7 +202,7 @@ export default function SelfOnboardingToFirstDashboard({
   onOpenHealthPlan,
   onOpenSettings,
   onOpenProfile,
-  onOpenProfileOverview,
+  onOpenRiskProfile,
   onOpenTimeline,
   catalogGeneration = 0,
 }) {
@@ -279,23 +210,13 @@ export default function SelfOnboardingToFirstDashboard({
   const [profile, setProfile] = useState(initialProfile);
   const [planSnapshot, setPlanSnapshot] = useState(initialPlanSnapshot);
   const [openRegionId, setOpenRegionId] = useState(null);
-  const [dashboardSectionVisibility, setDashboardSectionVisibility] = useState(() => (
-    loadDashboardSectionVisibility(initialProfile?.profileId)
-  ));
+  const [showScoreInfo, setShowScoreInfo] = useState(false);
   const hadProjectionRef = useRef(Boolean(initialProfile && initialPlanSnapshot));
 
   useEffect(() => {
     setProfile(initialProfile);
     setPlanSnapshot(initialPlanSnapshot);
   }, [initialPlanSnapshot, initialProfile]);
-
-  useEffect(() => {
-    if (!profile?.profileId) {
-      return;
-    }
-
-    setDashboardSectionVisibility(loadDashboardSectionVisibility(profile.profileId));
-  }, [profile?.profileId]);
 
   const projection = useMemo(() => {
     if (!planSnapshot || !profile) {
@@ -409,21 +330,6 @@ export default function SelfOnboardingToFirstDashboard({
     });
   };
 
-  const handleSectionToggle = (priority) => {
-    if (!COLLAPSIBLE_SECTION_PRIORITIES.has(priority) || !profile?.profileId) {
-      return;
-    }
-
-    setDashboardSectionVisibility((previous) => {
-      const next = {
-        ...previous,
-        [priority]: !Boolean(previous?.[priority]),
-      };
-      persistDashboardSectionVisibility(profile.profileId, next);
-      return next;
-    });
-  };
-
   if (!projection) {
     return (
       <AppShell title={null}>
@@ -435,7 +341,9 @@ export default function SelfOnboardingToFirstDashboard({
   const now = new Date();
   const dateLabel = new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric' }).format(now);
   const sex = profile?.gender === 'male' ? 'm' : 'w';
-  const dueTodayCount = projection.sections.find((section) => section.priority === 'today')?.items.length ?? 0;
+  const firstName = profile?.firstName || String(projection.profileName || '').split(' ')[0] || projection.profileName;
+  const todayItems = projection.sections.find((section) => section.priority === 'today')?.items ?? [];
+  const soonItems = projection.sections.find((section) => section.priority === 'soon')?.items ?? [];
   // An empty riskFlags array can't be told apart from "skipped the step
   // entirely" without a dedicated reviewed-at column (out of scope for this
   // pass) -- so this treats "no flags saved yet" as not-reviewed, which
@@ -448,12 +356,12 @@ export default function SelfOnboardingToFirstDashboard({
     <>
       <AppShell title={null}>
         <div className="vitalis-dash-header">
-          <div>
+          <div className="vitalis-dash-header-copy">
             <p className="vitalis-dash-header-sub">
-              <Logo size={15} word={false} />
+              <Logo size={22} word={false} />
               {dateLabel}
             </p>
-            <h1 className="vitalis-dash-header-title">{t(resolveGreetingKey(now))}, {projection.profileName}</h1>
+            <h1 className="vitalis-dash-header-title">{t(resolveGreetingKey(now))}, {firstName}</h1>
           </div>
           <div className="vitalis-dash-header-actions">
             <IconButton icon="settings" variant="surface" label={t('dashboard.settingsLabel')} onClick={onOpenSettings} />
@@ -468,7 +376,17 @@ export default function SelfOnboardingToFirstDashboard({
           <div className="vitalis-dash-hero-top">
             <div className="vitalis-dash-hero-copy">
               <p className="vitalis-dash-hero-label">{t('bodyRegions.title')}</p>
-              <p className="vitalis-dash-hero-status">{t('dashboard.dueToday', { count: dueTodayCount })}</p>
+              {typeof onOpenRiskProfile === 'function' ? (
+                <button
+                  type="button"
+                  className={`vitalis-risk-chip ${riskProfileReviewed ? 'is-reviewed' : 'is-unreviewed'}`}
+                  onClick={onOpenRiskProfile}
+                >
+                  <span className="vitalis-risk-chip-dot" aria-hidden="true" />
+                  {t('dashboard.riskProfileCta')}
+                  <Icon name="chevron-right" size={14} color="var(--text-muted)" />
+                </button>
+              ) : null}
             </div>
             <div className="vitalis-dash-hero-ring-card">
               <ProgressRing
@@ -481,25 +399,16 @@ export default function SelfOnboardingToFirstDashboard({
                   </span>
                 }
               />
-              <p className="vitalis-dash-hero-ring-label">{t('dashboard.scoreTitle')}</p>
-            </div>
-          </div>
-
-          {typeof onOpenProfileOverview === 'function' ? (
-            <div className="vitalis-dash-hero-chip-row">
               <button
                 type="button"
-                className={`vitalis-risk-chip ${riskProfileReviewed ? 'is-reviewed' : 'is-unreviewed'}`}
-                onClick={onOpenProfileOverview}
+                className="vitalis-dash-hero-ring-label vitalis-dash-score-info-trigger"
+                onClick={() => setShowScoreInfo(true)}
               >
-                <span className="vitalis-risk-chip-dot" aria-hidden="true" />
-                {riskProfileReviewed
-                  ? t('dashboard.riskProfileReviewed', { count: riskFlags.length })
-                  : t('dashboard.riskProfileNotReviewed')}
-                <Icon name="chevron-right" size={14} color="var(--text-muted)" />
+                {t('dashboard.scoreTitle')}
+                <Icon name="info" size={12} color="var(--text-muted)" />
               </button>
             </div>
-          ) : null}
+          </div>
 
           {bodyMapPoints.length > 0 ? (
             <>
@@ -512,32 +421,16 @@ export default function SelfOnboardingToFirstDashboard({
 
           <TimelineRail
             planSnapshot={planSnapshot}
+            todayItems={todayItems}
+            soonItems={soonItems}
             locale={locale}
             catalogGeneration={catalogGeneration}
             onOpen={onOpenTimeline}
             onOpenItem={openHealthPlanFromTimelineItem}
+            onOpenDashboardItem={openHealthPlanFromDashboardItem}
             t={t}
           />
         </Card>
-
-        <div className="vitalis-dash-sections">
-          {projection.sections.map((section) => (
-            <DashboardSection
-              key={section.priority}
-              priority={section.priority}
-              items={section.items}
-              onOpenDetail={typeof onOpenHealthPlan === 'function' ? openHealthPlanFromDashboardItem : undefined}
-              collapsible={COLLAPSIBLE_SECTION_PRIORITIES.has(section.priority)}
-              isOpen={
-                COLLAPSIBLE_SECTION_PRIORITIES.has(section.priority)
-                  ? Boolean(dashboardSectionVisibility?.[section.priority])
-                  : true
-              }
-              onToggle={() => handleSectionToggle(section.priority)}
-              t={t}
-            />
-          ))}
-        </div>
       </AppShell>
       {openRegionDetail ? (
         <RegionDetailView
@@ -554,6 +447,14 @@ export default function SelfOnboardingToFirstDashboard({
           t={t}
         />
       ) : null}
+      <Sheet
+        open={showScoreInfo}
+        onClose={() => setShowScoreInfo(false)}
+        title={t('dashboard.scoreTitle')}
+        closeLabel={t('common.close')}
+      >
+        <p className="vitalis-dash-score-explainer">{t('dashboard.scoreExplainer')}</p>
+      </Sheet>
     </>
   );
 }

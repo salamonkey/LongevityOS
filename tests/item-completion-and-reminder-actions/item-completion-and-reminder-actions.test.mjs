@@ -9,10 +9,13 @@ import {
   selectHighlightedItemTodayThenSoon,
 } from '../../src/features/item-completion-and-reminder-actions/selectors.js';
 import {
+  clearItemOptOutInSnapshot,
   markItemDoneInSnapshot,
   scheduleItemReminderInSnapshot,
+  setItemOptOutInSnapshot,
 } from '../../src/features/item-completion-and-reminder-actions/actions.js';
 import {
+  OPT_OUT_PRESETS,
   REMINDER_TIMING_TYPES,
 } from '../../src/features/item-completion-and-reminder-actions/model.js';
 import {
@@ -155,7 +158,7 @@ test('custom reminder date validation rejects missing and past dates', () => {
   }, /future date/i);
 });
 
-test('reminder creation is reflected as pending status across plan and dashboard read models', () => {
+test('reminder creation is reflected as planned status across plan and dashboard read models', () => {
   const profile = createProfile();
   const snapshot = createSnapshot();
   const target = pickTargetItem(snapshot);
@@ -176,10 +179,101 @@ test('reminder creation is reflected as pending status across plan and dashboard
     .flatMap((section) => section.items)
     .find((item) => item.catalogItemId === target.catalogItemId);
 
-  assert.equal(detail.status, 'pending');
-  assert.equal(dashboardItem.status, 'pending');
+  assert.equal(detail.status, 'planned');
+  assert.equal(dashboardItem.status, 'planned');
   assert.equal(detail.reminderDate, '2026-06-05');
   assert.ok(detail.reminderDateLabel.length > 0);
+});
+
+test('opting out of an item for a season removes it from the due dashboard bucket without penalizing the health score', () => {
+  const profile = createProfile();
+  const snapshot = createSnapshot();
+  const target = pickTargetItem(snapshot);
+  const fixedNow = () => new Date('2026-05-05T10:15:00.000Z');
+
+  const beforeDashboard = buildDashboardProjectionForSlice(snapshot, profile, { today: fixedNow() });
+  const beforeScore = beforeDashboard.healthScore;
+
+  const result = setItemOptOutInSnapshot(
+    snapshot,
+    profile.profileId,
+    target.catalogItemId,
+    { preset: OPT_OUT_PRESETS.one_season },
+    fixedNow,
+  );
+
+  const readModel = buildPlanReadModelForSlice(result.planSnapshot, { today: fixedNow() });
+  const detail = readModel.byItemKey[target.catalogItemId];
+  const dashboard = buildDashboardProjectionForSlice(result.planSnapshot, profile, { today: fixedNow() });
+  const dashboardItemKeys = dashboard.sections.flatMap((section) => section.items.map((item) => item.catalogItemId));
+
+  assert.equal(detail.status, 'opted_out');
+  assert.equal(result.item.optOut.preset, OPT_OUT_PRESETS.one_season);
+  assert.equal(result.item.optOut.until, '2026-08-05');
+  // Regression: the read model DetailView actually renders from must carry
+  // optOut.until through too, not just the raw mutation result -- a timed
+  // opt-out that doesn't reach the UI layer would always render as "skipped
+  // forever" regardless of which preset was chosen.
+  assert.equal(detail.optOut.preset, OPT_OUT_PRESETS.one_season);
+  assert.equal(detail.optOut.until, '2026-08-05');
+  assert.ok(!dashboardItemKeys.includes(target.catalogItemId), 'opted-out item must not appear in any Today/Soon/Later bucket');
+  assert.ok(
+    dashboard.healthScore >= beforeScore,
+    `opting out must not lower the health score (before ${beforeScore}, after ${dashboard.healthScore})`,
+  );
+});
+
+test('opting out forever stores a null until date that never lapses', () => {
+  const profile = createProfile();
+  const snapshot = createSnapshot();
+  const target = pickTargetItem(snapshot);
+  const fixedNow = () => new Date('2026-05-05T10:15:00.000Z');
+
+  const result = setItemOptOutInSnapshot(
+    snapshot,
+    profile.profileId,
+    target.catalogItemId,
+    { preset: OPT_OUT_PRESETS.forever },
+    fixedNow,
+  );
+
+  assert.equal(result.item.optOut.until, null);
+
+  const readModel = buildPlanReadModelForSlice(result.planSnapshot, { today: new Date('2035-01-01T00:00:00.000Z') });
+  assert.equal(readModel.byItemKey[target.catalogItemId].status, 'opted_out');
+});
+
+test('reactivating an opted-out item clears the opt-out and restores normal status', () => {
+  const profile = createProfile();
+  const snapshot = createSnapshot();
+  const target = pickTargetItem(snapshot);
+  const fixedNow = () => new Date('2026-05-05T10:15:00.000Z');
+
+  const optedOut = setItemOptOutInSnapshot(
+    snapshot,
+    profile.profileId,
+    target.catalogItemId,
+    { preset: OPT_OUT_PRESETS.forever },
+    fixedNow,
+  );
+  const reactivated = clearItemOptOutInSnapshot(
+    optedOut.planSnapshot,
+    profile.profileId,
+    target.catalogItemId,
+    fixedNow,
+  );
+
+  assert.equal(reactivated.item.optOut, undefined);
+  const readModel = buildPlanReadModelForSlice(reactivated.planSnapshot, { today: fixedNow() });
+  assert.notEqual(readModel.byItemKey[target.catalogItemId].status, 'opted_out');
+});
+
+test('setting an opt-out without a recognized preset throws instead of silently no-op', () => {
+  const profile = createProfile();
+  const snapshot = createSnapshot();
+  const target = pickTargetItem(snapshot);
+
+  assert.throws(() => setItemOptOutInSnapshot(snapshot, profile.profileId, target.catalogItemId, { preset: 'not-a-real-preset' }));
 });
 
 test('highlighted next item recomputes with Today-then-Soon and health score uses readiness weighting', () => {

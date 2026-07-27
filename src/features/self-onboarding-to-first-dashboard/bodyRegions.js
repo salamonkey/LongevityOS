@@ -161,13 +161,16 @@ export function buildRegionDetailData(regionId, planItems, { t, today } = {}) {
   const dueItems = [];
   const soonItems = [];
   const historyItems = [];
+  const skippedItems = [];
 
   for (const item of regionItems) {
     const bucket = resolveDashboardBucketForDisplay(item, { today });
     const liveStatus = resolveEffectiveItemStatus(item, { today });
     const displayItem = toRegionDisplayItem(item, { today });
 
-    if (bucket === 'today') {
+    if (liveStatus === 'opted_out') {
+      skippedItems.push(displayItem);
+    } else if (bucket === 'today') {
       dueItems.push(displayItem);
     } else if (bucket === 'soon') {
       soonItems.push(displayItem);
@@ -192,6 +195,7 @@ export function buildRegionDetailData(regionId, planItems, { t, today } = {}) {
     dueItems,
     soonItems,
     historyItems,
+    skippedItems,
     hasItems: regionItems.length > 0,
   };
 }

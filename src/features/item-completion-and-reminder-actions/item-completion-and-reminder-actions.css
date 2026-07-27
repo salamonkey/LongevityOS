@@ -257,14 +257,15 @@
 
 .sl003-action-cta-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
 }
 
 .sl003-action-cta-row .vds-button {
-  flex: 0 1 auto;
-  white-space: nowrap;
+  flex: 1 1 150px;
+  white-space: normal;
+  text-align: center;
 }
 
 .sl003-reminder-form {
@@ -305,7 +306,6 @@
   gap: var(--space-2);
 }
 
-.sl003-reminder-note,
 .sl003-complete-message,
 .sl003-confirmation {
   margin: var(--space-2) 0 0;
@@ -328,6 +328,17 @@
 .sl003-confirmation {
   color: var(--status-done);
   font-weight: 600;
+}
+
+.sl003-opted-out-note {
+  margin: var(--space-2) 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  line-height: 1.55;
 }
 
 .sl003-time-to-go {

@@ -20,6 +20,7 @@ import {
 } from './actions.js';
 import {
   DETAIL_ACTION_ERRORS,
+  OPT_OUT_PRESETS,
   REMINDER_TIMING_TYPES,
   formatDateForConfirmation,
 } from './model.js';
@@ -48,6 +49,20 @@ const DONE_COMPLETION_TIMING_TYPES = Object.freeze({
   custom_date: 'custom_date',
 });
 const EMPTY_REMINDER_TIMING = '';
+
+const OPT_OUT_OPTION_ORDER = Object.freeze([
+  OPT_OUT_PRESETS.one_season,
+  OPT_OUT_PRESETS.two_seasons,
+  OPT_OUT_PRESETS.one_year,
+  OPT_OUT_PRESETS.forever,
+]);
+
+const OPT_OUT_OPTION_LABEL_KEYS = Object.freeze({
+  [OPT_OUT_PRESETS.one_season]: 'optOutForm.oneSeason',
+  [OPT_OUT_PRESETS.two_seasons]: 'optOutForm.twoSeasons',
+  [OPT_OUT_PRESETS.one_year]: 'optOutForm.oneYear',
+  [OPT_OUT_PRESETS.forever]: 'optOutForm.forever',
+});
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -116,8 +131,62 @@ function buildTimeToGoState({ completedOn, cadenceText, now = new Date() }) {
   };
 }
 
+function formatDetailDate(isoDate, locale) {
+  if (!isoDate) return '';
+  const parsed = new Date(isoDate);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed);
+}
+
+// Real citation, not written copy: USPSTF grade / evidence tier for
+// checkups & counseling comes from the matched rule band; the Swiss BAG
+// vaccination-schedule chapter reference comes from the matched dose row.
+// Only one of the two is ever populated, depending on category.
+function resolveSourceText(item, t) {
+  if (item.sourceRef) {
+    return t('detail.sourceVaccinationPlan', { ref: item.sourceRef });
+  }
+  if (item.uspstfGrade) {
+    return t('detail.sourceUspstf', { grade: item.uspstfGrade });
+  }
+  return '';
+}
+
+// The one real, always-available "why is this on my list" signal is the
+// age this recommendation targets (from the matched rule band/dose) — not
+// invented copy about the user's specific risk factors, which the plan
+// snapshot doesn't carry through to individual items. Phrasing must track
+// whether that age has actually arrived yet: "pending"/"soon" mean the
+// target age is still ahead, so "you've reached it" would be false.
+function resolveReasonForListText(item, t) {
+  if (!Number.isFinite(item.targetAge)) {
+    return '';
+  }
+
+  const ageStillAhead = item.status === 'pending' || item.status === 'soon';
+  return ageStillAhead
+    ? t('detail.recommendedFromAge', { age: item.targetAge })
+    : t('detail.includedForAge', { age: item.targetAge });
+}
+
+function resolveStatusReasonText(item, t, locale) {
+  if (item.status === 'planned' && item.reminderDateLabel) {
+    return t('detail.plannedFor', { date: item.reminderDateLabel });
+  }
+
+  const dueLabel = formatDetailDate(item.nextDueDate, locale);
+  if (!dueLabel) return '';
+
+  if (item.status === 'overdue') return t('detail.dueSince', { date: dueLabel });
+  if (item.status === 'due') return t('detail.dueSince', { date: dueLabel });
+  if (item.status === 'soon' || item.status === 'pending') return t('detail.recommendedFrom', { date: dueLabel });
+  return '';
+}
+
 const DUE_BUCKET_STATUSES = new Set(['due', 'overdue']);
-const DONE_BUCKET_STATUSES = new Set(['done']);
+// A conscious opt-out is grouped with "done" for this summary bar -- it no
+// longer needs action, which is what this bar communicates.
+const DONE_BUCKET_STATUSES = new Set(['done', 'opted_out']);
 
 function groupPlanItemsByStatus(items) {
   const due = [];
@@ -159,7 +228,7 @@ function resolveCoverageProgressPercent(item, today = new Date()) {
 
 function PlanRowWithProgress({ item, onOpen }) {
   const { t } = useTranslation();
-  const progressPercent = resolveCoverageProgressPercent(item);
+  const progressPercent = item.status === 'opted_out' ? null : resolveCoverageProgressPercent(item);
   const [, toneColor] = getToneColors(getStatusTone(item.status));
 
   return (
@@ -189,6 +258,7 @@ const URGENCY_RANK_BY_STATUS = Object.freeze({
   pending: 2,
   planned: 2,
   done: 3,
+  opted_out: 3,
 });
 
 function sortItemsByUrgency(a, b) {
@@ -375,6 +445,42 @@ function ReminderForm({
             />
           </div>
         ) : null}
+      </fieldset>
+      {validationMessage ? <p className="sl001-field-error" role="alert">{validationMessage}</p> : null}
+      <div className="sl003-reminder-actions">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          {t('common.cancel')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OptOutForm({
+  selectedPreset,
+  onPresetChange,
+  onCancel,
+  pending,
+  validationMessage,
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="sl003-reminder-form" role="group" aria-label={t('optOutForm.ariaLabel')}>
+      <fieldset className="sl003-reminder-fieldset" disabled={pending}>
+        <legend>{t('optOutForm.legend')}</legend>
+        {OPT_OUT_OPTION_ORDER.map((preset) => (
+          <label key={preset}>
+            <input
+              type="radio"
+              name="opt-out-preset"
+              value={preset}
+              checked={selectedPreset === preset}
+              onChange={(event) => onPresetChange(event.target.value)}
+            />
+            {t(OPT_OUT_OPTION_LABEL_KEYS[preset])}
+          </label>
+        ))}
       </fieldset>
       {validationMessage ? <p className="sl001-field-error" role="alert">{validationMessage}</p> : null}
       <div className="sl003-reminder-actions">
@@ -658,13 +764,21 @@ function DetailView({
   onCustomReminderDateChange,
   selectedReminderTiming,
   customReminderDate,
+  optOutPending,
+  showOptOutForm,
+  onOpenOptOut,
+  onOptOutCancel,
+  onOptOutPresetChange,
+  selectedOptOutPreset,
+  onClearOptOut,
   actionError,
   confirmationMessage,
+  locale,
 }) {
   const { t } = useTranslation();
   const actionAreaRef = useRef(null);
-  const actionsDisabled = donePending || reminderPending;
-  const showActionCtas = !showDoneForm && !showReminderForm;
+  const actionsDisabled = donePending || reminderPending || optOutPending;
+  const showActionCtas = !showDoneForm && !showReminderForm && !showOptOutForm;
   const doneTimeToGo = item.status === 'done' && item.completedOn
     ? buildTimeToGoState({
       completedOn: item.completedOn,
@@ -673,7 +787,7 @@ function DetailView({
     : null;
 
   useEffect(() => {
-    if (!showDoneForm && !showReminderForm) {
+    if (!showDoneForm && !showReminderForm && !showOptOutForm) {
       return;
     }
 
@@ -688,13 +802,16 @@ function DetailView({
 
     scrollToActionArea();
     requestAnimationFrame(scrollToActionArea);
-  }, [showDoneForm, showReminderForm]);
+  }, [showDoneForm, showReminderForm, showOptOutForm]);
 
   const [heroChipBg, heroChipFg] = getToneColors(getStatusTone(item.status));
+  const sourceText = resolveSourceText(item, t);
+  const reasonForListText = resolveReasonForListText(item, t);
+  const statusReasonText = resolveStatusReasonText(item, t, locale);
 
   return (
     <section className="sl002-detail-view" aria-label={t('detail.viewAriaLabel', { name: item.displayName })}>
-      <Card padding={16} className="vitalis-detail-hero">
+      <div className="vitalis-detail-hero">
         <span className="vitalis-detail-hero-icon" style={{ background: heroChipBg, color: heroChipFg }}>
           <Icon name={getCategoryIcon(item.category)} size={26} />
         </span>
@@ -702,11 +819,16 @@ function DetailView({
           <p className="vitalis-detail-hero-title">{item.displayName}</p>
           <p className="vitalis-detail-hero-sub">{t(getInterventionTypeLabelKey(item.interventionType))}</p>
         </div>
-        <Badge status={getStatusBadgeStatus(item.status)}>{t(getStatusLabelKey(item.status))}</Badge>
-      </Card>
-      {item.reminderDateLabel ? (
-        <p className="sl003-reminder-note">{t('detail.plannedFor', { date: item.reminderDateLabel })}</p>
+      </div>
+      {sourceText || reasonForListText ? (
+        <p className="vitalis-detail-source-note">
+          {[sourceText, reasonForListText].filter(Boolean).join(' · ')}
+        </p>
       ) : null}
+      <div className="vitalis-detail-status-row">
+        <Badge status={getStatusBadgeStatus(item.status)}>{t(getStatusLabelKey(item.status))}</Badge>
+        {statusReasonText ? <span className="vitalis-detail-status-reason">{statusReasonText}</span> : null}
+      </div>
       {item.requiresSharedDecision ? (
         <p className="sl003-shared-decision-note" role="note">
           {t('detail.sharedDecisionNote')}
@@ -759,6 +881,25 @@ function DetailView({
               </section>
             ) : null}
           </>
+        ) : item.status === 'opted_out' ? (
+          <>
+            <p className="sl003-complete-message">
+              {item.optOut?.until
+                ? t('detail.optedOutUntil', { date: formatDetailDate(item.optOut.until, locale) })
+                : t('detail.optedOutForever')}
+            </p>
+            <p className="sl003-opted-out-note" role="note">{t('detail.optedOutScoreNote')}</p>
+            <div className="sl003-action-cta-row">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={onClearOptOut}
+                disabled={actionsDisabled}
+              >
+                {t('detail.reactivateItem')}
+              </Button>
+            </div>
+          </>
         ) : (
           <>
             {showActionCtas ? (
@@ -778,6 +919,14 @@ function DetailView({
                   disabled={actionsDisabled}
                 >
                   {t('detail.setReminder')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={onOpenOptOut}
+                  disabled={actionsDisabled}
+                >
+                  {t('detail.skipItem')}
                 </Button>
               </div>
             ) : null}
@@ -804,10 +953,19 @@ function DetailView({
                 validationMessage={actionError}
               />
             ) : null}
+            {showOptOutForm ? (
+              <OptOutForm
+                selectedPreset={selectedOptOutPreset}
+                onPresetChange={onOptOutPresetChange}
+                onCancel={onOptOutCancel}
+                pending={optOutPending}
+                validationMessage={actionError}
+              />
+            ) : null}
           </>
         )}
 
-        {!showReminderForm && !showDoneForm && actionError ? <p className="sl001-field-error" role="alert">{actionError}</p> : null}
+        {!showReminderForm && !showDoneForm && !showOptOutForm && actionError ? <p className="sl001-field-error" role="alert">{actionError}</p> : null}
         {confirmationMessage ? <p className="sl003-confirmation" role="status">{confirmationMessage}</p> : null}
       </section>
     </section>
@@ -857,6 +1015,8 @@ export default function ItemCompletionAndReminderActions({
   const [customDoneDate, setCustomDoneDate] = useState('');
   const [selectedReminderTiming, setSelectedReminderTiming] = useState(EMPTY_REMINDER_TIMING);
   const [customReminderDate, setCustomReminderDate] = useState('');
+  const [showOptOutForm, setShowOptOutForm] = useState(false);
+  const [selectedOptOutPreset, setSelectedOptOutPreset] = useState('');
   const [actionError, setActionError] = useState('');
   const [confirmationMessage, setConfirmationMessage] = useState('');
   const [pendingAction, setPendingAction] = useState(null);
@@ -932,6 +1092,7 @@ export default function ItemCompletionAndReminderActions({
     });
     setShowReminderForm(false);
     setShowDoneForm(false);
+    setShowOptOutForm(false);
     setActionError('');
     setConfirmationMessage('');
   };
@@ -977,7 +1138,7 @@ export default function ItemCompletionAndReminderActions({
       detailItem: detailItemView,
     });
 
-    if (target.destination === DETAIL_ORIGIN.dashboard) {
+    if (target.destination === DETAIL_ORIGIN.dashboard || target.destination === DETAIL_ORIGIN.timeline) {
       if (typeof onNavigate === 'function') {
         onNavigate(target);
       } else if (detailItem) {
@@ -987,6 +1148,7 @@ export default function ItemCompletionAndReminderActions({
       setDetailState(null);
       setShowReminderForm(false);
       setShowDoneForm(false);
+      setShowOptOutForm(false);
       setActionError('');
       return;
     }
@@ -997,6 +1159,7 @@ export default function ItemCompletionAndReminderActions({
         setDetailState(null);
         setShowReminderForm(false);
         setShowDoneForm(false);
+        setShowOptOutForm(false);
         setActionError('');
         return;
       }
@@ -1009,6 +1172,7 @@ export default function ItemCompletionAndReminderActions({
     setDetailState(null);
     setShowReminderForm(false);
     setShowDoneForm(false);
+    setShowOptOutForm(false);
     setActionError('');
     setPendingListScrollRestoreY(planListScrollYRef.current);
   };
@@ -1038,6 +1202,7 @@ export default function ItemCompletionAndReminderActions({
         setDetailState(null);
         setShowDoneForm(false);
         setShowReminderForm(false);
+        setShowOptOutForm(false);
         setActionError('');
         setConfirmationMessage('');
 
@@ -1083,6 +1248,7 @@ export default function ItemCompletionAndReminderActions({
         setDetailState(null);
         setShowReminderForm(false);
         setShowDoneForm(false);
+        setShowOptOutForm(false);
         setActionError('');
         setConfirmationMessage('');
 
@@ -1099,6 +1265,69 @@ export default function ItemCompletionAndReminderActions({
       const message = error instanceof Error && error.message ? error.message : DETAIL_ACTION_ERRORS.action_failed;
       setActionError(message);
       return false;
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const saveOptOutSelection = async (preset) => {
+    if (!detailItem || pendingAction) {
+      return;
+    }
+
+    setSelectedOptOutPreset(preset);
+    setPendingAction('optOut');
+    setActionError('');
+    setConfirmationMessage('');
+
+    try {
+      const result = service.setItemOptOut(profile.profileId, detailItem.itemKey, { preset });
+      if (typeof onPlanSnapshotChange === 'function') {
+        onPlanSnapshotChange(result.planSnapshot);
+      }
+
+      setShowOptOutForm(false);
+
+      if (detailState?.origin === DETAIL_ORIGIN.dashboard) {
+        setDetailState(null);
+        setShowDoneForm(false);
+        setShowReminderForm(false);
+        setActionError('');
+        setConfirmationMessage('');
+
+        if (typeof onNavigate === 'function') {
+          onNavigate({ destination: DETAIL_ORIGIN.dashboard });
+        }
+        return;
+      }
+
+      setConfirmationMessage(t('detail.skippedConfirmation'));
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : DETAIL_ACTION_ERRORS.action_failed;
+      setActionError(message);
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleClearOptOut = async () => {
+    if (!detailItem || pendingAction) {
+      return;
+    }
+
+    setPendingAction('clearOptOut');
+    setActionError('');
+    setConfirmationMessage('');
+
+    try {
+      const result = service.clearItemOptOut(profile.profileId, detailItem.itemKey);
+      if (typeof onPlanSnapshotChange === 'function') {
+        onPlanSnapshotChange(result.planSnapshot);
+      }
+      setConfirmationMessage(t('detail.reactivatedConfirmation'));
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : DETAIL_ACTION_ERRORS.action_failed;
+      setActionError(message);
     } finally {
       setPendingAction(null);
     }
@@ -1136,12 +1365,14 @@ export default function ItemCompletionAndReminderActions({
       >
         <DetailView
           item={detailItemView}
+          locale={uiLocale}
           readOnly={detailReadOnly}
           donePending={pendingAction === 'done'}
           showDoneForm={showDoneForm}
           onOpenDone={() => {
             setShowDoneForm(true);
             setShowReminderForm(false);
+            setShowOptOutForm(false);
             setActionError('');
             setConfirmationMessage('');
           }}
@@ -1167,6 +1398,7 @@ export default function ItemCompletionAndReminderActions({
           onOpenReminder={() => {
             setShowReminderForm(true);
             setShowDoneForm(false);
+            setShowOptOutForm(false);
             setSelectedReminderTiming(EMPTY_REMINDER_TIMING);
             setCustomReminderDate('');
             setActionError('');
@@ -1199,6 +1431,26 @@ export default function ItemCompletionAndReminderActions({
           }}
           selectedReminderTiming={selectedReminderTiming}
           customReminderDate={customReminderDate}
+          optOutPending={pendingAction === 'optOut' || pendingAction === 'clearOptOut'}
+          showOptOutForm={showOptOutForm}
+          onOpenOptOut={() => {
+            setShowOptOutForm(true);
+            setShowDoneForm(false);
+            setShowReminderForm(false);
+            setSelectedOptOutPreset('');
+            setActionError('');
+            setConfirmationMessage('');
+          }}
+          onOptOutCancel={() => {
+            setShowOptOutForm(false);
+            setSelectedOptOutPreset('');
+            setActionError('');
+          }}
+          onOptOutPresetChange={(preset) => {
+            saveOptOutSelection(preset);
+          }}
+          selectedOptOutPreset={selectedOptOutPreset}
+          onClearOptOut={handleClearOptOut}
           actionError={actionError}
           confirmationMessage={confirmationMessage}
         />

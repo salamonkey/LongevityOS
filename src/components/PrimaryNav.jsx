@@ -6,7 +6,7 @@ const TAB_VIEWS = ['start', 'timeline', 'checkups', 'safe'];
 
 const TAB_ICON_BY_VIEW = {
   start: 'layout-grid',
-  timeline: 'trending-up',
+  timeline: 'audio-waveform',
   checkups: 'shield-check',
   safe: 'lock',
 };

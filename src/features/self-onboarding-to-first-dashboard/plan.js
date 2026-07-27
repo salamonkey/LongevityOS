@@ -287,6 +287,8 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
     let effectiveCadence;
     let evidenceTier = null;
     let uspstfGrade = null;
+    let sourceRef = null;
+    let evidenceNote = null;
     let requiresSharedDecision = false;
     let targetAgeForSort;
     let priorityOrder;
@@ -310,6 +312,8 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       };
       priorityOrder = matchedDose.priorityOrder;
       targetAgeForSort = matchedDose.targetAgeMonths / 12;
+      sourceRef = matchedDose.sourceRef ?? null;
+      evidenceNote = matchedDose.evidenceNote ?? null;
       recurrenceDays = resolveRecurrenceDays(effectiveCadence);
       initialDueDate = resolveInitialDueDateFromMonths({
         profileAgeMonths: normalizedProfile.ageMonths,
@@ -368,6 +372,8 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       recommendationText: catalogItem.recommendationText,
       evidenceTier,
       uspstfGrade,
+      sourceRef,
+      evidenceNote,
       requiresSharedDecision,
       targetAge: Math.round(targetAgeForSort),
       priorityOrder,

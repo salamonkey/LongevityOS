@@ -19,8 +19,28 @@ const COUNTRY_OPTION_KEYS = Object.freeze([
 const STEP_FIELDS = Object.freeze([
   Object.freeze(['firstName', 'lastName']),
   Object.freeze(['birthdate', 'gender', 'countryCode']),
+  Object.freeze([]), // confirmation step — no fields of its own, birthdate/gender already validated in step 1
   Object.freeze(['heightCm', 'weightKg']),
 ]);
+
+const CONFIRM_STEP = 2;
+
+const LOCALE_TAG_BY_LOCALE = Object.freeze({
+  de: 'de-DE',
+  en: 'en-GB',
+});
+
+function formatBirthdateSummary(birthdate, locale) {
+  if (!birthdate) return '';
+  const parsed = new Date(`${birthdate}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return birthdate;
+  return parsed.toLocaleDateString(LOCALE_TAG_BY_LOCALE[locale] ?? 'en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
 
 function formatDateInputValue(date) {
   const year = date.getFullYear();
@@ -109,7 +129,7 @@ export default function LiveEnrollment({
   onCtaClick = null,
   requireAdult = true,
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const resolvedHeading = heading || t('enrollment.headingEnroll');
   const resolvedSubmitLabel = submitLabel || t('enrollment.submitCreatePlan');
   const [step, setStep] = useState(0);
@@ -119,13 +139,20 @@ export default function LiveEnrollment({
 
   const showCta = typeof onCtaClick === 'function' && String(ctaLabel).trim().length > 0;
   const isLastStep = step === STEP_FIELDS.length - 1;
+  const isConfirmStep = step === CONFIRM_STEP;
 
   const stepHeadings = [
     { title: resolvedHeading, description },
     { title: t('enrollment.stepDetailsTitle'), description: t('enrollment.stepDetailsDescription') },
+    { title: t('enrollment.stepConfirmTitle'), description: t('enrollment.stepConfirmDescription') },
     { title: t('enrollment.stepBodyTitle'), description: t('enrollment.stepBodyDescription') },
   ];
   const currentHeading = stepHeadings[step];
+  const genderLabelKey = form.gender === 'female' ? 'enrollment.genderFemale' : 'enrollment.genderMale';
+  const confirmSummary = t('enrollment.confirmSummary', {
+    date: formatBirthdateSummary(form.birthdate, locale),
+    gender: t(genderLabelKey),
+  });
 
   const handleChange = (field, value) => {
     setForm((previous) => ({
@@ -284,7 +311,15 @@ export default function LiveEnrollment({
               </>
             ) : null}
 
-            {step === 2 ? (
+            {isConfirmStep ? (
+              <div className="confirm-panel">
+                <Icon name="info" size={18} color="var(--color-primary-ink)" />
+                <p className="confirm-panel-summary">{confirmSummary}</p>
+                <p className="confirm-panel-note">{t('enrollment.confirmNote')}</p>
+              </div>
+            ) : null}
+
+            {step === 3 ? (
               <>
                 <Input
                   id="live-enrollment-height"
@@ -324,8 +359,23 @@ export default function LiveEnrollment({
               ))}
             </div>
 
+            {isConfirmStep ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                fullWidth
+                disabled={pending}
+                onClick={() => setStep(1)}
+              >
+                {t('enrollment.confirmBack')}
+              </Button>
+            ) : null}
+
             <Button type="submit" variant="primary" size="lg" fullWidth disabled={pending}>
-              {pending ? t('enrollment.creatingUser') : (isLastStep ? resolvedSubmitLabel : t('common.continue'))}
+              {pending
+                ? t('enrollment.creatingUser')
+                : (isConfirmStep ? t('enrollment.confirmContinue') : (isLastStep ? resolvedSubmitLabel : t('common.continue')))}
             </Button>
           </form>
         </Card>

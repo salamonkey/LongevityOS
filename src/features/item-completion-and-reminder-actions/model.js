@@ -21,6 +21,26 @@ export const DETAIL_ACTION_ERRORS = Object.freeze({
   future_done_date: 'Choose today or a past date for completion.',
   invalid_date: 'Enter a valid calendar date.',
   action_failed: 'We could not save your update. Please try again.',
+  missing_opt_out_duration: 'Please choose how long to skip this item.',
+});
+
+// How long an opt-out lasts. "forever" stores until: null (never lapses on
+// its own); the others store a concrete until-date so the item naturally
+// comes back once the chosen window elapses.
+export const OPT_OUT_PRESETS = Object.freeze({
+  one_season: 'one_season',
+  two_seasons: 'two_seasons',
+  one_year: 'one_year',
+  forever: 'forever',
+});
+
+export const ALLOWED_OPT_OUT_PRESETS = Object.freeze(Object.values(OPT_OUT_PRESETS));
+
+export const OPT_OUT_PRESET_MONTHS = Object.freeze({
+  [OPT_OUT_PRESETS.one_season]: 3,
+  [OPT_OUT_PRESETS.two_seasons]: 6,
+  [OPT_OUT_PRESETS.one_year]: 12,
+  [OPT_OUT_PRESETS.forever]: null,
 });
 
 function toDate(value) {
@@ -89,7 +109,7 @@ export function formatDateForConfirmation(isoDate, locale = 'en-US') {
   }).format(date);
 }
 
-function addMonthsToIsoDate(baseIsoDate, months) {
+export function addMonthsToIsoDate(baseIsoDate, months) {
   const [yearText, monthText, dayText] = baseIsoDate.split('-');
   const year = Number(yearText);
   const month = Number(monthText);

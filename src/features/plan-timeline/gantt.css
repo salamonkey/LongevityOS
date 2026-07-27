@@ -30,7 +30,6 @@
   box-sizing: border-box;
   padding: 0 8px 0 10px;
   background: var(--surface-card);
-  border-right: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   gap: 7px;

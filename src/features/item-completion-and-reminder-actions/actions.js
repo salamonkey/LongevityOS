@@ -1,6 +1,9 @@
 import {
+  ALLOWED_OPT_OUT_PRESETS,
   ALLOWED_REMINDER_TIMING_TYPES,
   DETAIL_ACTION_ERRORS,
+  OPT_OUT_PRESET_MONTHS,
+  addMonthsToIsoDate,
   parseIsoDateInput,
   resolveReminderScheduledFor,
   toIsoDate,
@@ -163,6 +166,51 @@ export function scheduleItemReminderInSnapshot(planSnapshot, profileId, itemId, 
   };
 }
 
+export function setItemOptOutInSnapshot(planSnapshot, profileId, itemId, optOutInput = {}, clock = () => new Date()) {
+  assertProfileScope(planSnapshot, profileId);
+
+  const preset = optOutInput?.preset;
+  if (!ALLOWED_OPT_OUT_PRESETS.includes(preset)) {
+    throw new Error(DETAIL_ACTION_ERRORS.missing_opt_out_duration);
+  }
+
+  const now = resolveNow(clock);
+  const decidedOn = toIsoDate(now);
+  const months = OPT_OUT_PRESET_MONTHS[preset];
+  const until = months == null ? null : addMonthsToIsoDate(decidedOn, months);
+
+  const updatedSnapshot = updateItemInSnapshot(planSnapshot, itemId, (item) => ({
+    ...item,
+    status: 'opted_out',
+    optOut: { preset, until, decidedOn },
+  }));
+
+  const updatedItem = updatedSnapshot.items.find((item) => item.catalogItemId === itemId) ?? null;
+
+  return {
+    planSnapshot: updatedSnapshot,
+    item: updatedItem,
+  };
+}
+
+export function clearItemOptOutInSnapshot(planSnapshot, profileId, itemId, clock = () => new Date()) {
+  assertProfileScope(planSnapshot, profileId);
+  resolveNow(clock);
+
+  const updatedSnapshot = updateItemInSnapshot(planSnapshot, itemId, (item) => ({
+    ...item,
+    status: 'pending',
+    optOut: undefined,
+  }));
+
+  const updatedItem = updatedSnapshot.items.find((item) => item.catalogItemId === itemId) ?? null;
+
+  return {
+    planSnapshot: updatedSnapshot,
+    item: updatedItem,
+  };
+}
+
 function generateCustomItemId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `custom-${crypto.randomUUID()}`;
@@ -266,6 +314,34 @@ export function createItemActionService({ profileId, getPlanSnapshot, setPlanSna
           clock,
         );
 
+        setPlanSnapshot(result.planSnapshot);
+        return result;
+      } catch (error) {
+        if (error instanceof Error && error.message) {
+          throw error;
+        }
+
+        throw new Error(DETAIL_ACTION_ERRORS.action_failed);
+      }
+    },
+
+    setItemOptOut(targetProfileId, itemId, optOutInput = {}) {
+      try {
+        const result = setItemOptOutInSnapshot(getPlanSnapshot(), targetProfileId, itemId, optOutInput, clock);
+        setPlanSnapshot(result.planSnapshot);
+        return result;
+      } catch (error) {
+        if (error instanceof Error && error.message) {
+          throw error;
+        }
+
+        throw new Error(DETAIL_ACTION_ERRORS.action_failed);
+      }
+    },
+
+    clearItemOptOut(targetProfileId, itemId) {
+      try {
+        const result = clearItemOptOutInSnapshot(getPlanSnapshot(), targetProfileId, itemId, clock);
         setPlanSnapshot(result.planSnapshot);
         return result;
       } catch (error) {

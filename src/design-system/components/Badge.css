@@ -14,3 +14,4 @@
 .vds-badge--upcoming { background: var(--status-upcoming-soft); color: var(--status-upcoming-ink); }
 .vds-badge--overdue { background: var(--status-overdue-soft); color: var(--status-overdue-ink); }
 .vds-badge--neutral { background: var(--surface-sunken); color: var(--slate-600); }
+.vds-badge--planned { background: var(--color-secondary-soft); color: var(--teal-600); }

@@ -82,7 +82,7 @@ export default function EmailPasswordAuth({
   };
 
   return (
-    <AppShell title={null} centeredFooter>
+    <AppShell title={null}>
       <div className="vitalis-auth-stack">
         <Card padding={20} className="vitalis-auth-intro" aria-label={t('auth.signIn')}>
           <Logo size={30} word={false} />

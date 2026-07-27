@@ -52,6 +52,10 @@ function toDefinitionFromGeneratedItem(generatedItem) {
     recommendationText,
     whyItMattersText,
     evidenceTier: generatedItem?.evidenceTier ?? null,
+    uspstfGrade: generatedItem?.uspstfGrade ?? null,
+    sourceRef: generatedItem?.sourceRef ?? null,
+    evidenceNote: generatedItem?.evidenceNote ?? null,
+    targetAge: Number.isFinite(generatedItem?.targetAge) ? generatedItem.targetAge : null,
     requiresSharedDecision: Boolean(generatedItem?.requiresSharedDecision),
   };
 }
@@ -72,6 +76,10 @@ function toViewItem(generatedItem, definition) {
     recommendationText: definition.recommendationText,
     whyItMattersText: definition.whyItMattersText,
     evidenceTier: definition.evidenceTier ?? null,
+    uspstfGrade: definition.uspstfGrade ?? null,
+    sourceRef: definition.sourceRef ?? null,
+    evidenceNote: definition.evidenceNote ?? null,
+    targetAge: definition.targetAge ?? null,
     requiresSharedDecision: Boolean(definition.requiresSharedDecision),
   };
 }
@@ -151,6 +159,10 @@ export function buildCoverageSnapshot(readModel, sourcePlanSnapshot) {
 export function resolveDetailBackTarget({ origin, detailItem }) {
   if (origin === DETAIL_ORIGIN.dashboard) {
     return { destination: DETAIL_ORIGIN.dashboard };
+  }
+
+  if (origin === DETAIL_ORIGIN.timeline) {
+    return { destination: DETAIL_ORIGIN.timeline };
   }
 
   if (

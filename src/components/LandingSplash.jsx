@@ -9,7 +9,7 @@ export default function LandingSplash({ onGetStarted }) {
   const { t } = useTranslation();
 
   return (
-    <AppShell title={null} centeredFooter>
+    <AppShell title={null}>
       <div className="vitalis-landing">
         <div className="vitalis-landing-logo">
           <Logo size={46} wordSize={30} />
