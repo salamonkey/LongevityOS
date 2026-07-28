@@ -7,6 +7,13 @@
   color: var(--text-primary);
 }
 
+.sl001-header--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface-app);
+}
+
 .sl001-header-row {
   display: flex;
   align-items: baseline;
@@ -118,22 +125,11 @@
   display: inline-flex;
 }
 
+/* Container + glow now live in design-system/layout.css as .vitalis-hero /
+   .vitalis-hero-glow (shared across every top-level tab's hero); only the
+   dashboard's own margin tweak stays here. */
 .vitalis-dash-hero {
-  position: relative;
-  overflow: hidden;
   margin-bottom: var(--space-2);
-  background: linear-gradient(158deg, var(--surface-card) 40%, var(--blue-50));
-}
-
-.vitalis-dash-hero-glow {
-  position: absolute;
-  top: -50px;
-  right: -40px;
-  width: 190px;
-  height: 190px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 55% 45%, rgba(47, 163, 156, 0.13), rgba(43, 127, 184, 0.04) 60%, transparent 72%);
-  pointer-events: none;
 }
 
 .vitalis-dash-hero-top {

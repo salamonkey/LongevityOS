@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppShell } from '../self-onboarding-to-first-dashboard/components.jsx';
-import { Icon, Button } from '../../design-system/components/index.js';
+import { Icon, Button, Card } from '../../design-system/components/index.js';
 import Gantt from './Gantt.jsx';
 import {
   PREVENTIVE_ITEM_DEFINITION_INDEX,
@@ -303,7 +303,7 @@ function ConvertAppointmentPanel({ appointment, onSubmit, onCancel, pending, t }
             <button
               key={option}
               type="button"
-              className={category === option ? 'is-active' : ''}
+              className={category === option ? 'vitalis-chip is-active' : 'vitalis-chip'}
               onClick={() => setCategory(option)}
             >
               {t(getCategoryLabelKey(option, 'singular'))}
@@ -319,7 +319,7 @@ function ConvertAppointmentPanel({ appointment, onSubmit, onCancel, pending, t }
             <button
               key={option.key}
               type="button"
-              className={recurrenceKey === option.key ? 'is-active' : ''}
+              className={recurrenceKey === option.key ? 'vitalis-chip is-active' : 'vitalis-chip'}
               onClick={() => setRecurrenceKey(option.key)}
             >
               {t(`appointments.recurrence.${option.key}`)}
@@ -412,7 +412,7 @@ export default function PlanTimeline({
 
   return (
     <AppShell
-      title={t('dashboard.timelineTitle')}
+      title={null}
       onBack={onBack}
       backLabel={t('common.back')}
       headerAction={timelineTab === 'upcoming' ? (
@@ -426,6 +426,40 @@ export default function PlanTimeline({
         </button>
       ) : null}
     >
+      <Card padding={16} className="vitalis-hero vitalis-timeline-hero">
+        <div className="vitalis-hero-glow" aria-hidden="true" />
+        <div className="vitalis-hero-row">
+          <div>
+            <p className="vitalis-hero-eyebrow">{t('timeline.heroSubtitle')}</p>
+            <p className="vitalis-hero-title">{t('dashboard.timelineTitle')}</p>
+          </div>
+          <span className="vitalis-hero-icon-chip" style={{ background: 'var(--color-secondary-soft)', color: 'var(--color-secondary)' }}>
+            <Icon name="activity" size={18} />
+          </span>
+        </div>
+
+        <div className="vitalis-seg vitalis-timeline-seg" role="tablist" aria-label={t('timeline.viewsAriaLabel')}>
+          <button
+            type="button"
+            role="tab"
+            className={timelineTab === 'gantt' ? 'is-active' : ''}
+            aria-selected={timelineTab === 'gantt'}
+            onClick={() => setTimelineTab('gantt')}
+          >
+            {t('timeline.tabGantt')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={timelineTab === 'upcoming' ? 'is-active' : ''}
+            aria-selected={timelineTab === 'upcoming'}
+            onClick={() => setTimelineTab('upcoming')}
+          >
+            {t('timeline.tabUpcoming')}
+          </button>
+        </div>
+      </Card>
+
       {showAddForm ? (
         <AddAppointmentForm
           planItems={planItems}
@@ -436,27 +470,6 @@ export default function PlanTimeline({
           t={t}
         />
       ) : null}
-
-      <div className="vitalis-seg vitalis-timeline-seg" role="tablist" aria-label={t('timeline.viewsAriaLabel')}>
-        <button
-          type="button"
-          role="tab"
-          className={timelineTab === 'gantt' ? 'is-active' : ''}
-          aria-selected={timelineTab === 'gantt'}
-          onClick={() => setTimelineTab('gantt')}
-        >
-          {t('timeline.tabGantt')}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={timelineTab === 'upcoming' ? 'is-active' : ''}
-          aria-selected={timelineTab === 'upcoming'}
-          onClick={() => setTimelineTab('upcoming')}
-        >
-          {t('timeline.tabUpcoming')}
-        </button>
-      </div>
 
       {timelineTab === 'gantt' ? (
         <Gantt

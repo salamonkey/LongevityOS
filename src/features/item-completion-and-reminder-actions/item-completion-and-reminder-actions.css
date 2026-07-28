@@ -2,6 +2,10 @@
   margin-top: 0;
 }
 
+.vitalis-plan-hero {
+  margin-bottom: var(--space-4);
+}
+
 .sl003-manual-entry-box {
   margin-top: var(--space-3);
 }
@@ -119,13 +123,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.vitalis-seg--with-icons button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
 }
 
 .vitalis-region-block {
@@ -331,7 +328,7 @@
 }
 
 .sl003-opted-out-note {
-  margin: var(--space-2) 0 0;
+  margin: var(--space-2) 0 var(--space-4);
   padding: 14px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);

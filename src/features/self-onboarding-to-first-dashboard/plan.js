@@ -332,6 +332,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       effectiveCadence = resolveEffectiveCadenceForItem(catalogItem, matchedBand);
       evidenceTier = matchedBand.evidenceTier ?? null;
       uspstfGrade = matchedBand.uspstfGrade ?? null;
+      sourceRef = matchedBand.sourceRef ?? null;
       requiresSharedDecision = Boolean(matchedBand.requiresSharedDecision);
       priorityOrder = matchedBand.priorityOrder;
       targetAgeForSort = matchedBand.targetAge;

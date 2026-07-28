@@ -285,7 +285,7 @@
   font-size: 10.5px;
   color: var(--text-secondary);
   align-items: center;
-  margin: 12px 2px 4px;
+  margin: 4px 2px 12px;
 }
 
 .vitalis-gantt-legend span {
@@ -303,6 +303,14 @@
 }
 
 .vitalis-gantt-legend-ring {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  box-sizing: border-box;
+}
+
+.vitalis-gantt-legend-ring-overdue {
   width: 13px;
   height: 13px;
   border-radius: 50%;
@@ -335,7 +343,7 @@
 }
 
 .vitalis-gantt-hint {
-  margin: 0 2px;
+  margin: 0 2px 12px;
   font-size: 12.5px;
   color: var(--text-muted);
 }

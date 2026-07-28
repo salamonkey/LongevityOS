@@ -341,13 +341,8 @@ export default function SelfOnboardingToFirstDashboard({
   const firstName = profile?.firstName || String(projection.profileName || '').split(' ')[0] || projection.profileName;
   const todayItems = projection.sections.find((section) => section.priority === 'today')?.items ?? [];
   const soonItems = projection.sections.find((section) => section.priority === 'soon')?.items ?? [];
-  // An empty riskFlags array can't be told apart from "skipped the step
-  // entirely" without a dedicated reviewed-at column (out of scope for this
-  // pass) -- so this treats "no flags saved yet" as not-reviewed, which
-  // under-serves the rare case of someone explicitly confirming zero risk
-  // factors apply.
-  const riskFlags = Array.isArray(profile?.riskFlags) ? profile.riskFlags : [];
-  const riskProfileReviewed = riskFlags.length > 0;
+  const riskProfileReviewedKeys = Array.isArray(profile?.riskProfileReviewedKeys) ? profile.riskProfileReviewedKeys : [];
+  const riskProfileReviewed = riskProfileReviewedKeys.length > 0;
 
   return (
     <>
@@ -368,8 +363,8 @@ export default function SelfOnboardingToFirstDashboard({
           </div>
         </div>
 
-        <Card padding={16} className="vitalis-dash-hero">
-          <div className="vitalis-dash-hero-glow" aria-hidden="true" />
+        <Card padding={16} className="vitalis-hero vitalis-dash-hero">
+          <div className="vitalis-hero-glow" aria-hidden="true" />
           <div className="vitalis-dash-hero-top">
             <div className="vitalis-dash-hero-copy">
               <h3 className="vitalis-dash-card-title">{t('bodyRegions.title')}</h3>

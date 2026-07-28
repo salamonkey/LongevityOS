@@ -101,6 +101,22 @@
 }
 
 /* ---- Risk profile wizard ---- */
+
+/* Pins the back/step/skip row + progress ring in view while the question
+   list scrolls beneath, so progress stays visible through a long step.
+   Bleeds out to the Card's own edges via negative margins (matching its
+   20px padding) so the sticky background covers edge-to-edge instead of
+   floating over the content with gutters on each side. */
+.riskwiz-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -20px -20px 16px;
+  padding: 20px 20px 12px;
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
 .riskwiz-top {
   display: flex;
   align-items: center;
@@ -148,6 +164,10 @@
   align-items: center;
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.riskwiz-sticky-header .riskwiz-hero {
+  margin-bottom: 0;
 }
 
 .riskwiz-hero-copy .t1 {
@@ -352,6 +372,10 @@
 .opt-body .yn-seg {
   margin-top: 8px;
   width: fit-content;
+}
+
+.riskwiz-submit {
+  margin-top: 10px;
 }
 
 .riskwiz-showmore {

@@ -50,3 +50,93 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Chip row — matches the Designer source's `.v-chip` pattern (Design System
+   spec's own "Segmented vs. Chip" guidance: Segmented is for 2-3 exclusive
+   options only; a row of category filters like this one is a Chip row).
+   Unlike .vitalis-seg, chips size to their own content and wrap onto a
+   second line instead of being squeezed into equal-width slices. */
+.vitalis-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vitalis-chip {
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.vitalis-chip.is-active {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Page hero — the gradient + glow card first shipped on the Dashboard
+   (.vitalis-dash-hero), now the shared opening treatment for every
+   top-level tab (Start/Verlauf/Vorsorge/Safe) so they read as the same
+   app instead of one polished screen and three plain ones. Dashboard's
+   own hero content (score ring, body map, risk chip) stays feature-specific
+   in self-onboarding-to-first-dashboard.css; these are just the reusable
+   container + the generic eyebrow/title/icon-chip parts every other page
+   needs. */
+.vitalis-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(158deg, var(--surface-card) 40%, var(--blue-50));
+}
+
+.vitalis-hero-glow {
+  position: absolute;
+  top: -50px;
+  right: -40px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 55% 45%, rgba(47, 163, 156, 0.13), rgba(43, 127, 184, 0.04) 60%, transparent 72%);
+  pointer-events: none;
+}
+
+.vitalis-hero-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vitalis-hero-eyebrow {
+  margin: 0 0 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.vitalis-hero-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.vitalis-hero-icon-chip {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppShell } from '../self-onboarding-to-first-dashboard/components.jsx';
-import { Card, Input, Button, Logo } from '../../design-system/components/index.js';
+import { Card, Input, Button } from '../../design-system/components/index.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import './auth.css';
 
@@ -40,6 +40,7 @@ export default function EmailPasswordAuth({
   onSignIn,
   onSignUp,
   onSwitchMode,
+  onBack,
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
@@ -82,13 +83,11 @@ export default function EmailPasswordAuth({
   };
 
   return (
-    <AppShell title={null}>
+    <AppShell title={null} onBack={onBack} backLabel={t('common.back')}>
       <div className="vitalis-auth-stack">
-        <Card padding={20} className="vitalis-auth-intro" aria-label={t('auth.signIn')}>
-          <Logo size={30} word={false} />
+        <div className="vitalis-auth-intro">
           <h1>{isSignUp ? t('auth.createAccount') : t('auth.signIn')}</h1>
-          {isSignUp ? <p className="vitalis-auth-notice">{t('auth.createAccountDescription')}</p> : null}
-        </Card>
+        </div>
 
         <Card padding={20} className="vitalis-auth-form-card" aria-label={t('auth.formAriaLabel')}>
           <form className="vitalis-auth-form" onSubmit={handleSubmit} noValidate>

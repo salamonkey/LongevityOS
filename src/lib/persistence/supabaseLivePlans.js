@@ -77,6 +77,7 @@ function toRuntimeProfile(row) {
     heightCm: Number(row.height_cm),
     weightKg: Number(row.weight_kg),
     riskFlags: normalizeRiskFlagsInput(row.risk_flags),
+    riskProfileReviewedKeys: normalizeRiskFlagsInput(row.risk_profile_reviewed_keys),
     pregnancyDueDate: row.pregnancy_due_date ?? null,
     createdAt: row.created_at,
   };
@@ -129,6 +130,7 @@ function toPlanSnapshot(profileId, planRow, itemRows = []) {
       recommendationText: itemRow.recommendation_text,
       evidenceTier: itemRow.evidence_tier,
       uspstfGrade: itemRow.uspstf_grade,
+      sourceRef: itemRow.source_ref ?? null,
       requiresSharedDecision: Boolean(itemRow.requires_shared_decision),
       targetAge: itemRow.target_age,
       priorityOrder: itemRow.priority_order,
@@ -160,6 +162,7 @@ function toPlanItemRow(planId, item) {
     recommendation_text: item.recommendationText ?? item.whyItMatters,
     evidence_tier: item.evidenceTier ?? null,
     uspstf_grade: item.uspstfGrade ?? null,
+    source_ref: item.sourceRef ?? null,
     requires_shared_decision: Boolean(item.requiresSharedDecision),
     recurrence_interval_days: Number.isFinite(Number(item?.recurrence?.intervalDays))
       ? Number(item.recurrence.intervalDays)
@@ -437,11 +440,18 @@ export async function loadLiveProfilesAndPlans(options = {}) {
 
   const profileIds = Array.from(new Set((membershipRows ?? []).map((row) => row.profile_id)));
   if (profileIds.length === 0) {
+    const { data: earlyPreferenceRow } = await client
+      .from('app_user_preferences')
+      .select('locale')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
     return {
       userId: user.id,
       profiles: [],
       plansByProfileId: {},
       activeProfileId: null,
+      locale: earlyPreferenceRow?.locale ?? null,
     };
   }
 
@@ -460,7 +470,7 @@ export async function loadLiveProfilesAndPlans(options = {}) {
 
   const { data: preferenceRow, error: preferenceError } = await client
     .from('app_user_preferences')
-    .select('active_profile_id')
+    .select('active_profile_id, locale')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -478,6 +488,7 @@ export async function loadLiveProfilesAndPlans(options = {}) {
     profiles,
     plansByProfileId,
     activeProfileId: defaultActive,
+    locale: preferenceRow?.locale ?? null,
   };
 }
 
@@ -505,6 +516,36 @@ export async function setLiveActiveProfile(profileId) {
   }
 }
 
+const ALLOWED_ACCOUNT_LOCALES = ['en', 'de'];
+
+export async function setLiveUserLocale(locale) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const normalizedLocale = String(locale ?? '').trim().toLowerCase();
+  if (!ALLOWED_ACCOUNT_LOCALES.includes(normalizedLocale)) {
+    throw new Error('Unsupported locale.');
+  }
+
+  const user = await ensureCurrentUser();
+
+  const { error } = await client
+    .from('app_user_preferences')
+    .upsert({
+      user_id: user.id,
+      locale: normalizedLocale,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'user_id',
+    });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function updateHealthProfileRiskFlags(profileId, riskFlags, options = {}) {
   const client = getSupabaseClient();
   if (!client) {
@@ -513,12 +554,20 @@ export async function updateHealthProfileRiskFlags(profileId, riskFlags, options
 
   const normalizedProfileId = parseProfileId(profileId);
   const normalizedRiskFlags = normalizeRiskFlagsInput(riskFlags);
+  // Every question answered "yes" is implicitly reviewed too, so the yes
+  // set is folded into the reviewed set here -- callers only need to pass
+  // the questions answered "no" (or the full answered set; either works).
+  const normalizedReviewedKeys = normalizeRiskFlagsInput([
+    ...normalizedRiskFlags,
+    ...(Array.isArray(options.reviewedKeys) ? options.reviewedKeys : []),
+  ]);
   const pregnancyDueDate = options.pregnancyDueDate ? String(options.pregnancyDueDate).trim() : null;
 
   const { error } = await client
     .from('health_profiles')
     .update({
       risk_flags: normalizedRiskFlags,
+      risk_profile_reviewed_keys: normalizedReviewedKeys,
       pregnancy_due_date: pregnancyDueDate || null,
       updated_at: new Date().toISOString(),
     })
@@ -528,7 +577,11 @@ export async function updateHealthProfileRiskFlags(profileId, riskFlags, options
     throw error;
   }
 
-  return { riskFlags: normalizedRiskFlags, pregnancyDueDate: pregnancyDueDate || null };
+  return {
+    riskFlags: normalizedRiskFlags,
+    riskProfileReviewedKeys: normalizedReviewedKeys,
+    pregnancyDueDate: pregnancyDueDate || null,
+  };
 }
 
 export async function updateHealthProfile(profileId, updates = {}, options = {}) {
@@ -698,6 +751,7 @@ export async function createLiveEnrollmentAndPlan(input, options = {}) {
     heightCm,
     weightKg,
     riskFlags,
+    riskProfileReviewedKeys: normalizeRiskFlagsInput(profileRow.risk_profile_reviewed_keys),
     createdAt: profileRow.created_at,
     onboardingCompletedAt: now.toISOString(),
   };

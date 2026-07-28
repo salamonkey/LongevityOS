@@ -1,5 +1,10 @@
+.vitalis-timeline-hero {
+  margin-bottom: var(--space-4);
+}
+
 .vitalis-timeline-seg {
-  margin-bottom: 14px;
+  margin-top: 12px;
+  margin-bottom: 0;
 }
 
 .vitalis-timeline-upcoming-empty {
@@ -140,29 +145,6 @@
   font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
-}
-
-.vitalis-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.vitalis-chip-row button {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: var(--radius-full);
-  background: var(--surface-app);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.vitalis-chip-row button.is-active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
 }
 
 .vitalis-timeline-empty {

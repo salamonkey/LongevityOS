@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, Icon } from '../../design-system/components/index.js';
-import { PREVENTIVE_ITEM_DEFINITION_INDEX } from '../health-plan-browsing-and-item-detail/definitions.js';
-import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
-import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
-import { resolveEffectiveItemStatus } from '../self-onboarding-to-first-dashboard/dashboard.js';
-import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
+import { getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
+import {
+  parseDateValue,
+  buildGanttRows,
+  buildStandaloneAppointmentRows,
+  filterRelevantRows,
+} from './gantt.js';
 
 const LABEL_COL_W = 118;
 const MONTH_COL_W = 48;
@@ -23,95 +25,9 @@ const LANE_LABEL_KEY = Object.freeze({
   appointments: 'timeline.laneAppointments',
 });
 
-function parseDateValue(value) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 function formatShortDate(date, locale) {
   if (!date) return '';
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(date);
-}
-
-/** Maps raw plan-snapshot items to Gantt rows. Bars express real coverage windows
- * (a completed, recurring item's completedOn -> recomputed nextDueDate); everything
- * else — one-time completions, and anything not yet done — is a single-moment marker,
- * per the spec's own bar-vs-marker distinction. */
-export function buildGanttRows(planSnapshot, options = {}) {
-  const today = options.today instanceof Date ? new Date(options.today.getTime()) : new Date();
-  const items = Array.isArray(planSnapshot?.items) ? planSnapshot.items : [];
-
-  return items.map((item) => {
-    const definition = PREVENTIVE_ITEM_DEFINITION_INDEX[item.catalogItemId];
-    const liveCopy = resolveCatalogCopyForItemKey(item.catalogItemId);
-    const name = liveCopy?.name || definition?.displayName || item.name || item.catalogItemId;
-    const status = resolveEffectiveItemStatus(item, { today });
-    const intervalDays = Number(item.recurrence?.intervalDays);
-    const isRecurring = Number.isFinite(intervalDays) && intervalDays > 0;
-    const completedOn = parseDateValue(item.completedOn);
-    const nextDue = parseDateValue(item.nextDueDate || item.initialDueDate);
-
-    let kind;
-    let startDate = null;
-    let endDate = null;
-    let pointDate = null;
-
-    if (completedOn && isRecurring && nextDue) {
-      // A real coverage window exists (completed once, recurs) — always show
-      // it as a bar, whether that window is still active (status 'done') or
-      // has since lapsed (status due/soon/overdue): the bar is a historical
-      // fact; the marker at its end reflects the item's current live status.
-      kind = 'bar';
-      startDate = completedOn;
-      endDate = nextDue;
-    } else if (status === 'done') {
-      kind = 'done-point';
-      pointDate = completedOn || nextDue;
-    } else if (status === 'due' || status === 'overdue') {
-      kind = 'due';
-      pointDate = nextDue;
-    } else {
-      kind = 'upcoming';
-      pointDate = nextDue;
-    }
-
-    return {
-      itemKey: item.catalogItemId,
-      name,
-      category: item.category,
-      lane: item.category === PLAN_CATEGORIES.vaccination ? 'vaccination' : 'preventive',
-      status,
-      tone: getStatusTone(status),
-      icon: getCategoryIcon(item.category),
-      kind,
-      startDate,
-      endDate,
-      pointDate,
-      isRecurring,
-    };
-  });
-}
-
-// Unlinked appointments (no matching plan item) get their own synthetic row
-// in a dedicated lane, rendered as a simple point marker at their scheduled
-// date -- same visual language as a plan item's due marker, teal-toned so it
-// reads as "a real-world event" rather than a plan status.
-function buildStandaloneAppointmentRows(appointments) {
-  return appointments
-    .filter((appointment) => !appointment.catalogItemId)
-    .map((appointment) => ({
-      itemKey: `appt-${appointment.id}`,
-      name: appointment.title,
-      lane: 'appointments',
-      status: 'planned',
-      tone: 'teal',
-      icon: 'calendar',
-      kind: 'appointment-point',
-      pointDate: parseDateValue(appointment.scheduledFor),
-      isRecurring: false,
-      isAppointment: true,
-    }));
 }
 
 function buildMonthColumns(today, colsBeforeToday) {
@@ -293,9 +209,17 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
     () => buildStandaloneAppointmentRows(appointments),
     [appointments],
   );
-  const rows = useMemo(
+  const allRows = useMemo(
     () => [...planRows, ...standaloneAppointmentRows],
     [planRows, standaloneAppointmentRows],
+  );
+  // Only rows actually relevant to *this* scope survive -- an item due at 65
+  // has no business cluttering a 53-year-old's 12-month or 5-year view, and
+  // a "skip forever" choice shouldn't keep showing up either. Recomputed per
+  // scope since relevance is relative to the currently visible window.
+  const rows = useMemo(
+    () => filterRelevantRows(allRows, columns[0].start, columns[columns.length - 1].end),
+    [allRows, columns],
   );
   const linkedAppointmentsByItemKey = useMemo(() => {
     const index = new Map();
@@ -332,6 +256,17 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
           {t('timeline.scope5Years')}
         </button>
       </div>
+
+      <div className="vitalis-gantt-legend">
+        <span><span className="vitalis-gantt-legend-bar" />{t('timeline.legendCoverage')}</span>
+        <span><span className="vitalis-gantt-legend-ring" />{t('timeline.legendDue')}</span>
+        <span><span className="vitalis-gantt-legend-ring-overdue" />{t('status.overdue')}</span>
+        <span><span className="vitalis-gantt-legend-dot" />{t('timeline.legendAppointment')}</span>
+        <span><span className="vitalis-gantt-legend-line" />{t('timeline.legendToday')}</span>
+        <span><span className="vitalis-gantt-legend-ghost" />{t('timeline.legendOffRange')}</span>
+      </div>
+
+      <p className="vitalis-gantt-hint">{t('timeline.scrollHint')}</p>
 
       <Card padding={0} className="vitalis-gantt">
         <div className="vitalis-gantt-scroll" ref={scrollRef}>
@@ -426,15 +361,6 @@ export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date
           </div>
         </div>
       </Card>
-
-      <div className="vitalis-gantt-legend">
-        <span><span className="vitalis-gantt-legend-bar" />{t('timeline.legendCoverage')}</span>
-        <span><span className="vitalis-gantt-legend-ring" />{t('timeline.legendDue')}</span>
-        <span><span className="vitalis-gantt-legend-dot" />{t('timeline.legendAppointment')}</span>
-        <span><span className="vitalis-gantt-legend-line" />{t('timeline.legendToday')}</span>
-        <span><span className="vitalis-gantt-legend-ghost" />{t('timeline.legendOffRange')}</span>
-      </div>
-      <p className="vitalis-gantt-hint">{t('timeline.scrollHint')}</p>
     </div>
   );
 }

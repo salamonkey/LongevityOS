@@ -138,32 +138,53 @@ function formatDetailDate(isoDate, locale) {
   return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(parsed);
 }
 
-// Real citation, not written copy: USPSTF grade / evidence tier for
-// checkups & counseling comes from the matched rule band; the Swiss BAG
-// vaccination-schedule chapter reference comes from the matched dose row.
-// Only one of the two is ever populated, depending on category.
+// Real citation, not written copy. Vaccinations cite the Swiss BAG
+// vaccination-schedule chapter from the matched dose row. Checkups &
+// counseling cite the matched rule band's EviPrev 2023 (Unisanté) table row
+// -- the same row applies across every age/risk band of that item, since
+// EviPrev's table isn't chaptered the way the BAG schedule is -- plus the
+// USPSTF grade when the band carries one, since that's a distinct fact (how
+// strong the evidence is) rather than a second citation for the same thing.
+// A handful of items genuinely have no EviPrev row (e.g. a generic yearly
+// checkup, or anxiety screening, which the 2023 EviPrev table doesn't cover)
+// or no USPSTF grade -- those simply omit that part rather than showing
+// nothing at all.
 function resolveSourceText(item, t) {
-  if (item.sourceRef) {
-    return t('detail.sourceVaccinationPlan', { ref: item.sourceRef });
+  const parts = [];
+  if (item.category === PLAN_CATEGORIES.vaccination) {
+    if (item.sourceRef) {
+      parts.push(t('detail.sourceVaccinationPlan', { ref: item.sourceRef }));
+    }
+  } else if (item.sourceRef) {
+    parts.push(t('detail.sourceEviprev', { ref: item.sourceRef }));
   }
   if (item.uspstfGrade) {
-    return t('detail.sourceUspstf', { grade: item.uspstfGrade });
+    parts.push(t('detail.sourceUspstf', { grade: item.uspstfGrade }));
   }
-  return '';
+  if (parts.length === 0) {
+    return '';
+  }
+  return t('detail.sourcePrefix', { value: parts.join(' · ') });
 }
 
 // The one real, always-available "why is this on my list" signal is the
 // age this recommendation targets (from the matched rule band/dose) — not
 // invented copy about the user's specific risk factors, which the plan
-// snapshot doesn't carry through to individual items. Phrasing must track
-// whether that age has actually arrived yet: "pending"/"soon" mean the
-// target age is still ahead, so "you've reached it" would be false.
-function resolveReasonForListText(item, t) {
+// snapshot doesn't carry through to individual items. Whether that age has
+// actually arrived yet must come from a real age comparison (profileAge vs.
+// item.targetAge), not from item.status: status can turn 'done'/'overdue'
+// for reasons that have nothing to do with age (a manual completion, or a
+// risk-based match that only produced a future due date because no risk
+// flag was satisfied yet), and status alone would then claim an age was
+// reached when it demonstrably wasn't.
+function resolveReasonForListText(item, t, profileAge) {
   if (!Number.isFinite(item.targetAge)) {
     return '';
   }
 
-  const ageStillAhead = item.status === 'pending' || item.status === 'soon';
+  const ageStillAhead = Number.isFinite(profileAge)
+    ? profileAge < item.targetAge
+    : (item.status === 'pending' || item.status === 'soon');
   return ageStillAhead
     ? t('detail.recommendedFromAge', { age: item.targetAge })
     : t('detail.includedForAge', { age: item.targetAge });
@@ -746,6 +767,8 @@ function ManualEntryForm({
 
 function DetailView({
   item,
+  titleRef,
+  profileAge,
   readOnly = false,
   donePending,
   showDoneForm,
@@ -806,7 +829,7 @@ function DetailView({
 
   const [heroChipBg, heroChipFg] = getToneColors(getStatusTone(item.status));
   const sourceText = resolveSourceText(item, t);
-  const reasonForListText = resolveReasonForListText(item, t);
+  const reasonForListText = resolveReasonForListText(item, t, profileAge);
   const statusReasonText = resolveStatusReasonText(item, t, locale);
 
   return (
@@ -816,14 +839,15 @@ function DetailView({
           <Icon name={getCategoryIcon(item.category)} size={26} />
         </span>
         <div className="vitalis-detail-hero-copy">
-          <p className="vitalis-detail-hero-title">{item.displayName}</p>
+          <p className="vitalis-detail-hero-title" ref={titleRef}>{item.displayName}</p>
           <p className="vitalis-detail-hero-sub">{t(getInterventionTypeLabelKey(item.interventionType))}</p>
         </div>
       </div>
-      {sourceText || reasonForListText ? (
-        <p className="vitalis-detail-source-note">
-          {[sourceText, reasonForListText].filter(Boolean).join(' · ')}
-        </p>
+      {reasonForListText ? (
+        <p className="vitalis-detail-source-note">{reasonForListText}</p>
+      ) : null}
+      {sourceText ? (
+        <p className="vitalis-detail-source-note">{sourceText}</p>
       ) : null}
       <div className="vitalis-detail-status-row">
         <Badge status={getStatusBadgeStatus(item.status)}>{t(getStatusLabelKey(item.status))}</Badge>
@@ -1028,6 +1052,8 @@ export default function ItemCompletionAndReminderActions({
   const [manualEntries, setManualEntries] = useState(initialManualEntries);
   const [pendingListScrollRestoreY, setPendingListScrollRestoreY] = useState(null);
   const planListScrollYRef = useRef(0);
+  const [showDetailTitle, setShowDetailTitle] = useState(false);
+  const detailHeroTitleRef = useRef(null);
 
   const latestSnapshotRef = useRef(planSnapshot);
   latestSnapshotRef.current = planSnapshot;
@@ -1131,6 +1157,26 @@ export default function ItemCompletionAndReminderActions({
     setTimeout(restoreScroll, 0);
     setPendingListScrollRestoreY(null);
   }, [detailState, pendingListScrollRestoreY]);
+
+  // The detail page's own title (the item's display name) already appears
+  // once, big, in the hero -- repeating it in the sticky top bar the whole
+  // time is redundant. It only earns its place there once the hero has
+  // scrolled out from under the sticky bar, so the reader still has a
+  // title to orient by.
+  useEffect(() => {
+    setShowDetailTitle(false);
+    const node = detailHeroTitleRef.current;
+    if (!node || typeof IntersectionObserver !== 'function') {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowDetailTitle(!entry.isIntersecting),
+      { rootMargin: '-56px 0px 0px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [detailState?.itemKey]);
 
   const handleBackFromDetail = () => {
     const target = resolveDetailBackTarget({
@@ -1359,12 +1405,15 @@ export default function ItemCompletionAndReminderActions({
   if (detailItemView) {
     return (
       <AppShell
-        title={detailItemView.displayName}
+        title={showDetailTitle ? detailItemView.displayName : ''}
         onBack={handleBackFromDetail}
         backLabel={t('common.back')}
+        stickyHeader
       >
         <DetailView
           item={detailItemView}
+          titleRef={detailHeroTitleRef}
+          profileAge={Number(profile?.age)}
           locale={uiLocale}
           readOnly={detailReadOnly}
           donePending={pendingAction === 'done'}
@@ -1573,11 +1622,24 @@ export default function ItemCompletionAndReminderActions({
   return (
     <AppShell title={null}>
       <section className="sl003-plan-browser" aria-label={t('plan.browseAriaLabel')}>
-        <div className="vitalis-seg vitalis-seg--with-icons" role="tablist" aria-label={t('plan.categoriesAriaLabel')}>
+        <Card padding={16} className="vitalis-hero vitalis-plan-hero">
+          <div className="vitalis-hero-glow" aria-hidden="true" />
+          <div className="vitalis-hero-row">
+            <div>
+              <p className="vitalis-hero-eyebrow">{t('plan.heroSubtitle')}</p>
+              <p className="vitalis-hero-title">{t('nav.checkups')}</p>
+            </div>
+            <span className="vitalis-hero-icon-chip" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-ink)' }}>
+              <Icon name="stethoscope" size={18} />
+            </span>
+          </div>
+        </Card>
+
+        <div className="vitalis-chip-row" role="tablist" aria-label={t('plan.categoriesAriaLabel')}>
           <button
             type="button"
             role="tab"
-            className={activeCategory === null ? 'is-active' : ''}
+            className={activeCategory === null ? 'vitalis-chip is-active' : 'vitalis-chip'}
             aria-selected={activeCategory === null}
             onClick={() => setActiveCategory(null)}
           >
@@ -1594,11 +1656,10 @@ export default function ItemCompletionAndReminderActions({
                 key={category}
                 type="button"
                 role="tab"
-                className={isActive ? 'is-active' : ''}
+                className={isActive ? 'vitalis-chip is-active' : 'vitalis-chip'}
                 aria-selected={isActive}
                 onClick={() => setActiveCategory(category)}
               >
-                <Icon name={getCategoryIcon(category)} size={14} />
                 {label}
               </button>
             );

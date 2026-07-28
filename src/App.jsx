@@ -20,6 +20,7 @@ import {
   signUpLiveUserWithPassword,
   saveLivePlanForProfile,
   setLiveActiveProfile,
+  setLiveUserLocale,
   updateHealthProfile,
   updateHealthProfileRiskFlags,
   listAppointmentsForProfile,
@@ -301,6 +302,14 @@ export default function App() {
 
         setRuntimeProfile(activeProfile);
         setRuntimePlanSnapshot(activePlan);
+
+        // Apply this account's saved language preference on every fresh
+        // login/device -- but only when one is actually saved. A brand-new
+        // signup has no app_user_preferences.locale row yet, so this must
+        // never clobber whatever the user just picked on the landing page.
+        if (loaded.locale && loaded.locale !== locale) {
+          setLocale(loaded.locale);
+        }
       } catch (error) {
         if (cancelled) return;
 
@@ -720,8 +729,14 @@ export default function App() {
     try {
       const saved = await updateHealthProfileRiskFlags(runtimeProfile.profileId, riskFlags, {
         pregnancyDueDate: extra.pregnancyDueDate ?? null,
+        reviewedKeys: extra.reviewedKeys ?? [],
       });
-      const updatedProfile = { ...runtimeProfile, riskFlags: saved.riskFlags, pregnancyDueDate: saved.pregnancyDueDate };
+      const updatedProfile = {
+        ...runtimeProfile,
+        riskFlags: saved.riskFlags,
+        riskProfileReviewedKeys: saved.riskProfileReviewedKeys,
+        pregnancyDueDate: saved.pregnancyDueDate,
+      };
       const resolvedCatalog = await ensureCatalogReady();
       const regeneratedPlan = generateInitialPlanSnapshot(updatedProfile, {
         catalog: resolvedCatalog.catalog,
@@ -744,6 +759,41 @@ export default function App() {
       ));
     } finally {
       setRiskProfilePending(false);
+    }
+  };
+
+  // Background persistence for every Back/Continue/Später step in the risk-
+  // profile wizard (plus a short debounce while lingering on one step), so
+  // progress survives even if the user never reaches the final "Speichern".
+  // Deliberately silent: no pending/error UI, and it never touches
+  // showRiskProfileStep or the onboarding chain -- those stay under
+  // handleSaveRiskProfile/handleSkipRiskProfile's control.
+  const handleAutosaveRiskProfile = async (riskFlags, extra = {}) => {
+    if (!runtimeProfile?.profileId) {
+      return;
+    }
+
+    try {
+      const saved = await updateHealthProfileRiskFlags(runtimeProfile.profileId, riskFlags, {
+        pregnancyDueDate: extra.pregnancyDueDate ?? null,
+        reviewedKeys: extra.reviewedKeys ?? [],
+      });
+      const updatedProfile = {
+        ...runtimeProfile,
+        riskFlags: saved.riskFlags,
+        riskProfileReviewedKeys: saved.riskProfileReviewedKeys,
+        pregnancyDueDate: saved.pregnancyDueDate,
+      };
+      const resolvedCatalog = await ensureCatalogReady();
+      const regeneratedPlan = generateInitialPlanSnapshot(updatedProfile, {
+        catalog: resolvedCatalog.catalog,
+        catalogVersion: resolvedCatalog.catalogVersion,
+      });
+
+      setRuntimeProfile(updatedProfile);
+      handlePlanSnapshotChange(regeneratedPlan);
+    } catch (error) {
+      console.warn('Failed to autosave risk profile progress.', error);
     }
   };
 
@@ -794,6 +844,36 @@ export default function App() {
 
   const handleSkipStatusQuo = () => {
     setShowStatusQuoStep(false);
+  };
+
+  // Background persistence for every Back/Continue/Später step in the
+  // status-quo wizard, mirroring handleAutosaveRiskProfile: silent (no
+  // pending/error UI), and it never touches showStatusQuoStep -- that stays
+  // under handleSaveStatusQuo/handleSkipStatusQuo's control. Each "yes"
+  // answer is a real mark-done action, so this reuses the exact same
+  // markItemDoneInSnapshot loop handleSaveStatusQuo runs at the end, just
+  // applied as the user goes instead of only once at the finish line.
+  const handleAutosaveStatusQuo = async (completions) => {
+    if (!runtimeProfile?.profileId || !runtimePlanSnapshot) {
+      return;
+    }
+    if (!Array.isArray(completions) || completions.length === 0) {
+      return;
+    }
+
+    try {
+      let updatedSnapshot = runtimePlanSnapshot;
+      for (const completion of completions) {
+        const result = markItemDoneInSnapshot(updatedSnapshot, runtimeProfile.profileId, completion.itemKey, {
+          customDate: completion.date,
+        });
+        updatedSnapshot = result.planSnapshot;
+      }
+
+      handlePlanSnapshotChange(updatedSnapshot);
+    } catch (error) {
+      console.warn('Failed to autosave status quo progress.', error);
+    }
   };
 
   const handleSaveProfileDetails = async (updates) => {
@@ -886,6 +966,13 @@ export default function App() {
       const hasSession = Boolean(result?.session);
 
       if (hasSession) {
+        // Persist whatever language is active right now (i.e. whatever the
+        // user picked on the landing page before signing up) so it's still
+        // their language on the next login, from any device.
+        setLiveUserLocale(locale).catch((error) => {
+          console.warn('Failed to persist account language preference.', error);
+        });
+
         setLiveState((previous) => ({
           ...previous,
           ready: false,
@@ -1001,6 +1088,16 @@ export default function App() {
     });
   };
 
+  const handleSetLocale = (nextLocale) => {
+    setLocale(nextLocale);
+
+    if (livePlansEnabled && liveState.userId) {
+      setLiveUserLocale(nextLocale).catch((error) => {
+        console.warn('Failed to persist account language preference.', error);
+      });
+    }
+  };
+
   const handlePrimaryNavNavigate = (nextView) => {
     setDashboardReturnScrollY(null);
     setActiveView(nextView);
@@ -1093,6 +1190,7 @@ export default function App() {
             onSignIn={handleAuthSignIn}
             onSignUp={handleAuthSignUp}
             onSwitchMode={handleSwitchAuthMode}
+            onBack={() => setShowLandingSplash(true)}
           />
         )}
       </>
@@ -1177,7 +1275,7 @@ export default function App() {
         <SettingsScreen
           profile={runtimeProfile}
           locale={locale}
-          onSetLocale={setLocale}
+          onSetLocale={handleSetLocale}
           onOpenProfiles={() => setShowProfileSheet(true)}
           onOpenProfileOverview={() => {
             setProfileOverviewOrigin('settings');
@@ -1195,11 +1293,13 @@ export default function App() {
       activeSurface = (
         <ProfileOverviewScreen
           profile={runtimeProfile}
+          planSnapshot={runtimePlanSnapshot}
           onBack={() => handlePrimaryNavNavigate(profileOverviewOrigin)}
           onSaveProfileDetails={handleSaveProfileDetails}
           profileDetailsPending={profileDetailsPending}
           profileDetailsError={profileDetailsError}
           onReviewRiskProfile={() => { setRiskProfileIsOnboarding(false); setShowRiskProfileStep(true); }}
+          onReviewStatusQuo={() => setShowStatusQuoStep(true)}
         />
       );
     } else if (activeView === 'safe') {
@@ -1211,8 +1311,10 @@ export default function App() {
     activeSurface = (
       <RiskProfileStep
         initialRiskFlags={runtimeProfile?.riskFlags ?? []}
+        initialReviewedKeys={runtimeProfile?.riskProfileReviewedKeys ?? []}
         initialPregnancyDueDate={runtimeProfile?.pregnancyDueDate ?? ''}
         onSave={handleSaveRiskProfile}
+        onAutosave={handleAutosaveRiskProfile}
         onSkip={handleSkipRiskProfile}
         pending={riskProfilePending}
         errorMessage={riskProfileError}
@@ -1225,6 +1327,7 @@ export default function App() {
       <StatusQuoStep
         planSnapshot={runtimePlanSnapshot}
         onSave={handleSaveStatusQuo}
+        onAutosave={handleAutosaveStatusQuo}
         onSkip={handleSkipStatusQuo}
         pending={statusQuoPending}
         errorMessage={statusQuoError}

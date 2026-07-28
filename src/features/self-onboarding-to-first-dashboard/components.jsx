@@ -14,14 +14,16 @@ export function AppShell({
   children,
   shellClassName = '',
   showVersion = false,
+  stickyHeader = false,
 }) {
   const hasHeaderRow = Boolean(title) || Boolean(headerAction);
   const appShellClassName = shellClassName ? `app-shell ${shellClassName}` : 'app-shell';
+  const headerClassName = stickyHeader ? 'sl001-header sl001-header--sticky' : 'sl001-header';
 
   return (
     <main className={appShellClassName}>
       <section className="app-panel sl001-shell">
-        <header className="sl001-header">
+        <header className={headerClassName}>
           {typeof onBack === 'function' ? (
             <TopBar label={title} onBack={onBack} backLabel={backLabel} right={topBarRight} />
           ) : hasHeaderRow ? (

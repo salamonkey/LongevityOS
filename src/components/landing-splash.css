@@ -9,6 +9,20 @@
   padding: 0 8px;
 }
 
+.vitalis-landing-lang {
+  margin-top: 20px;
+}
+
+.vitalis-landing-lang .vitalis-seg {
+  width: auto;
+}
+
+.vitalis-landing-lang .vitalis-seg button {
+  flex: none;
+  padding: 7px 14px;
+  font-size: 12.5px;
+}
+
 .vitalis-landing-logo {
   display: flex;
   align-items: center;

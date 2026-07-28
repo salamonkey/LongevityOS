@@ -6,7 +6,7 @@ import { useTranslation } from '../lib/i18n/index.js';
 import './landing-splash.css';
 
 export default function LandingSplash({ onGetStarted }) {
-  const { t } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
 
   return (
     <AppShell title={null}>
@@ -21,6 +21,16 @@ export default function LandingSplash({ onGetStarted }) {
             {t('landing.cta')}
           </Button>
           <AddToHomeScreen />
+        </div>
+        <div className="vitalis-landing-lang" role="group" aria-label={t('settings.language')}>
+          <div className="vitalis-seg">
+            <button type="button" className={locale === 'de' ? 'is-active' : ''} onClick={() => setLocale('de')}>
+              {t('settings.languageGerman')}
+            </button>
+            <button type="button" className={locale === 'en' ? 'is-active' : ''} onClick={() => setLocale('en')}>
+              {t('settings.languageEnglish')}
+            </button>
+          </div>
         </div>
       </div>
     </AppShell>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { AppShell } from '../features/self-onboarding-to-first-dashboard/components.jsx';
 import { Card, Input, Button, Avatar, Icon, ProgressRing } from '../design-system/components/index.js';
-import { RISK_PROFILE_OPTION_KEYS } from '../features/live-enrollment/RiskProfileStep.jsx';
+import { RISK_PROFILE_OPTION_KEYS } from '../features/live-enrollment/riskProfile.js';
+import { buildStatusQuoGroups } from '../features/live-enrollment/statusQuo.js';
 import { useTranslation } from '../lib/i18n/index.js';
 import './profile-overview-screen.css';
 
@@ -59,11 +60,13 @@ function buildFormFromProfile(profile) {
 
 export default function ProfileOverviewScreen({
   profile,
+  planSnapshot,
   onBack,
   onSaveProfileDetails,
   profileDetailsPending = false,
   profileDetailsError = '',
   onReviewRiskProfile,
+  onReviewStatusQuo,
 }) {
   const { t, locale } = useTranslation();
   const displayName = profile?.name || profile?.displayLabel || '';
@@ -74,12 +77,11 @@ export default function ProfileOverviewScreen({
     setForm(buildFormFromProfile(profile));
   }, [profile]);
 
-  // See the matching note on the dashboard chip: an empty riskFlags array
-  // can't be told apart from "never opened the step" without a dedicated
-  // reviewed-at column, so this treats "no flags saved" as not-reviewed.
   const riskFlags = Array.isArray(profile?.riskFlags) ? profile.riskFlags : [];
-  const riskProfileReviewed = riskFlags.length > 0;
+  const riskProfileReviewedKeys = Array.isArray(profile?.riskProfileReviewedKeys) ? profile.riskProfileReviewedKeys : [];
+  const riskProfileReviewed = riskProfileReviewedKeys.length > 0;
   const strengthPercent = riskProfileReviewed ? 100 : 75;
+  const hasStatusQuoReview = buildStatusQuoGroups(planSnapshot).length > 0;
 
   const pregnancyDuePassed = Boolean(
     profile?.pregnancyDueDate && new Date(`${profile.pregnancyDueDate}T00:00:00.000Z`) < new Date(),
@@ -227,6 +229,23 @@ export default function ProfileOverviewScreen({
           {t('profileOverview.reviewRiskFactors')}
         </Button>
       </Card>
+
+      {hasStatusQuoReview ? (
+        <>
+          <p className="sec-label">{t('profileOverview.statusQuoSectionTitle')}</p>
+          <Card padding={16} className="vitalis-profile-risk-doorway">
+            <span className="vitalis-profile-risk-doorway-icon">
+              <Icon name="check-circle-2" size={22} />
+            </span>
+            <div className="vitalis-profile-risk-doorway-copy">
+              <p className="vitalis-profile-risk-empty">{t('profileOverview.statusQuoDoorwayBody')}</p>
+            </div>
+            <Button type="button" variant="primary" fullWidth onClick={onReviewStatusQuo}>
+              {t('profileOverview.reviewStatusQuo')}
+            </Button>
+          </Card>
+        </>
+      ) : null}
 
       <div className="vitalis-profile-explain">
         <Icon name="info" size={15} color="var(--color-primary-ink)" />

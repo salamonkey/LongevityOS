@@ -75,6 +75,7 @@ function normalizeRuleBand(row) {
     requiredRiskFlags: normalizeRiskFlags(row?.required_risk_flags),
     evidenceTier: normalizeEvidenceTier(row?.evidence_tier),
     uspstfGrade: row?.uspstf_grade ? String(row.uspstf_grade).trim() || null : null,
+    sourceRef: row?.source_ref ? String(row.source_ref).trim() || null : null,
     requiresSharedDecision: Boolean(row?.requires_shared_decision),
   };
 }
@@ -251,6 +252,7 @@ export async function loadPreventiveCatalogFromSupabase(options = {}) {
         required_risk_flags,
         evidence_tier,
         uspstf_grade,
+        source_ref,
         requires_shared_decision
       ),
       preventive_catalog_vaccine_doses (
