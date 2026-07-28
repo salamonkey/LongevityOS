@@ -21,6 +21,7 @@ import {
   saveLivePlanForProfile,
   setLiveActiveProfile,
   setLiveUserLocale,
+  setRiskProfileReviewCadence,
   updateHealthProfile,
   updateHealthProfileRiskFlags,
   listAppointmentsForProfile,
@@ -78,6 +79,16 @@ function replaceViewInUrl(view) {
 
 function resolveActiveProfileFromCollection(profiles, activeProfileId) {
   return profiles.find((profile) => String(profile.profileId) === String(activeProfileId)) ?? null;
+}
+
+function sameStringSet(a, b) {
+  const setA = new Set(Array.isArray(a) ? a : []);
+  const setB = new Set(Array.isArray(b) ? b : []);
+  if (setA.size !== setB.size) return false;
+  for (const value of setA) {
+    if (!setB.has(value)) return false;
+  }
+  return true;
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
@@ -735,6 +746,7 @@ export default function App() {
         ...runtimeProfile,
         riskFlags: saved.riskFlags,
         riskProfileReviewedKeys: saved.riskProfileReviewedKeys,
+        riskProfileReviewedAt: saved.riskProfileReviewedAt,
         pregnancyDueDate: saved.pregnancyDueDate,
       };
       const resolvedCatalog = await ensureCatalogReady();
@@ -774,14 +786,24 @@ export default function App() {
     }
 
     try {
+      // Back/Continue/Später flush this even when the visible answers
+      // haven't actually changed since the last save (e.g. just paging
+      // through an already-reviewed profile) -- only re-stamp the review
+      // timestamp when something genuinely did change, so idly opening and
+      // leaving the wizard can't silently reset the cadence clock.
+      const hasActuallyChanged = !sameStringSet(riskFlags, runtimeProfile.riskFlags)
+        || !sameStringSet(extra.reviewedKeys, runtimeProfile.riskProfileReviewedKeys);
+
       const saved = await updateHealthProfileRiskFlags(runtimeProfile.profileId, riskFlags, {
         pregnancyDueDate: extra.pregnancyDueDate ?? null,
         reviewedKeys: extra.reviewedKeys ?? [],
+        stampReviewedAt: hasActuallyChanged,
       });
       const updatedProfile = {
         ...runtimeProfile,
         riskFlags: saved.riskFlags,
         riskProfileReviewedKeys: saved.riskProfileReviewedKeys,
+        riskProfileReviewedAt: saved.riskProfileReviewedAt ?? runtimeProfile.riskProfileReviewedAt,
         pregnancyDueDate: saved.pregnancyDueDate,
       };
       const resolvedCatalog = await ensureCatalogReady();
@@ -1098,6 +1120,25 @@ export default function App() {
     }
   };
 
+  const handleSetRiskReviewCadence = (cadenceMonths) => {
+    if (!runtimeProfile?.profileId) {
+      return;
+    }
+
+    const updatedProfile = { ...runtimeProfile, riskProfileReviewCadenceMonths: cadenceMonths };
+    setRuntimeProfile(updatedProfile);
+    setLiveState((previous) => ({
+      ...previous,
+      profiles: previous.profiles.map((profile) => (
+        String(profile.profileId) === String(updatedProfile.profileId) ? updatedProfile : profile
+      )),
+    }));
+
+    setRiskProfileReviewCadence(runtimeProfile.profileId, cadenceMonths).catch((error) => {
+      console.warn('Failed to persist risk profile review cadence.', error);
+    });
+  };
+
   const handlePrimaryNavNavigate = (nextView) => {
     setDashboardReturnScrollY(null);
     setActiveView(nextView);
@@ -1276,6 +1317,8 @@ export default function App() {
           profile={runtimeProfile}
           locale={locale}
           onSetLocale={handleSetLocale}
+          riskReviewCadenceMonths={runtimeProfile?.riskProfileReviewCadenceMonths ?? 12}
+          onSetRiskReviewCadence={handleSetRiskReviewCadence}
           onOpenProfiles={() => setShowProfileSheet(true)}
           onOpenProfileOverview={() => {
             setProfileOverviewOrigin('settings');

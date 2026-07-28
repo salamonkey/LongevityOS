@@ -7,6 +7,7 @@ import { buildBodyMapPoints, buildRegionDetailData, resolveRegionRouteForRegionI
 import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
 import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { buildTimelineItems, buildTimelineGroups } from '../plan-timeline/index.js';
+import { computeRiskProfileReviewStatus } from '../live-enrollment/riskProfile.js';
 
 // Temporal bucket -> icon tone, reusing the app's existing status tokens
 // (blue/due-now for today, amber/upcoming for soon) rather than the item's
@@ -343,6 +344,13 @@ export default function SelfOnboardingToFirstDashboard({
   const soonItems = projection.sections.find((section) => section.priority === 'soon')?.items ?? [];
   const riskProfileReviewedKeys = Array.isArray(profile?.riskProfileReviewedKeys) ? profile.riskProfileReviewedKeys : [];
   const riskProfileReviewed = riskProfileReviewedKeys.length > 0;
+  const riskProfileReviewStatus = computeRiskProfileReviewStatus({
+    reviewedKeys: riskProfileReviewedKeys,
+    reviewedAt: profile?.riskProfileReviewedAt,
+    cadenceMonths: profile?.riskProfileReviewCadenceMonths,
+    now,
+  });
+  const riskProfileStale = riskProfileReviewStatus.state === 'due' || riskProfileReviewStatus.state === 'overdue';
 
   return (
     <>
@@ -369,15 +377,22 @@ export default function SelfOnboardingToFirstDashboard({
             <div className="vitalis-dash-hero-copy">
               <h3 className="vitalis-dash-card-title">{t('bodyRegions.title')}</h3>
               {typeof onOpenRiskProfile === 'function' ? (
-                <button
-                  type="button"
-                  className={`vitalis-risk-chip ${riskProfileReviewed ? 'is-reviewed' : 'is-unreviewed'}`}
-                  onClick={onOpenRiskProfile}
-                >
-                  <span className="vitalis-risk-chip-dot" aria-hidden="true" />
-                  {t('dashboard.riskProfileCta')}
-                  <Icon name="chevron-right" size={14} color="var(--text-muted)" />
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className={`vitalis-risk-chip ${riskProfileStale ? 'is-stale' : (riskProfileReviewed ? 'is-reviewed' : 'is-unreviewed')}`}
+                    onClick={onOpenRiskProfile}
+                  >
+                    <span className="vitalis-risk-chip-dot" aria-hidden="true" />
+                    {riskProfileStale ? t('dashboard.riskProfileCtaStale') : t('dashboard.riskProfileCta')}
+                    <Icon name="chevron-right" size={14} color="var(--text-muted)" />
+                  </button>
+                  {riskProfileReviewed && riskProfileReviewStatus.monthsSinceReview !== null ? (
+                    <p className={`vitalis-risk-chip-caption ${riskProfileStale ? 'is-stale' : ''}`}>
+                      {t('dashboard.riskProfileReviewedCaption', { months: riskProfileReviewStatus.monthsSinceReview })}
+                    </p>
+                  ) : null}
+                </>
               ) : null}
             </div>
             <div className="vitalis-dash-hero-ring-card">
@@ -405,6 +420,21 @@ export default function SelfOnboardingToFirstDashboard({
           {bodyMapPoints.length > 0 ? (
             <div className="vitalis-dash-hero-bodymap">
               <BodyMap points={bodyMapPoints} sex={sex} onOpen={setOpenRegionId} showLegend={false} />
+            </div>
+          ) : null}
+
+          {riskProfileReviewStatus.state === 'overdue' && typeof onOpenRiskProfile === 'function' ? (
+            <div className="vitalis-risk-nudge">
+              <Icon name="triangle-alert" size={18} color="var(--status-upcoming)" />
+              <div>
+                <p className="vitalis-risk-nudge-title">{t('dashboard.riskProfileNudgeTitle')}</p>
+                <p className="vitalis-risk-nudge-body">
+                  {t('dashboard.riskProfileNudgeBody', { months: riskProfileReviewStatus.monthsSinceReview })}
+                </p>
+                <button type="button" className="vitalis-risk-nudge-cta" onClick={onOpenRiskProfile}>
+                  {t('dashboard.riskProfileNudgeCta')}
+                </button>
+              </div>
             </div>
           ) : null}
         </Card>

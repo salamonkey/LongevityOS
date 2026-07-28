@@ -28,6 +28,7 @@ function normalizeProfileForRules(profile = {}) {
   const normalizedGender = String(profile.gender ?? profile.sex ?? '')
     .trim()
     .toLowerCase();
+  const normalizedGuidelineCountryCode = String(profile.guidelineCountryCode ?? '').trim().toUpperCase() || null;
 
   const ageMonthsFromBirthdate = profile.birthdate
     ? resolveAgeInMonthsFromBirthdate(profile.birthdate)
@@ -41,7 +42,22 @@ function normalizeProfileForRules(profile = {}) {
     age: normalizedAge,
     ageMonths: normalizedAgeMonths,
     gender: normalizedGender,
+    guidelineCountryCode: normalizedGuidelineCountryCode,
   };
+}
+
+// A band/dose with no country_code declared is universal (applies
+// regardless of the profile's selected guideline country) -- distinct from
+// an explicit country tag, which only matches a profile that selected that
+// same guideline country. Every real catalog row today is explicitly
+// tagged 'CH' (see 20260805120000); the universal branch mainly exists so
+// truly country-agnostic content can be added later without needing a tag
+// for every guideline country it happens to apply to.
+function matchesGuidelineCountry(band, profile) {
+  if (!band?.countryCode) {
+    return true;
+  }
+  return band.countryCode === profile.guidelineCountryCode;
 }
 
 // Returns every band whose gender/age range matches the profile (not just the first),
@@ -58,6 +74,7 @@ function findMatchingRuleBandCandidates(ruleBands, profile) {
     band.gender === profile.gender
     && profile.age >= band.minAge
     && profile.age <= band.maxAge
+    && matchesGuidelineCountry(band, profile)
   ));
 }
 
@@ -77,7 +94,8 @@ function findMatchingVaccineDoseCandidates(vaccineDoses, profile) {
   }
 
   const genderMatches = vaccineDoses.filter((dose) => (
-    dose.gender === profile.gender || dose.gender === 'both'
+    (dose.gender === profile.gender || dose.gender === 'both')
+    && matchesGuidelineCountry(dose, profile)
   ));
 
   const inRange = genderMatches.filter((dose) => (
@@ -121,13 +139,22 @@ function normalizeProfileRiskFlags(profile = {}) {
   return flags;
 }
 
-function hasRequiredRiskFlags(catalogItem, matchedBand, profileRiskFlags) {
+// Band-level required_risk_flags takes priority; an empty band falls back to
+// the item-level column. Exposed separately from hasRequiredRiskFlags so the
+// caller can record *which* flags actually justified a match onto the
+// generated item (see matchedRiskFlags below) -- previously this set was
+// computed only to be thrown away once the boolean check passed.
+function resolveRequiredRiskFlags(catalogItem, matchedBand) {
   const bandRequired = Array.isArray(matchedBand?.requiredRiskFlags)
     ? matchedBand.requiredRiskFlags
     : [];
-  const required = bandRequired.length > 0
+  return bandRequired.length > 0
     ? bandRequired
     : (Array.isArray(catalogItem?.requiredRiskFlags) ? catalogItem.requiredRiskFlags : []);
+}
+
+function hasRequiredRiskFlags(catalogItem, matchedBand, profileRiskFlags) {
+  const required = resolveRequiredRiskFlags(catalogItem, matchedBand);
 
   if (required.length === 0) {
     return true;
@@ -294,6 +321,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
     let priorityOrder;
     let recurrenceDays;
     let initialDueDate;
+    let matchedRiskFlags;
 
     if (isVaccination) {
       // Vaccine dose bands use age-in-months and can carry dose-sequence/risk-
@@ -306,6 +334,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
         continue;
       }
 
+      matchedRiskFlags = resolveRequiredRiskFlags(catalogItem, matchedDose);
       effectiveCadence = {
         cadenceLabel: matchedDose.cadenceLabel ?? catalogItem.cadenceLabel,
         recurrence: { intervalDays: matchedDose.recurrenceIntervalDays },
@@ -329,6 +358,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
         continue;
       }
 
+      matchedRiskFlags = resolveRequiredRiskFlags(catalogItem, matchedBand);
       effectiveCadence = resolveEffectiveCadenceForItem(catalogItem, matchedBand);
       evidenceTier = matchedBand.evidenceTier ?? null;
       uspstfGrade = matchedBand.uspstfGrade ?? null;
@@ -376,6 +406,7 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
       sourceRef,
       evidenceNote,
       requiresSharedDecision,
+      matchedRiskFlags,
       targetAge: Math.round(targetAgeForSort),
       priorityOrder,
       initialDueDate: initialDueDate.toISOString(),
@@ -394,6 +425,105 @@ export function generateInitialPlanSnapshot(profile, options = {}) {
     generatedAt: nowIso,
     items,
   };
+}
+
+// Which of the four matching dimensions (gender/age/country/risk flags) a
+// single band fails on for this profile -- an empty array means the band
+// actually matches (shouldn't happen for a band chosen as "closest" to a
+// genuinely non-applicable item, but kept honest rather than assumed).
+function resolveBandMismatchReasons(band, profile, catalogItem, profileRiskFlags, isVaccination) {
+  const reasons = [];
+
+  const genderOk = isVaccination
+    ? (band.gender === profile.gender || band.gender === 'both')
+    : (band.gender === profile.gender);
+  if (!genderOk) {
+    reasons.push('gender');
+  }
+
+  const ageOk = isVaccination
+    ? (profile.ageMonths >= band.ageMinMonths && profile.ageMonths <= band.ageMaxMonths)
+    : (profile.age >= band.minAge && profile.age <= band.maxAge);
+  if (!ageOk) {
+    reasons.push('age');
+  }
+
+  if (!matchesGuidelineCountry(band, profile)) {
+    reasons.push('country');
+  }
+
+  if (!hasRequiredRiskFlags(catalogItem, band, profileRiskFlags)) {
+    reasons.push('risk_flag');
+  }
+
+  return reasons;
+}
+
+// The mirror image of generateInitialPlanSnapshot: for every catalog item
+// that ISN'T in the plan, explain why not, so the Vorsorge page can show a
+// "not applicable" list alongside the real one instead of silently omitting
+// these items. For each excluded item, picks its single closest band (the
+// one failing on the fewest dimensions) as the basis for the explanation --
+// deliberately independent from generateInitialPlanSnapshot's own matching
+// loop (some logic is duplicated) rather than refactoring that already-
+// tested path, since a bug here should never risk breaking real plan
+// generation.
+export function resolveNonApplicableCatalogItems(profile, options = {}) {
+  const catalog = Array.isArray(options.catalog) ? options.catalog : getRuntimeCatalog();
+  const normalizedProfile = normalizeProfileForRules(profile);
+  const profileRiskFlags = normalizeProfileRiskFlags(profile);
+
+  if (!Number.isFinite(normalizedProfile.age) || !ALLOWED_RULE_GENDERS.has(normalizedProfile.gender)) {
+    return [];
+  }
+
+  const results = [];
+
+  for (const catalogItem of catalog) {
+    const isVaccination = catalogItem.category === 'vaccination';
+    const bands = isVaccination ? catalogItem.vaccineDoses : catalogItem.ruleBands;
+    if (!Array.isArray(bands) || bands.length === 0) {
+      continue;
+    }
+
+    const matchedBand = isVaccination
+      ? findMatchingVaccineDoseCandidates(bands, normalizedProfile).find((dose) => hasRequiredRiskFlags(catalogItem, dose, profileRiskFlags))
+      : findMatchingRuleBandCandidates(bands, normalizedProfile).find((band) => hasRequiredRiskFlags(catalogItem, band, profileRiskFlags));
+    if (matchedBand) {
+      continue;
+    }
+
+    let bestReasons = null;
+    let bestBand = null;
+    for (const band of bands) {
+      const reasons = resolveBandMismatchReasons(band, normalizedProfile, catalogItem, profileRiskFlags, isVaccination);
+      if (!bestReasons || reasons.length < bestReasons.length) {
+        bestReasons = reasons;
+        bestBand = band;
+      }
+    }
+    if (!bestBand) {
+      continue;
+    }
+
+    results.push({
+      catalogItemId: catalogItem.itemId,
+      name: catalogItem.name,
+      category: catalogItem.category,
+      whyItMatters: catalogItem.whyItMatters,
+      recommendationText: catalogItem.recommendationText,
+      cadenceLabel: bestBand.cadenceLabel ?? catalogItem.cadenceLabel,
+      recurrenceIntervalDays: Number.isFinite(Number(bestBand.recurrenceIntervalDays)) ? Number(bestBand.recurrenceIntervalDays) : null,
+      evidenceTier: bestBand.evidenceTier ?? null,
+      uspstfGrade: bestBand.uspstfGrade ?? null,
+      sourceRef: bestBand.sourceRef ?? null,
+      reasons: bestReasons,
+      requiredRiskFlags: resolveRequiredRiskFlags(catalogItem, bestBand),
+      targetAge: Math.round(isVaccination ? bestBand.targetAgeMonths / 12 : bestBand.targetAge),
+    });
+  }
+
+  return results;
 }
 
 export async function generateInitialPlanSnapshotAsync(profile, options = {}) {

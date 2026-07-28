@@ -55,7 +55,6 @@ export const REGION_ID_BY_ITEM_KEY = Object.freeze({
   'chlamydia-gonorrhea-screening': 'cancer-organ-screening',
   // Mental & social health
   'depression-screening': 'mental-social',
-  'anxiety-screening': 'mental-social',
   'domestic-violence-screening': 'mental-social',
   'illicit-drug-use-counseling': 'mental-social',
   'alcohol-use-screening': 'mental-social',

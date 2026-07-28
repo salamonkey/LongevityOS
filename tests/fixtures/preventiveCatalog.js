@@ -535,30 +535,6 @@ export const TEST_PREVENTIVE_CATALOG = Object.freeze([
     ]
   },
   {
-    "itemId": "anxiety-screening",
-    "name": "Anxiety screening",
-    "category": "checkup",
-    "effortLevel": "low",
-    "cadenceLabel": "Periodic screening",
-    "whyItMatters": "Early screening can surface anxiety symptoms and connect you to evidence-based care.",
-    "ruleBands": [
-      {
-        "gender": "female",
-        "minAge": 18,
-        "maxAge": 64,
-        "targetAge": 18,
-        "priorityOrder": 3
-      },
-      {
-        "gender": "male",
-        "minAge": 18,
-        "maxAge": 64,
-        "targetAge": 18,
-        "priorityOrder": 3
-      }
-    ]
-  },
-  {
     "itemId": "hiv-screening",
     "name": "HIV screening",
     "category": "checkup",

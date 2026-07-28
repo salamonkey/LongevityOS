@@ -131,3 +131,58 @@ export function buildInitialAnswers(initialRiskFlags, initialReviewedKeys) {
   });
   return answers;
 }
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DAYS_PER_MONTH = 30;
+
+// Allowed cadence choices for the Settings segmented control; 0 means "Nie"
+// (never remind, always reads as fresh regardless of how old the review is).
+export const RISK_PROFILE_REVIEW_CADENCE_OPTIONS = Object.freeze([0, 6, 12]);
+export const DEFAULT_RISK_PROFILE_REVIEW_CADENCE_MONTHS = 12;
+
+// Reduces reviewedKeys/reviewedAt/cadence down to one of four states driving
+// the dashboard pill and profile-strength card. A profile with zero answered
+// questions is "unreviewed" regardless of cadence -- there's nothing to go
+// stale yet, and the existing "Risikoprofil erfassen" CTA already covers it.
+// Once at least one question has been answered (including partially --
+// per product decision, staleness applies to partially-reviewed profiles
+// too, not just fully-completed ones), cadence takes over: "fresh" inside
+// the cadence window, "due" once past it, "overdue" once past 2x the
+// cadence (the point where the dashboard nudge banner joins the pill).
+export function computeRiskProfileReviewStatus({ reviewedKeys, reviewedAt, cadenceMonths, now } = {}) {
+  const reviewedSet = Array.isArray(reviewedKeys) ? reviewedKeys : [];
+  const nowDate = now instanceof Date ? now : new Date(now ?? Date.now());
+
+  if (reviewedSet.length === 0) {
+    return { state: 'unreviewed', monthsSinceReview: null };
+  }
+
+  const normalizedCadence = Number(cadenceMonths);
+  const cadence = RISK_PROFILE_REVIEW_CADENCE_OPTIONS.includes(normalizedCadence)
+    ? normalizedCadence
+    : DEFAULT_RISK_PROFILE_REVIEW_CADENCE_MONTHS;
+
+  if (cadence === 0) {
+    return { state: 'fresh', monthsSinceReview: null };
+  }
+
+  const reviewedDate = reviewedAt ? new Date(reviewedAt) : null;
+  if (!reviewedDate || Number.isNaN(reviewedDate.getTime())) {
+    // A reviewed profile with no timestamp (shouldn't happen after the
+    // backfill migration, but defensive) reads as due rather than crashing
+    // or silently reading as fresh.
+    return { state: 'due', monthsSinceReview: null };
+  }
+
+  const elapsedDays = Math.max(0, (nowDate.getTime() - reviewedDate.getTime()) / MS_PER_DAY);
+  const monthsSinceReview = Math.floor(elapsedDays / DAYS_PER_MONTH);
+  const cadenceDays = cadence * DAYS_PER_MONTH;
+
+  if (elapsedDays < cadenceDays) {
+    return { state: 'fresh', monthsSinceReview };
+  }
+  if (elapsedDays < cadenceDays * 2) {
+    return { state: 'due', monthsSinceReview };
+  }
+  return { state: 'overdue', monthsSinceReview };
+}

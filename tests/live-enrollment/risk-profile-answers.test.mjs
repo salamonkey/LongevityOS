@@ -5,6 +5,7 @@ import {
   RISK_PROFILE_OPTION_GROUPS,
   buildInitialAnswers,
   findFirstIncompleteStep,
+  computeRiskProfileReviewStatus,
 } from '../../src/features/live-enrollment/riskProfile.js';
 
 function keyFor(optionValue) {
@@ -70,4 +71,69 @@ test('a fully-reviewed first section skips ahead to the next section with an una
 test('a fully-reviewed profile has nowhere left to jump to, so it restarts at the first section', () => {
   const everyKey = RISK_PROFILE_OPTION_GROUPS.flatMap((group) => group.options.map((option) => option.value));
   assert.equal(findFirstIncompleteStep(everyKey), 0);
+});
+
+test('a profile with no answered questions is "unreviewed" regardless of cadence or reviewedAt', () => {
+  const status = computeRiskProfileReviewStatus({
+    reviewedKeys: [],
+    reviewedAt: '2020-01-01T00:00:00.000Z',
+    cadenceMonths: 12,
+    now: new Date('2026-01-01T00:00:00.000Z'),
+  });
+  assert.equal(status.state, 'unreviewed');
+  assert.equal(status.monthsSinceReview, null);
+});
+
+// This is the exact case the user's feedback centered on: a profile that has
+// answered some but not all questions should still go stale on the same
+// cadence as a fully-reviewed one, not be exempted just for being partial.
+test('a partially-reviewed profile still goes stale once past cadence', () => {
+  const status = computeRiskProfileReviewStatus({
+    reviewedKeys: ['smoker_current_or_former'],
+    reviewedAt: '2025-01-01T00:00:00.000Z',
+    cadenceMonths: 12,
+    now: new Date('2026-02-01T00:00:00.000Z'),
+  });
+  assert.equal(status.state, 'due');
+});
+
+test('a reviewed profile within its cadence window is fresh', () => {
+  const status = computeRiskProfileReviewStatus({
+    reviewedKeys: ['smoker_current_or_former'],
+    reviewedAt: '2026-01-01T00:00:00.000Z',
+    cadenceMonths: 12,
+    now: new Date('2026-03-01T00:00:00.000Z'),
+  });
+  assert.equal(status.state, 'fresh');
+  assert.equal(status.monthsSinceReview, 1);
+});
+
+test('a reviewed profile past its cadence but under 2x is due, not overdue', () => {
+  const status = computeRiskProfileReviewStatus({
+    reviewedKeys: ['smoker_current_or_former'],
+    reviewedAt: '2025-01-01T00:00:00.000Z',
+    cadenceMonths: 6,
+    now: new Date('2025-08-01T00:00:00.000Z'),
+  });
+  assert.equal(status.state, 'due');
+});
+
+test('a reviewed profile past 2x its cadence is overdue', () => {
+  const status = computeRiskProfileReviewStatus({
+    reviewedKeys: ['smoker_current_or_former'],
+    reviewedAt: '2025-01-01T00:00:00.000Z',
+    cadenceMonths: 6,
+    now: new Date('2026-02-01T00:00:00.000Z'),
+  });
+  assert.equal(status.state, 'overdue');
+});
+
+test('cadence "0" (Nie) always reads as fresh, no matter how old the review is', () => {
+  const status = computeRiskProfileReviewStatus({
+    reviewedKeys: ['smoker_current_or_former'],
+    reviewedAt: '2015-01-01T00:00:00.000Z',
+    cadenceMonths: 0,
+    now: new Date('2026-01-01T00:00:00.000Z'),
+  });
+  assert.equal(status.state, 'fresh');
 });

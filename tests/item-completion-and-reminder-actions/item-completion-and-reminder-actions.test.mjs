@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generateInitialPlanSnapshot } from '../../src/features/self-onboarding-to-first-dashboard/plan.js';
+import { generateInitialPlanSnapshot, resolveNonApplicableCatalogItems } from '../../src/features/self-onboarding-to-first-dashboard/plan.js';
 import {
   buildDashboardProjectionForSlice,
   buildPlanReadModelForSlice,
@@ -9,6 +9,7 @@ import {
   selectHighlightedItemTodayThenSoon,
 } from '../../src/features/item-completion-and-reminder-actions/selectors.js';
 import {
+  adoptCatalogItemToSnapshot,
   clearItemOptOutInSnapshot,
   markItemDoneInSnapshot,
   scheduleItemReminderInSnapshot,
@@ -482,4 +483,38 @@ test('done one-time item does not outrank reminder-scheduled pending item', () =
     readModel.checkups.map((item) => item.itemKey),
     ['blood-pressure-check', 'hepatitis-c-screening'],
   );
+});
+
+test('adopting a non-applicable catalog item adds it with its real catalog copy, tagged manually-adopted', () => {
+  const profile = createProfile();
+  const snapshot = createSnapshot();
+  const options = withTestCatalogOptions({ now: new Date('2026-05-05T08:00:00.000Z') });
+
+  const nonApplicable = resolveNonApplicableCatalogItems(profile, options);
+  const hiv = nonApplicable.find((entry) => entry.catalogItemId === 'hiv-screening');
+  assert.ok(hiv, 'hiv-screening should be non-applicable for a profile with no hiv risk flag');
+
+  const result = adoptCatalogItemToSnapshot(snapshot, profile.profileId, hiv);
+  const adopted = result.planSnapshot.items.find((item) => item.catalogItemId === 'hiv-screening');
+
+  assert.ok(adopted);
+  assert.equal(adopted.source, 'manually-adopted');
+  assert.equal(adopted.name, hiv.name);
+  assert.equal(adopted.whyItMatters, hiv.whyItMatters);
+  assert.equal(adopted.sourceRef, hiv.sourceRef);
+  assert.equal(adopted.status, 'pending');
+});
+
+test('adopting an item already in the plan throws instead of creating a duplicate', () => {
+  const profile = createProfile();
+  const snapshot = createSnapshot();
+  const existingItem = snapshot.items[0];
+
+  assert.throws(() => (
+    adoptCatalogItemToSnapshot(snapshot, profile.profileId, {
+      catalogItemId: existingItem.catalogItemId,
+      name: existingItem.name,
+      category: existingItem.category,
+    })
+  ));
 });

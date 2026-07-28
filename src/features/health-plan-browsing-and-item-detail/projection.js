@@ -57,6 +57,7 @@ function toDefinitionFromGeneratedItem(generatedItem) {
     evidenceNote: generatedItem?.evidenceNote ?? null,
     targetAge: Number.isFinite(generatedItem?.targetAge) ? generatedItem.targetAge : null,
     requiresSharedDecision: Boolean(generatedItem?.requiresSharedDecision),
+    matchedRiskFlags: Array.isArray(generatedItem?.matchedRiskFlags) ? generatedItem.matchedRiskFlags : [],
   };
 }
 
@@ -81,6 +82,7 @@ function toViewItem(generatedItem, definition) {
     evidenceNote: definition.evidenceNote ?? null,
     targetAge: definition.targetAge ?? null,
     requiresSharedDecision: Boolean(definition.requiresSharedDecision),
+    matchedRiskFlags: Array.isArray(definition.matchedRiskFlags) ? definition.matchedRiskFlags : [],
   };
 }
 

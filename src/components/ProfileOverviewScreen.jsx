@@ -3,6 +3,8 @@ import { AppShell } from '../features/self-onboarding-to-first-dashboard/compone
 import { Card, Input, Button, Avatar, Icon, ProgressRing } from '../design-system/components/index.js';
 import { RISK_PROFILE_OPTION_KEYS } from '../features/live-enrollment/riskProfile.js';
 import { buildStatusQuoGroups } from '../features/live-enrollment/statusQuo.js';
+import { calculateHealthScore } from '../features/self-onboarding-to-first-dashboard/dashboard.js';
+import { computeProfileStrength } from './profileStrength.js';
 import { useTranslation } from '../lib/i18n/index.js';
 import './profile-overview-screen.css';
 
@@ -79,8 +81,14 @@ export default function ProfileOverviewScreen({
 
   const riskFlags = Array.isArray(profile?.riskFlags) ? profile.riskFlags : [];
   const riskProfileReviewedKeys = Array.isArray(profile?.riskProfileReviewedKeys) ? profile.riskProfileReviewedKeys : [];
-  const riskProfileReviewed = riskProfileReviewedKeys.length > 0;
-  const strengthPercent = riskProfileReviewed ? 100 : 75;
+  const healthScore = calculateHealthScore(planSnapshot?.items ?? []);
+  const profileStrength = computeProfileStrength({
+    reviewedKeys: riskProfileReviewedKeys,
+    reviewedAt: profile?.riskProfileReviewedAt,
+    cadenceMonths: profile?.riskProfileReviewCadenceMonths,
+    healthScore,
+  });
+  const { strengthPercent, showExplanation: strengthShowExplanation, explanationKey: strengthExplanationKey } = profileStrength;
   const hasStatusQuoReview = buildStatusQuoGroups(planSnapshot).length > 0;
 
   const pregnancyDuePassed = Boolean(
@@ -136,17 +144,17 @@ export default function ProfileOverviewScreen({
           value={strengthPercent}
           size={44}
           stroke={5}
-          color="var(--color-secondary)"
+          color={strengthShowExplanation ? 'var(--status-upcoming)' : 'var(--color-secondary)'}
           label={<span className="vitalis-profile-strength-pct">{strengthPercent}%</span>}
         />
         <div className="vitalis-profile-strength-copy">
           <p className="vitalis-profile-strength-t1">
-            {riskProfileReviewed ? t('profileOverview.strengthGood') : t('profileOverview.strengthPartial')}
+            {strengthShowExplanation ? t('profileOverview.strengthPartial') : t('profileOverview.strengthGood')}
           </p>
           <p className="vitalis-profile-strength-t2">
-            {riskProfileReviewed
-              ? t('profileOverview.strengthCopyReviewed')
-              : t('profileOverview.strengthCopyUnreviewed')}
+            {strengthShowExplanation
+              ? t(strengthExplanationKey)
+              : t('profileOverview.strengthCopyReviewed')}
           </p>
         </div>
       </Card>

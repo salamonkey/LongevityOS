@@ -236,6 +236,64 @@
   background: var(--color-secondary);
 }
 
+.vitalis-risk-chip.is-stale {
+  background: var(--status-upcoming-soft);
+  color: var(--status-upcoming-ink, #7a5411);
+}
+
+.vitalis-risk-chip.is-stale .vitalis-risk-chip-dot {
+  background: var(--status-upcoming);
+}
+
+.vitalis-risk-chip-caption {
+  margin: 4px 2px 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.vitalis-risk-chip-caption.is-stale {
+  color: var(--status-upcoming);
+  font-weight: 600;
+}
+
+.vitalis-risk-nudge {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--status-upcoming-soft);
+  border-radius: var(--radius-md);
+  padding: 12px 13px;
+  margin-top: 12px;
+}
+
+.vitalis-risk-nudge-title {
+  margin: 0 0 2px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--status-upcoming-ink, #7a5411);
+}
+
+.vitalis-risk-nudge-body {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--status-upcoming-ink, #7a5411);
+}
+
+.vitalis-risk-nudge-cta {
+  margin-top: 8px;
+  border: none;
+  background: var(--surface-card);
+  color: var(--status-upcoming-ink, #7a5411);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
 .vitalis-dash-hero-bodymap {
   margin-top: 6px;
   position: relative;

@@ -43,6 +43,7 @@ import {
   Stethoscope,
   Syringe,
   TrendingUp,
+  TriangleAlert,
   Upload,
   User,
   Users,
@@ -102,6 +103,7 @@ const ICONS_BY_NAME = Object.freeze({
   settings: Settings,
   shield: Shield,
   'trending-up': TrendingUp,
+  'triangle-alert': TriangleAlert,
   users: Users,
 });
 

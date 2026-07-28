@@ -1,0 +1,17 @@
+-- Angst-Screening (anxiety-screening) isn't part of either Swiss reference
+-- source this catalog currently follows -- EviPrev 2023 (Unisanté) or the
+-- BAG Impfplan. It's USPSTF-only (already noted in this repo's own
+-- 20260730120000 migration comment) and never had a real source_ref or
+-- uspstf_grade populated, so it has shown with zero citation since it was
+-- added. Removing it rather than leaving an uncited item, since Vitalis is
+-- currently scoped to Switzerland only.
+--
+-- Cascades to its preventive_catalog_rule_bands and
+-- preventive_catalog_item_translations rows (both FK'd to this table with
+-- on delete cascade). plan_items.catalog_item_id is a plain text column,
+-- not a foreign key, so existing users' plan_items rows referencing this
+-- item are untouched here -- they self-heal the next time that profile's
+-- plan regenerates and saves (the item simply won't be in the generated
+-- catalog to match against), the same mechanism already relied on for the
+-- tobacco/hepatitis/HIV gating fixes this cycle.
+delete from public.preventive_catalog_items where item_id = 'anxiety-screening';

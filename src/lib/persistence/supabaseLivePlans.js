@@ -74,10 +74,15 @@ function toRuntimeProfile(row) {
     gender: row.gender,
     birthdate: row.birthdate,
     countryCode: row.country_code,
+    guidelineCountryCode: row.guideline_country_code ?? 'CH',
     heightCm: Number(row.height_cm),
     weightKg: Number(row.weight_kg),
     riskFlags: normalizeRiskFlagsInput(row.risk_flags),
     riskProfileReviewedKeys: normalizeRiskFlagsInput(row.risk_profile_reviewed_keys),
+    riskProfileReviewedAt: row.risk_profile_reviewed_at ?? null,
+    riskProfileReviewCadenceMonths: Number.isFinite(Number(row.risk_profile_review_cadence_months))
+      ? Number(row.risk_profile_review_cadence_months)
+      : 12,
     pregnancyDueDate: row.pregnancy_due_date ?? null,
     createdAt: row.created_at,
   };
@@ -132,6 +137,7 @@ function toPlanSnapshot(profileId, planRow, itemRows = []) {
       uspstfGrade: itemRow.uspstf_grade,
       sourceRef: itemRow.source_ref ?? null,
       requiresSharedDecision: Boolean(itemRow.requires_shared_decision),
+      matchedRiskFlags: normalizeRiskFlagsInput(itemRow.matched_risk_flags),
       targetAge: itemRow.target_age,
       priorityOrder: itemRow.priority_order,
       initialDueDate: toIsoDateString(itemRow.initial_due_date),
@@ -164,6 +170,7 @@ function toPlanItemRow(planId, item) {
     uspstf_grade: item.uspstfGrade ?? null,
     source_ref: item.sourceRef ?? null,
     requires_shared_decision: Boolean(item.requiresSharedDecision),
+    matched_risk_flags: normalizeRiskFlagsInput(item.matchedRiskFlags),
     recurrence_interval_days: Number.isFinite(Number(item?.recurrence?.intervalDays))
       ? Number(item.recurrence.intervalDays)
       : null,
@@ -200,6 +207,12 @@ function toPlanItemMutableUpdateRow(item, updatedAtIso) {
     opt_out_preset: item?.optOut?.preset ?? null,
     opt_out_until: item?.optOut?.until ?? null,
     opt_out_decided_on: item?.optOut?.decidedOn ?? null,
+    // Which risk flag(s) justified this item's inclusion can genuinely
+    // change between plan regenerations (e.g. a re-answered risk profile
+    // matches a different OR'd rule-band row), unlike the other fields in
+    // this row which reflect user actions -- included here so a
+    // regeneration-only change still gets persisted.
+    matched_risk_flags: normalizeRiskFlagsInput(item.matchedRiskFlags),
     updated_at: updatedAtIso,
   };
 }
@@ -211,7 +224,21 @@ function normalizeComparisonValue(value) {
   return value;
 }
 
+function arraysEqualAsSets(a, b) {
+  const setA = new Set(Array.isArray(a) ? a : []);
+  const setB = new Set(Array.isArray(b) ? b : []);
+  if (setA.size !== setB.size) return false;
+  for (const value of setA) {
+    if (!setB.has(value)) return false;
+  }
+  return true;
+}
+
 function hasMutablePlanItemChanges(existingRow, mutableUpdateRow) {
+  if (!arraysEqualAsSets(existingRow?.matched_risk_flags, mutableUpdateRow?.matched_risk_flags)) {
+    return true;
+  }
+
   const fields = [
     'status',
     'completed_on',
@@ -562,15 +589,29 @@ export async function updateHealthProfileRiskFlags(profileId, riskFlags, options
     ...(Array.isArray(options.reviewedKeys) ? options.reviewedKeys : []),
   ]);
   const pregnancyDueDate = options.pregnancyDueDate ? String(options.pregnancyDueDate).trim() : null;
+  // The explicit "Speichern" always re-stamps the review timestamp cadence
+  // staleness is computed from. The wizard's background autosave (fired on
+  // every Back/Continue/Später step, even ones where nothing was actually
+  // answered) only re-stamps it when the caller has determined the
+  // flags/reviewedKeys actually changed -- otherwise just paging through an
+  // already-reviewed profile without touching anything would silently
+  // un-stale it, defeating the point of the cadence nudge.
+  const shouldStampReviewedAt = options.stampReviewedAt !== false;
+  const reviewedAtIso = new Date().toISOString();
+
+  const patch = {
+    risk_flags: normalizedRiskFlags,
+    risk_profile_reviewed_keys: normalizedReviewedKeys,
+    pregnancy_due_date: pregnancyDueDate || null,
+    updated_at: new Date().toISOString(),
+  };
+  if (shouldStampReviewedAt) {
+    patch.risk_profile_reviewed_at = reviewedAtIso;
+  }
 
   const { error } = await client
     .from('health_profiles')
-    .update({
-      risk_flags: normalizedRiskFlags,
-      risk_profile_reviewed_keys: normalizedReviewedKeys,
-      pregnancy_due_date: pregnancyDueDate || null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq('id', normalizedProfileId);
 
   if (error) {
@@ -580,8 +621,38 @@ export async function updateHealthProfileRiskFlags(profileId, riskFlags, options
   return {
     riskFlags: normalizedRiskFlags,
     riskProfileReviewedKeys: normalizedReviewedKeys,
+    riskProfileReviewedAt: shouldStampReviewedAt ? reviewedAtIso : undefined,
     pregnancyDueDate: pregnancyDueDate || null,
   };
+}
+
+const ALLOWED_RISK_REVIEW_CADENCE_MONTHS = [0, 6, 12];
+
+export async function setRiskProfileReviewCadence(profileId, cadenceMonths) {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const normalizedProfileId = parseProfileId(profileId);
+  const normalizedCadence = Number(cadenceMonths);
+  if (!ALLOWED_RISK_REVIEW_CADENCE_MONTHS.includes(normalizedCadence)) {
+    throw new Error('Unsupported risk profile review cadence.');
+  }
+
+  const { error } = await client
+    .from('health_profiles')
+    .update({
+      risk_profile_review_cadence_months: normalizedCadence,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', normalizedProfileId);
+
+  if (error) {
+    throw error;
+  }
+
+  return { riskProfileReviewCadenceMonths: normalizedCadence };
 }
 
 export async function updateHealthProfile(profileId, updates = {}, options = {}) {
@@ -748,10 +819,15 @@ export async function createLiveEnrollmentAndPlan(input, options = {}) {
     gender,
     birthdate,
     countryCode,
+    guidelineCountryCode: profileRow.guideline_country_code ?? 'CH',
     heightCm,
     weightKg,
     riskFlags,
     riskProfileReviewedKeys: normalizeRiskFlagsInput(profileRow.risk_profile_reviewed_keys),
+    riskProfileReviewedAt: profileRow.risk_profile_reviewed_at ?? null,
+    riskProfileReviewCadenceMonths: Number.isFinite(Number(profileRow.risk_profile_review_cadence_months))
+      ? Number(profileRow.risk_profile_review_cadence_months)
+      : 12,
     createdAt: profileRow.created_at,
     onboardingCompletedAt: now.toISOString(),
   };

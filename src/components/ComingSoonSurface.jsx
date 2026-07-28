@@ -16,7 +16,7 @@ export default function ComingSoonSurface() {
             <p className="vitalis-hero-title">{t('safe.heroTitle')}</p>
           </div>
           <span className="vitalis-hero-icon-chip" style={{ background: 'var(--status-done-soft)', color: 'var(--status-done)' }}>
-            <Icon name="shield-check" size={18} />
+            <Icon name="lock" size={18} />
           </span>
         </div>
       </Card>

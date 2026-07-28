@@ -77,6 +77,7 @@ function normalizeRuleBand(row) {
     uspstfGrade: row?.uspstf_grade ? String(row.uspstf_grade).trim() || null : null,
     sourceRef: row?.source_ref ? String(row.source_ref).trim() || null : null,
     requiresSharedDecision: Boolean(row?.requires_shared_decision),
+    countryCode: row?.country_code ? String(row.country_code).trim().toUpperCase() || null : null,
   };
 }
 
@@ -121,6 +122,7 @@ function normalizeVaccineDose(row) {
     populationType,
     requiredRiskFlags: normalizeRiskFlags(row?.required_risk_flags),
     sourceRef: row?.source_ref ? String(row.source_ref).trim() || null : null,
+    countryCode: row?.country_code ? String(row.country_code).trim().toUpperCase() || null : null,
   };
 }
 
@@ -253,7 +255,8 @@ export async function loadPreventiveCatalogFromSupabase(options = {}) {
         evidence_tier,
         uspstf_grade,
         source_ref,
-        requires_shared_decision
+        requires_shared_decision,
+        country_code
       ),
       preventive_catalog_vaccine_doses (
         gender,
@@ -268,7 +271,8 @@ export async function loadPreventiveCatalogFromSupabase(options = {}) {
         cadence_label,
         population_type,
         required_risk_flags,
-        source_ref
+        source_ref,
+        country_code
       )
     `)
     .order('item_id', { ascending: true });

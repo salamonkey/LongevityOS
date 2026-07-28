@@ -23,10 +23,18 @@ function buildAccountFormFromProfile(profile) {
   };
 }
 
+const RISK_REVIEW_CADENCE_OPTIONS = Object.freeze([
+  { value: 6, labelKey: 'settings.riskReviewCadence6Months' },
+  { value: 12, labelKey: 'settings.riskReviewCadence12Months' },
+  { value: 0, labelKey: 'settings.riskReviewCadenceNever' },
+]);
+
 export default function SettingsScreen({
   profile,
   locale,
   onSetLocale,
+  riskReviewCadenceMonths = 12,
+  onSetRiskReviewCadence,
   onOpenProfiles,
   onOpenProfileOverview,
   onSaveAccountDetails,
@@ -120,6 +128,28 @@ export default function SettingsScreen({
           <button type="button" className={locale === 'en' ? 'is-active' : ''} onClick={() => onSetLocale('en')}>
             {t('settings.languageEnglish')}
           </button>
+        </div>
+      </Card>
+
+      <Card padding={14} className="vitalis-settings-language-card">
+        <div className="vitalis-settings-language-header">
+          <span className="vitalis-settings-row-icon vitalis-settings-row-icon--teal">
+            <Icon name="clock" size={19} />
+          </span>
+          <span className="vitalis-settings-row-label">{t('settings.riskReviewCadence')}</span>
+        </div>
+        <p className="vitalis-settings-row-sub">{t('settings.riskReviewCadenceSub')}</p>
+        <div className="vitalis-seg">
+          {RISK_REVIEW_CADENCE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={riskReviewCadenceMonths === option.value ? 'is-active' : ''}
+              onClick={() => onSetRiskReviewCadence(option.value)}
+            >
+              {t(option.labelKey)}
+            </button>
+          ))}
         </div>
       </Card>
 

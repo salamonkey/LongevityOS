@@ -284,6 +284,80 @@ export function addCustomItemToSnapshot(planSnapshot, profileId, input = {}, clo
   };
 }
 
+// Converts a "not applicable" catalog item (as returned by
+// resolveNonApplicableCatalogItems) into a real, explicitly-adopted plan
+// item -- the user has decided the usual age/gender/risk-flag/guideline-
+// country gating doesn't apply to their situation and wants it on their
+// plan anyway. Tagged source: 'manually-adopted' so it stays clearly
+// distinct from both a normal rule-matched item ('catalog') and a freeform
+// user-authored one ('custom', see addCustomItemToSnapshot above) -- unlike
+// that function, the real catalog copy (name/whyItMatters/
+// recommendationText/sourceRef/etc.) is preserved rather than left blank
+// for the user to type, since this is a real catalog item, just one the
+// rules engine didn't include on its own.
+export function adoptCatalogItemToSnapshot(planSnapshot, profileId, nonApplicableItem, clock = () => new Date()) {
+  assertProfileScope(planSnapshot, profileId);
+  const now = resolveNow(clock);
+
+  const catalogItemId = String(nonApplicableItem?.catalogItemId ?? '').trim();
+  if (!catalogItemId) {
+    throw new Error('A catalog item is required.');
+  }
+
+  const currentItems = Array.isArray(planSnapshot?.items) ? cloneSnapshotItems(planSnapshot.items) : [];
+  if (currentItems.some((existing) => existing.catalogItemId === catalogItemId)) {
+    throw new Error('This item is already in your plan.');
+  }
+
+  const category = ALLOWED_PLAN_CATEGORIES.includes(nonApplicableItem?.category) ? nonApplicableItem.category : null;
+  if (!category) {
+    throw new Error('Please choose a category.');
+  }
+
+  const interventionType = resolveInterventionTypeForCatalogItem({ category });
+  const recurrenceDays = Number.isFinite(Number(nonApplicableItem?.recurrenceIntervalDays)) && Number(nonApplicableItem.recurrenceIntervalDays) > 0
+    ? Number(nonApplicableItem.recurrenceIntervalDays)
+    : null;
+  const todayIso = toIsoDate(now);
+
+  const item = {
+    catalogItemId,
+    name: nonApplicableItem.name,
+    category,
+    interventionType,
+    interventionTypeLabel: getInterventionTypeLabel(interventionType),
+    effortLevel: 'medium',
+    cadenceLabel: nonApplicableItem.cadenceLabel ?? undefined,
+    recurrence: {
+      intervalDays: recurrenceDays,
+      soonWindowDays: resolveSoonWindowDaysFromRecurrence(recurrenceDays),
+    },
+    whyItMatters: nonApplicableItem.whyItMatters,
+    recommendationText: nonApplicableItem.recommendationText,
+    evidenceTier: nonApplicableItem.evidenceTier ?? null,
+    uspstfGrade: nonApplicableItem.uspstfGrade ?? null,
+    sourceRef: nonApplicableItem.sourceRef ?? null,
+    requiresSharedDecision: false,
+    matchedRiskFlags: [],
+    targetAge: Number.isFinite(nonApplicableItem?.targetAge) ? nonApplicableItem.targetAge : null,
+    priorityOrder: 0,
+    initialDueDate: todayIso,
+    nextDueDate: todayIso,
+    initialBucket: null,
+    status: 'pending',
+    source: 'manually-adopted',
+    clinicalRegion: null,
+  };
+
+  return {
+    planSnapshot: {
+      ...planSnapshot,
+      items: [...currentItems, item],
+    },
+    item,
+  };
+}
+
 export function createItemActionService({ profileId, getPlanSnapshot, setPlanSnapshot, clock = () => new Date() }) {
   if (typeof getPlanSnapshot !== 'function' || typeof setPlanSnapshot !== 'function') {
     throw new Error('Item action service requires getPlanSnapshot and setPlanSnapshot callbacks.');

@@ -171,6 +171,63 @@
   line-height: 1.5;
 }
 
+.vitalis-nonapplicable-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-3);
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.vitalis-nonapplicable-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.vitalis-nonapplicable-row {
+  opacity: 0.55;
+}
+
+.vitalis-nonapplicable-row .vds-list-row-title,
+.vitalis-nonapplicable-row .vds-list-row-subtitle {
+  color: var(--text-secondary);
+}
+
+.vitalis-nonapplicable-detail {
+  margin: -4px 0 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vitalis-nonapplicable-reason {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.vitalis-nonapplicable-detail .vds-button {
+  align-self: flex-start;
+}
+
+.vitalis-nonapplicable-empty {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .sl003-status-summary {
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);

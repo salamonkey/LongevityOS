@@ -16,8 +16,10 @@ import {
   PREVENTIVE_ITEM_DEFINITION_INDEX,
 } from '../health-plan-browsing-and-item-detail/definitions.js';
 import {
+  adoptCatalogItemToSnapshot,
   createItemActionService,
 } from './actions.js';
+import { resolveNonApplicableCatalogItems } from '../self-onboarding-to-first-dashboard/plan.js';
 import {
   DETAIL_ACTION_ERRORS,
   OPT_OUT_PRESETS,
@@ -43,6 +45,14 @@ import { getCategoryIcon, getCategoryLabelKey, getInterventionTypeLabelKey, getS
 import { useTranslation } from '../../lib/i18n/index.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 import { BODY_REGIONS, resolveRegionIdForItemKey } from '../self-onboarding-to-first-dashboard/bodyRegions.js';
+import { RISK_PROFILE_OPTION_KEYS } from '../live-enrollment/riskProfile.js';
+
+const RISK_FLAG_LABEL_KEY_BY_VALUE = Object.freeze(
+  RISK_PROFILE_OPTION_KEYS.reduce((index, option) => {
+    index[option.value] = option.labelKey;
+    return index;
+  }, {}),
+);
 
 const DONE_COMPLETION_TIMING_TYPES = Object.freeze({
   today: 'today',
@@ -167,27 +177,118 @@ function resolveSourceText(item, t) {
   return t('detail.sourcePrefix', { value: parts.join(' · ') });
 }
 
-// The one real, always-available "why is this on my list" signal is the
-// age this recommendation targets (from the matched rule band/dose) — not
-// invented copy about the user's specific risk factors, which the plan
-// snapshot doesn't carry through to individual items. Whether that age has
-// actually arrived yet must come from a real age comparison (profileAge vs.
-// item.targetAge), not from item.status: status can turn 'done'/'overdue'
-// for reasons that have nothing to do with age (a manual completion, or a
-// risk-based match that only produced a future due date because no risk
-// flag was satisfied yet), and status alone would then claim an age was
-// reached when it demonstrably wasn't.
-function resolveReasonForListText(item, t, profileAge) {
-  if (!Number.isFinite(item.targetAge)) {
+// Whether the target age has actually arrived yet must come from a real age
+// comparison (profileAge vs. item.targetAge), not from item.status: status
+// can turn 'done'/'overdue' for reasons that have nothing to do with age (a
+// manual completion, or a risk-based match that only produced a future due
+// date because no risk flag was satisfied yet), and status alone would then
+// claim an age was reached when it demonstrably wasn't.
+function hasReachedTargetAge(item, profileAge) {
+  return Number.isFinite(profileAge)
+    ? profileAge >= item.targetAge
+    : !(item.status === 'pending' || item.status === 'soon');
+}
+
+// While the target age is still ahead, this isn't a "why is this on my
+// list" reason (that's resolveAgeReachedReasonClause below) -- it's a
+// separate "here's when this becomes relevant" note.
+function resolveUpcomingAgeText(item, t, profileAge) {
+  if (!Number.isFinite(item.targetAge) || hasReachedTargetAge(item, profileAge)) {
+    return '';
+  }
+  return t('detail.recommendedFromAge', { age: item.targetAge });
+}
+
+function resolveAgeReachedReasonClause(item, t, profileAge) {
+  if (!Number.isFinite(item.targetAge) || !hasReachedTargetAge(item, profileAge)) {
+    return '';
+  }
+  return t('detail.reasonClauseAge', { age: item.targetAge });
+}
+
+function joinWithConjunction(values, conjunction) {
+  if (values.length <= 1) return values.join('');
+  if (values.length === 2) return `${values[0]} ${conjunction} ${values[1]}`;
+  return `${values.slice(0, -1).join(', ')} ${conjunction} ${values[values.length - 1]}`;
+}
+
+// item.matchedRiskFlags is the exact set of flags that satisfied the
+// matched rule band/dose's required_risk_flags (a universal, un-gated item
+// has an empty array here, not undefined), so this only ever names flags
+// that genuinely gated this specific item in.
+function resolveRiskFlagReasonClause(item, t) {
+  const flags = Array.isArray(item.matchedRiskFlags) ? item.matchedRiskFlags : [];
+  if (flags.length === 0) {
     return '';
   }
 
-  const ageStillAhead = Number.isFinite(profileAge)
-    ? profileAge < item.targetAge
-    : (item.status === 'pending' || item.status === 'soon');
-  return ageStillAhead
-    ? t('detail.recommendedFromAge', { age: item.targetAge })
-    : t('detail.includedForAge', { age: item.targetAge });
+  const labels = flags.map((flag) => (
+    RISK_FLAG_LABEL_KEY_BY_VALUE[flag] ? t(RISK_FLAG_LABEL_KEY_BY_VALUE[flag]) : flag
+  ));
+
+  return t('detail.reasonClauseRiskFlags', { flags: joinWithConjunction(labels, t('common.and')) });
+}
+
+// Combines up to two independent "why is this on my list" clauses into one
+// sentence rather than two separate lines, e.g. "On your list because
+// you've reached the recommended age, and because you indicated: X."
+function composeReasonForListText(clauses, t) {
+  const filtered = clauses.filter(Boolean);
+  if (filtered.length === 0) return '';
+  if (filtered.length === 1) return t('detail.reasonForList', { reason: filtered[0] });
+  return t('detail.reasonForListCombined', { reason1: filtered[0], reason2: filtered[1] });
+}
+
+// Mirror image of the "why is this on my list" clauses above: turns
+// resolveNonApplicableCatalogItems' reason codes into readable text for the
+// Vorsorge page's ghosted "not applicable" list. Reuses the same risk-flag
+// label lookup and join helper as the real detail page's reason line.
+function resolveNonApplicableReasonClauses(nonApplicableItem, t) {
+  return nonApplicableItem.reasons.map((reason) => {
+    if (reason === 'age') return t('plan.nonApplicableReasonAge');
+    if (reason === 'gender') return t('plan.nonApplicableReasonGender');
+    if (reason === 'country') return t('plan.nonApplicableReasonCountry');
+    if (reason === 'risk_flag') {
+      const labels = (nonApplicableItem.requiredRiskFlags ?? []).map((flag) => (
+        RISK_FLAG_LABEL_KEY_BY_VALUE[flag] ? t(RISK_FLAG_LABEL_KEY_BY_VALUE[flag]) : flag
+      ));
+      return t('plan.nonApplicableReasonRiskFlags', { flags: joinWithConjunction(labels, t('common.and')) });
+    }
+    return '';
+  }).filter(Boolean);
+}
+
+function resolveNonApplicableReasonText(nonApplicableItem, t) {
+  const clauses = resolveNonApplicableReasonClauses(nonApplicableItem, t);
+  if (clauses.length === 0) return '';
+  return t('plan.nonApplicableReason', { reasons: joinWithConjunction(clauses, t('common.and')) });
+}
+
+// Groups ghosted items by whichever reason is most likely to matter to the
+// reader -- a risk-flag-only mismatch is the most "you could still choose
+// this" case, so it takes priority over a purely structural age/gender/
+// country mismatch when an item happens to fail on more than one dimension.
+const NON_APPLICABLE_REASON_GROUP_ORDER = ['risk_flag', 'age', 'gender', 'country'];
+const NON_APPLICABLE_REASON_GROUP_LABEL_KEYS = Object.freeze({
+  risk_flag: 'plan.nonApplicableGroupRiskFlag',
+  age: 'plan.nonApplicableGroupAge',
+  gender: 'plan.nonApplicableGroupGender',
+  country: 'plan.nonApplicableGroupCountry',
+});
+
+function groupNonApplicableItems(items) {
+  const byReason = new Map();
+  for (const item of items) {
+    const primaryReason = NON_APPLICABLE_REASON_GROUP_ORDER.find((reason) => item.reasons.includes(reason)) ?? item.reasons[0];
+    if (!byReason.has(primaryReason)) {
+      byReason.set(primaryReason, []);
+    }
+    byReason.get(primaryReason).push(item);
+  }
+
+  return NON_APPLICABLE_REASON_GROUP_ORDER
+    .map((reason) => ({ reason, items: byReason.get(reason) ?? [] }))
+    .filter((group) => group.items.length > 0);
 }
 
 function resolveStatusReasonText(item, t, locale) {
@@ -383,6 +484,71 @@ function ListEmptyState({ activeCategory, onSwitchCategory, visibleCategories })
       </Button>
       ) : null}
     </section>
+  );
+}
+
+// A single ghosted row: dimmed visual treatment (no status badge, since
+// status doesn't apply to something not in the plan), expanding in place
+// to show the "why not" sentence, source, and an adopt action -- rather
+// than a separate detail route, since this is a lightweight, secondary
+// surface most people will only glance at.
+function NonApplicableRow({ item, expanded, onToggle, onAdopt, adoptPending, adoptError, t }) {
+  return (
+    <div className="vitalis-nonapplicable-row-wrap">
+      <ListRow
+        icon={getCategoryIcon(item.category)}
+        tone="neutral"
+        className="vitalis-nonapplicable-row"
+        title={item.name}
+        subtitle={item.cadenceLabel}
+        trailingChevron={false}
+        onClick={onToggle}
+      />
+      {expanded ? (
+        <div className="vitalis-nonapplicable-detail">
+          <p className="vitalis-nonapplicable-reason">{resolveNonApplicableReasonText(item, t)}</p>
+          {item.sourceRef ? (
+            <p className="vitalis-detail-source-note">{resolveSourceText(item, t)}</p>
+          ) : null}
+          {adoptError ? <p className="sl001-field-error" role="alert">{adoptError}</p> : null}
+          <Button type="button" variant="secondary" disabled={adoptPending} onClick={() => onAdopt(item)}>
+            {adoptPending ? t('settings.saving') : t('plan.adoptItem')}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NonApplicableSection({ groups, expandedKey, onToggleRow, onAdopt, adoptPending, adoptErrorKey, t }) {
+  if (groups.length === 0) {
+    return <p className="vitalis-nonapplicable-empty">{t('plan.nonApplicableEmpty')}</p>;
+  }
+
+  return (
+    <>
+      {groups.map(({ reason, items }) => (
+        <div key={reason} className="vitalis-region-block">
+          <p className="vitalis-region-head">
+            <span>{t(NON_APPLICABLE_REASON_GROUP_LABEL_KEYS[reason])}</span>
+          </p>
+          <div className="rows">
+            {items.map((item) => (
+              <NonApplicableRow
+                key={item.catalogItemId}
+                item={item}
+                expanded={expandedKey === item.catalogItemId}
+                onToggle={() => onToggleRow(item.catalogItemId)}
+                onAdopt={onAdopt}
+                adoptPending={adoptPending === item.catalogItemId}
+                adoptError={adoptErrorKey === item.catalogItemId ? t('plan.adoptFailed') : ''}
+                t={t}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -829,7 +995,11 @@ function DetailView({
 
   const [heroChipBg, heroChipFg] = getToneColors(getStatusTone(item.status));
   const sourceText = resolveSourceText(item, t);
-  const reasonForListText = resolveReasonForListText(item, t, profileAge);
+  const upcomingAgeText = resolveUpcomingAgeText(item, t, profileAge);
+  const reasonForListText = composeReasonForListText([
+    resolveAgeReachedReasonClause(item, t, profileAge),
+    resolveRiskFlagReasonClause(item, t),
+  ], t);
   const statusReasonText = resolveStatusReasonText(item, t, locale);
 
   return (
@@ -843,6 +1013,9 @@ function DetailView({
           <p className="vitalis-detail-hero-sub">{t(getInterventionTypeLabelKey(item.interventionType))}</p>
         </div>
       </div>
+      {upcomingAgeText ? (
+        <p className="vitalis-detail-source-note">{upcomingAgeText}</p>
+      ) : null}
       {reasonForListText ? (
         <p className="vitalis-detail-source-note">{reasonForListText}</p>
       ) : null}
@@ -1054,9 +1227,24 @@ export default function ItemCompletionAndReminderActions({
   const planListScrollYRef = useRef(0);
   const [showDetailTitle, setShowDetailTitle] = useState(false);
   const detailHeroTitleRef = useRef(null);
+  const [showNonApplicable, setShowNonApplicable] = useState(false);
+  const [expandedNonApplicableKey, setExpandedNonApplicableKey] = useState(null);
+  const [adoptPendingKey, setAdoptPendingKey] = useState(null);
+  const [adoptErrorKey, setAdoptErrorKey] = useState(null);
 
   const latestSnapshotRef = useRef(planSnapshot);
   latestSnapshotRef.current = planSnapshot;
+
+  // planSnapshot only seeds from initialPlanSnapshot at mount otherwise --
+  // this instance can stay mounted across a background plan change it
+  // didn't itself cause (e.g. another session's edit produces a save
+  // conflict, which reloads runtimePlanSnapshot in App.jsx without
+  // remounting this view), leaving items resolved against a stale snapshot
+  // (missing fields like sourceRef for anything that changed since mount).
+  // Mirrors the same resync effect in SelfOnboardingToFirstDashboard.jsx.
+  useEffect(() => {
+    setPlanSnapshot(initialPlanSnapshot);
+  }, [initialPlanSnapshot]);
 
   const service = useMemo(() => createItemActionService({
     profileId: profile.profileId,
@@ -1068,6 +1256,29 @@ export default function ItemCompletionAndReminderActions({
   const readModel = useMemo(
     () => buildPlanReadModelForSlice(planSnapshot),
     [planSnapshot, uiLocale, catalogGeneration],
+  );
+  // resolveNonApplicableCatalogItems only knows about the rules engine's own
+  // gating, not about items added afterward (e.g. a just-adopted one) --
+  // re-filtering against the live planSnapshot here is what actually drops
+  // an item out of this list the moment it's adopted.
+  const nonApplicableItems = useMemo(() => {
+    const presentIds = new Set((planSnapshot?.items ?? []).map((item) => item.catalogItemId));
+    return resolveNonApplicableCatalogItems(profile)
+      .filter((entry) => !presentIds.has(entry.catalogItemId))
+      .map((entry) => {
+        const liveCopy = resolveCatalogCopyForItemKey(entry.catalogItemId);
+        return {
+          ...entry,
+          name: liveCopy?.name ?? entry.name,
+          cadenceLabel: liveCopy?.cadenceLabel ?? entry.cadenceLabel,
+          whyItMatters: liveCopy?.whyItMatters ?? entry.whyItMatters,
+          recommendationText: liveCopy?.recommendationText ?? entry.recommendationText,
+        };
+      });
+  }, [profile, planSnapshot, uiLocale, catalogGeneration]);
+  const nonApplicableGroups = useMemo(
+    () => groupNonApplicableItems(nonApplicableItems),
+    [nonApplicableItems],
   );
   const manualEntryOptions = useMemo(
     () => buildManualVaccinationCatalogOptions(planSnapshot),
@@ -1121,6 +1332,29 @@ export default function ItemCompletionAndReminderActions({
     setShowOptOutForm(false);
     setActionError('');
     setConfirmationMessage('');
+  };
+
+  const handleToggleNonApplicableRow = (catalogItemId) => {
+    setAdoptErrorKey(null);
+    setExpandedNonApplicableKey((previous) => (previous === catalogItemId ? null : catalogItemId));
+  };
+
+  const handleAdoptNonApplicableItem = (nonApplicableItem) => {
+    setAdoptPendingKey(nonApplicableItem.catalogItemId);
+    setAdoptErrorKey(null);
+
+    try {
+      const result = adoptCatalogItemToSnapshot(planSnapshot, profile.profileId, nonApplicableItem);
+      setPlanSnapshot(result.planSnapshot);
+      if (typeof onPlanSnapshotChange === 'function') {
+        onPlanSnapshotChange(result.planSnapshot);
+      }
+      setExpandedNonApplicableKey(null);
+    } catch (error) {
+      setAdoptErrorKey(nonApplicableItem.catalogItemId);
+    } finally {
+      setAdoptPendingKey(null);
+    }
   };
 
   useEffect(() => {
@@ -1680,6 +1914,28 @@ export default function ItemCompletionAndReminderActions({
         <Card elevated={false} className="sl003-guidance-disclaimer">
           <p>{t('checkups.disclaimer')}</p>
         </Card>
+        <button
+          type="button"
+          className="vitalis-nonapplicable-toggle"
+          onClick={() => setShowNonApplicable((previous) => !previous)}
+        >
+          {showNonApplicable ? t('plan.hideNonApplicable') : t('plan.showNonApplicable')}
+          <Icon name={showNonApplicable ? 'chevron-left' : 'chevron-right'} size={14} color="var(--text-muted)" />
+        </button>
+        {showNonApplicable ? (
+          <div aria-label={t('plan.nonApplicableSectionAriaLabel')}>
+            <p className="sec-label">{t('plan.nonApplicableSectionTitle')}</p>
+            <NonApplicableSection
+              groups={nonApplicableGroups}
+              expandedKey={expandedNonApplicableKey}
+              onToggleRow={handleToggleNonApplicableRow}
+              onAdopt={handleAdoptNonApplicableItem}
+              adoptPending={adoptPendingKey}
+              adoptErrorKey={adoptErrorKey}
+              t={t}
+            />
+          </div>
+        ) : null}
         {activeCategory === PLAN_CATEGORIES.vaccination ? (
           <>
             <Card className="sl003-manual-entry-box" aria-label={t('vaccinations.recordsAriaLabel')}>

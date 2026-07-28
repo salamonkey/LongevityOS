@@ -27,7 +27,6 @@ const CURRENT_CATALOG_ITEM_KEYS = [
   'osteoporosis-screening',
   'abdominal-aortic-aneurysm-screening',
   'depression-screening',
-  'anxiety-screening',
   'hiv-screening',
   'hepatitis-c-screening',
   'tobacco-cessation-support',
@@ -53,7 +52,7 @@ const CURRENT_CATALOG_ITEM_KEYS = [
 ];
 
 test('every current catalog item has an explicit body-region mapping', () => {
-  assert.equal(CURRENT_CATALOG_ITEM_KEYS.length, 40);
+  assert.equal(CURRENT_CATALOG_ITEM_KEYS.length, 39);
   for (const itemKey of CURRENT_CATALOG_ITEM_KEYS) {
     assert.ok(
       Object.prototype.hasOwnProperty.call(REGION_ID_BY_ITEM_KEY, itemKey),
