@@ -13,6 +13,7 @@ import {
   getRuntimeCatalogVersion,
 } from '../../lib/catalog/runtimeCatalog.js';
 import { resolveAgeInMonthsFromBirthdate } from '../../lib/age.js';
+import { calculateBmi, isSeverelyObeseBmi } from '../../lib/health/bmi.js';
 
 const ALLOWED_CATEGORIES = new Set(['checkup', 'vaccination', 'counseling']);
 const ALLOWED_RULE_GENDERS = new Set(['female', 'male']);
@@ -134,6 +135,13 @@ function normalizeProfileRiskFlags(profile = {}) {
         flags.add(normalized);
       }
     }
+  }
+
+  // Computed, not self-reported: 'obesity_bmi35plus' used to be a risk-profile
+  // wizard checkbox: it's derived fresh from height/weight every time a plan
+  // is generated instead, so it can never go stale relative to a profile edit.
+  if (isSeverelyObeseBmi(calculateBmi(profile.heightCm, profile.weightKg))) {
+    flags.add('obesity_bmi35plus');
   }
 
   return flags;

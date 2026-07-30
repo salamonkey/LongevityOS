@@ -19,6 +19,13 @@ const PRIORITY_TONE = Object.freeze({
   later: 'neutral',
 });
 
+const BMI_CATEGORY_LABEL_KEY = Object.freeze({
+  underweight: 'dashboard.bmiCategoryUnderweight',
+  normal: 'dashboard.bmiCategoryNormal',
+  overweight: 'dashboard.bmiCategoryOverweight',
+  obese: 'dashboard.bmiCategoryObese',
+});
+
 function resolveGreetingKey(now) {
   const hour = now.getHours();
   if (hour < 12) return 'dashboard.greetingMorning';
@@ -420,6 +427,30 @@ export default function SelfOnboardingToFirstDashboard({
           {bodyMapPoints.length > 0 ? (
             <div className="vitalis-dash-hero-bodymap">
               <BodyMap points={bodyMapPoints} sex={sex} onOpen={setOpenRegionId} showLegend={false} />
+              {Number.isFinite(profile?.heightCm) && Number.isFinite(profile?.weightKg) ? (
+                <div className="vitalis-bmi-strip">
+                  <div className="vitalis-bmi-stat">
+                    <span className="vitalis-bmi-stat-label">{t('dashboard.bmiHeightLabel')}</span>
+                    <span className="vitalis-bmi-stat-value">{profile.heightCm}<span className="vitalis-bmi-stat-unit">cm</span></span>
+                  </div>
+                  <div className="vitalis-bmi-stat">
+                    <span className="vitalis-bmi-stat-label">{t('dashboard.bmiWeightLabel')}</span>
+                    <span className="vitalis-bmi-stat-value">{profile.weightKg}<span className="vitalis-bmi-stat-unit">kg</span></span>
+                  </div>
+                  {projection.bmi ? (
+                    <div className="vitalis-bmi-stat">
+                      <span className="vitalis-bmi-stat-label">{t('dashboard.bmiLabel')}</span>
+                      <span className="vitalis-bmi-stat-value">
+                        <span className={`vitalis-bmi-cat-dot vitalis-bmi-cat-dot--${projection.bmi.category}`} />
+                        {projection.bmi.value}
+                        <span className={`vitalis-bmi-cat-text vitalis-bmi-cat-text--${projection.bmi.category}`}>
+                          {t(BMI_CATEGORY_LABEL_KEY[projection.bmi.category])}
+                        </span>
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

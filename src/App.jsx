@@ -913,7 +913,8 @@ export default function App() {
       const updatedProfile = await updateHealthProfile(runtimeProfile.profileId, updates);
       const mergedProfile = { ...runtimeProfile, ...updatedProfile, riskFlags: runtimeProfile.riskFlags };
 
-      const affectsPlanGeneration = updates.birthdate !== undefined || updates.gender !== undefined;
+      const affectsPlanGeneration = updates.birthdate !== undefined || updates.gender !== undefined
+        || updates.heightCm !== undefined || updates.weightKg !== undefined;
       if (affectsPlanGeneration) {
         const resolvedCatalog = await ensureCatalogReady();
         const regeneratedPlan = generateInitialPlanSnapshot(mergedProfile, {

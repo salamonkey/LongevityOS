@@ -1,4 +1,5 @@
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
+import { calculateBmi, resolveBmiCategory } from '../../lib/health/bmi.js';
 
 const BUCKET_ORDER = ['today', 'soon', 'later'];
 
@@ -655,11 +656,14 @@ export function buildDashboardProjection(planSnapshot, profile, options = {}) {
   const profileName = resolveDashboardProfileName(profile);
   const profileAge = Number.isFinite(Number(profile?.age)) ? Number(profile.age) : null;
   const profileGender = String(profile?.gender || '').trim().toLowerCase();
+  const bmiValue = calculateBmi(profile?.heightCm, profile?.weightKg);
+  const bmi = bmiValue === null ? null : { value: bmiValue, category: resolveBmiCategory(bmiValue) };
 
   return {
     profileName,
     profileAge,
     profileGender,
+    bmi,
     healthScore,
     highlightedItem,
     sections: BUCKET_ORDER.map((priority) => ({

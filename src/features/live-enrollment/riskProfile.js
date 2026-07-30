@@ -15,13 +15,16 @@ export const RISK_PROFILE_OPTION_GROUPS = Object.freeze([
   {
     titleKey: 'riskProfile.groupChronicConditions',
     collapseAfter: 6,
+    // No severe-obesity checkbox here on purpose: 'obesity_bmi35plus' (the
+    // BAG Impfplan's own risk-group threshold) is computed from the
+    // profile's real height/weight in plan.js's normalizeProfileRiskFlags
+    // instead of self-reported, so it can't drift from the actual data.
     options: [
       { value: 'cardiovascular_chronic', labelKey: 'riskProfile.cardiovascularChronic', icon: 'heart-pulse' },
       { value: 'pulmonary_chronic', labelKey: 'riskProfile.pulmonaryChronic', icon: 'activity' },
       { value: 'chronic_liver_disease', labelKey: 'riskProfile.chronicLiverDisease', icon: 'stethoscope' },
       { value: 'chronic_kidney_disease', labelKey: 'riskProfile.chronicKidneyDisease', icon: 'droplet' },
       { value: 'diabetes_with_organ_impact', labelKey: 'riskProfile.diabetesWithOrganImpact', icon: 'activity' },
-      { value: 'obesity_bmi35plus', labelKey: 'riskProfile.obesityBmi35Plus', icon: 'scale' },
       { value: 'asplenia', labelKey: 'riskProfile.asplenia', icon: 'shield-check' },
       { value: 'hematologic_malignancy', labelKey: 'riskProfile.hematologicMalignancy', icon: 'activity' },
       { value: 'active_chemotherapy', labelKey: 'riskProfile.activeChemotherapy', icon: 'stethoscope' },
@@ -59,11 +62,21 @@ export const RISK_PROFILE_OPTION_GROUPS = Object.freeze([
   },
 ]);
 
+// Flags that are computed rather than answered in the wizard -- not part of
+// RISK_PROFILE_OPTION_GROUPS (so they never render as a clickable question),
+// but still need a human label wherever a matched risk flag is displayed
+// (the item detail page's "why is this on my list" line, and the ghosted
+// "not applicable" list's reason text both look labels up by value here).
+export const COMPUTED_RISK_PROFILE_OPTION_KEYS = Object.freeze([
+  { value: 'obesity_bmi35plus', labelKey: 'riskProfile.obesityBmi35Plus' },
+]);
+
 // Flat list of every flag across all groups, for callers that just need the full set
 // (e.g. tests, or ProfileOverviewScreen's tag labels) without caring about grouping.
-export const RISK_PROFILE_OPTION_KEYS = Object.freeze(
-  RISK_PROFILE_OPTION_GROUPS.flatMap((group) => group.options),
-);
+export const RISK_PROFILE_OPTION_KEYS = Object.freeze([
+  ...RISK_PROFILE_OPTION_GROUPS.flatMap((group) => group.options),
+  ...COMPUTED_RISK_PROFILE_OPTION_KEYS,
+]);
 
 export const RISK_PROFILE_TOTAL_QUESTIONS = RISK_PROFILE_OPTION_GROUPS.reduce(
   (sum, group) => sum + group.options.length,

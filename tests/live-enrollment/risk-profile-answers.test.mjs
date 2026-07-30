@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   RISK_PROFILE_OPTION_GROUPS,
+  RISK_PROFILE_OPTION_KEYS,
   buildInitialAnswers,
   findFirstIncompleteStep,
   computeRiskProfileReviewStatus,
@@ -71,6 +72,17 @@ test('a fully-reviewed first section skips ahead to the next section with an una
 test('a fully-reviewed profile has nowhere left to jump to, so it restarts at the first section', () => {
   const everyKey = RISK_PROFILE_OPTION_GROUPS.flatMap((group) => group.options.map((option) => option.value));
   assert.equal(findFirstIncompleteStep(everyKey), 0);
+});
+
+test('obesity_bmi35plus has no wizard question (computed, not self-reported) but still has a display label', () => {
+  const isWizardQuestion = RISK_PROFILE_OPTION_GROUPS
+    .flatMap((group) => group.options)
+    .some((option) => option.value === 'obesity_bmi35plus');
+  assert.equal(isWizardQuestion, false, 'must not appear as a clickable question');
+
+  const labelEntry = RISK_PROFILE_OPTION_KEYS.find((option) => option.value === 'obesity_bmi35plus');
+  assert.ok(labelEntry, 'must still resolve a label for "why is this on my list" / ghosted-list reason text');
+  assert.equal(labelEntry.labelKey, 'riskProfile.obesityBmi35Plus');
 });
 
 test('a profile with no answered questions is "unreviewed" regardless of cadence or reviewedAt', () => {

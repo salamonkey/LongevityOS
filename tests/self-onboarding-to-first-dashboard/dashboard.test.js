@@ -101,6 +101,20 @@ test('health readiness score is unavailable when no applicable plan items exist'
   assert.equal(projection.highlightedItem, null);
 });
 
+test('projection computes BMI and category from profile height/weight, or null when either is missing', () => {
+  const withMeasurements = buildDashboardProjection(
+    { items: [], generatedAt: '2026-05-05T08:00:00.000Z' },
+    { name: 'You', heightCm: 168, weightKg: 62 },
+  );
+  assert.deepEqual(withMeasurements.bmi, { value: 22, category: 'normal' });
+
+  const withoutMeasurements = buildDashboardProjection(
+    { items: [], generatedAt: '2026-05-05T08:00:00.000Z' },
+    { name: 'You' },
+  );
+  assert.equal(withoutMeasurements.bmi, null);
+});
+
 test('projection returns one highlighted item and populated sections', () => {
   const projection = buildDashboardProjection(
     { items: SAMPLE_ITEMS, generatedAt: '2026-05-05T08:00:00.000Z' },

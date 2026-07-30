@@ -143,6 +143,50 @@ test('band-level required risk flags let one item auto-include for one band and 
   assert.equal(hasItem({ profileId: 'd', age: 30, gender: 'male' }), false, 'man without the risk flag is excluded');
 });
 
+test('obesity_bmi35plus is derived from height/weight, not self-reported', () => {
+  const catalog = [{
+    itemId: 'synthetic-obesity-gated-item',
+    name: 'Synthetic obesity-gated item',
+    category: 'checkup',
+    effortLevel: 'low',
+    cadenceLabel: 'By recommendation',
+    whyItMatters: 'Test fixture.',
+    requiredRiskFlags: [],
+    ruleBands: [
+      {
+        gender: 'female', minAge: 18, maxAge: 120, targetAge: 18, priorityOrder: 1, requiredRiskFlags: ['obesity_bmi35plus'],
+      },
+    ],
+  }];
+
+  const hasItem = (profile) => generateInitialPlanSnapshot(
+    profile,
+    { catalog, catalogVersion: 'test', now: new Date('2026-05-05T08:00:00.000Z') },
+  ).items.some((entry) => entry.catalogItemId === 'synthetic-obesity-gated-item');
+
+  assert.equal(
+    hasItem({
+      profileId: 'a', age: 30, gender: 'female', heightCm: 165, weightKg: 65,
+    }),
+    false,
+    'BMI 23.9 does not qualify',
+  );
+  assert.equal(
+    hasItem({
+      profileId: 'b', age: 30, gender: 'female', heightCm: 165, weightKg: 96,
+    }),
+    true,
+    'BMI 35.3 qualifies from height/weight alone, with no riskFlags array at all',
+  );
+  assert.equal(
+    hasItem({
+      profileId: 'c', age: 30, gender: 'female', riskFlags: ['obesity_bmi35plus'],
+    }),
+    true,
+    'a historical stored flag from before the wizard checkbox was removed still counts (nothing purges old data)',
+  );
+});
+
 test('a generated item records which risk flag(s) actually justified its inclusion, for the detail page\'s "why is this on my list" copy', () => {
   const catalog = [{
     itemId: 'synthetic-matched-flags-item',
