@@ -96,3 +96,41 @@
   font-weight: 600;
   color: var(--status-done);
 }
+
+.vitalis-settings-delete-account {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px;
+  background: none;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+}
+
+.vitalis-settings-delete-account:hover,
+.vitalis-settings-delete-account:focus-visible {
+  color: var(--status-overdue);
+}
+
+.vitalis-settings-delete-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vitalis-settings-delete-sheet-warning {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.vitalis-settings-delete-sheet-actions {
+  display: flex;
+  gap: 10px;
+}

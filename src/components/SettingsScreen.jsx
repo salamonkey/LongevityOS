@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AppShell } from '../features/self-onboarding-to-first-dashboard/components.jsx';
-import { Card, Input, Button, Avatar, Icon } from '../design-system/components/index.js';
+import { Card, Input, Button, Avatar, Icon, Sheet } from '../design-system/components/index.js';
 import { useTranslation } from '../lib/i18n/index.js';
 import './settings-screen.css';
 
@@ -43,11 +43,20 @@ export default function SettingsScreen({
   onSignOut,
   onBack,
   signOutPending = false,
+  onDeleteAccount,
+  deleteAccountPending = false,
+  deleteAccountError = '',
 }) {
   const { t } = useTranslation();
   const displayName = profile?.name || profile?.displayLabel || '';
   const [accountForm, setAccountForm] = useState(() => buildAccountFormFromProfile(profile));
   const [accountSavedAt, setAccountSavedAt] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleCloseDeleteConfirm = () => {
+    if (deleteAccountPending) return;
+    setShowDeleteConfirm(false);
+  };
 
   useEffect(() => {
     setAccountForm(buildAccountFormFromProfile(profile));
@@ -170,6 +179,45 @@ export default function SettingsScreen({
       >
         {signOutPending ? t('enrollment.signingOut') : t('enrollment.signOut')}
       </Button>
+
+      <button
+        type="button"
+        className="vitalis-settings-delete-account"
+        onClick={() => setShowDeleteConfirm(true)}
+      >
+        {t('settings.deleteAccount')}
+      </button>
+
+      <Sheet
+        open={showDeleteConfirm}
+        onClose={handleCloseDeleteConfirm}
+        title={t('settings.deleteAccountConfirmTitle')}
+        closeLabel={t('common.close')}
+      >
+        <div className="vitalis-settings-delete-sheet">
+          <p className="vitalis-settings-delete-sheet-warning">{t('settings.deleteAccountConfirmBody')}</p>
+          {deleteAccountError ? <p className="sl001-field-error" role="alert">{deleteAccountError}</p> : null}
+          <div className="vitalis-settings-delete-sheet-actions">
+            <Button
+              variant="ghost"
+              fullWidth
+              onClick={handleCloseDeleteConfirm}
+              disabled={deleteAccountPending}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="danger"
+              fullWidth
+              iconLeft="trash-2"
+              onClick={onDeleteAccount}
+              disabled={deleteAccountPending}
+            >
+              {deleteAccountPending ? t('settings.deleteAccountPending') : t('settings.deleteAccountConfirmButton')}
+            </Button>
+          </div>
+        </div>
+      </Sheet>
     </AppShell>
   );
 }

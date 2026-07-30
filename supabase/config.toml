@@ -57,3 +57,19 @@ secure_password_change = false
 max_frequency = "1m0s"
 otp_length = 8
 otp_expiry = 3600
+
+# Custom SMTP via IONOS. Without this, auth emails go through Supabase's
+# built-in shared mailer, which is meant for testing only and rate-limits
+# hard (a production sign-up burst can hit "email rate limit exceeded" with
+# no warning). noreply@health.korrum.com is a real IONOS mailbox; the
+# password is never stored here -- it's read from the local shell/CI
+# environment at push time via env(), same mechanism the CLI's own generated
+# template documents for this exact field.
+[auth.email.smtp]
+enabled = true
+host = "smtp.ionos.de"
+port = 587
+user = "noreply@health.korrum.com"
+pass = "env(IONOS_SMTP_PASSWORD)"
+admin_email = "noreply@health.korrum.com"
+sender_name = "Vitalis"

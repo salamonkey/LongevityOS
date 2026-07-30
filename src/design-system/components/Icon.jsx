@@ -44,6 +44,7 @@ import {
   Syringe,
   TrendingUp,
   TriangleAlert,
+  Trash2,
   Upload,
   User,
   Users,
@@ -104,6 +105,7 @@ const ICONS_BY_NAME = Object.freeze({
   shield: Shield,
   'trending-up': TrendingUp,
   'triangle-alert': TriangleAlert,
+  'trash-2': Trash2,
   users: Users,
 });
 

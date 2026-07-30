@@ -432,6 +432,23 @@ export async function signOutLiveUser() {
   }
 }
 
+export async function deleteOwnLiveAccount() {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('Supabase live-plan persistence is not configured.');
+  }
+
+  const { error } = await client.rpc('delete_own_account');
+  if (error) {
+    throw error;
+  }
+
+  const { error: signOutError } = await client.auth.signOut();
+  if (signOutError) {
+    throw signOutError;
+  }
+}
+
 export function onLivePlansAuthStateChange(handler) {
   const client = getSupabaseClient();
   if (!client || typeof handler !== 'function') {

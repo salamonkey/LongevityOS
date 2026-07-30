@@ -16,6 +16,7 @@ import {
   isSupabaseLivePlansConfigured,
   loadLiveProfilesAndPlans,
   signOutLiveUser,
+  deleteOwnLiveAccount,
   signInLiveUserWithPassword,
   signUpLiveUserWithPassword,
   saveLivePlanForProfile,
@@ -196,6 +197,8 @@ export default function App() {
     authMode: 'sign_in',
     authPending: false,
     signOutPending: false,
+    deleteAccountPending: false,
+    deleteAccountError: '',
     authError: '',
     authInfo: '',
     userId: null,
@@ -1082,6 +1085,52 @@ export default function App() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!livePlansEnabled) {
+      return;
+    }
+
+    setLiveState((previous) => ({
+      ...previous,
+      deleteAccountPending: true,
+      deleteAccountError: '',
+    }));
+
+    try {
+      await deleteOwnLiveAccount();
+      setRuntimeProfile(null);
+      setRuntimePlanSnapshot(null);
+      setActiveView('start');
+      setShowLandingSplash(true);
+      setLiveState((previous) => ({
+        ...previous,
+        ready: true,
+        error: '',
+        authRequired: true,
+        authMode: 'sign_in',
+        authPending: false,
+        signOutPending: false,
+        deleteAccountPending: false,
+        deleteAccountError: '',
+        authError: '',
+        authInfo: '',
+        userId: null,
+        profiles: [],
+        plansByProfileId: {},
+        activeProfileId: null,
+        enrolling: false,
+        enrollmentError: '',
+      }));
+    } catch (error) {
+      const message = resolveErrorMessage(error, t('appError.deleteAccountFailed'));
+      setLiveState((previous) => ({
+        ...previous,
+        deleteAccountPending: false,
+        deleteAccountError: message,
+      }));
+    }
+  };
+
   const handleLiveProfileSwitch = (profileId) => {
     const normalized = String(profileId ?? '').trim();
     if (!normalized) return;
@@ -1330,6 +1379,9 @@ export default function App() {
           onSignOut={handleLiveSignOut}
           onBack={() => handlePrimaryNavNavigate('start')}
           signOutPending={liveState.signOutPending}
+          onDeleteAccount={handleDeleteAccount}
+          deleteAccountPending={liveState.deleteAccountPending}
+          deleteAccountError={liveState.deleteAccountError}
         />
       );
     } else if (activeView === 'your-profile') {
