@@ -1374,9 +1374,6 @@ export default function App() {
             setProfileOverviewOrigin('settings');
             handlePrimaryNavNavigate('your-profile');
           }}
-          onSaveAccountDetails={handleSaveProfileDetails}
-          accountDetailsPending={profileDetailsPending}
-          accountDetailsError={profileDetailsError}
           onSignOut={handleLiveSignOut}
           onBack={() => handlePrimaryNavNavigate('start')}
           signOutPending={liveState.signOutPending}

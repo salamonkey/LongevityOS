@@ -54,6 +54,8 @@ function formatBirthdate(birthdate, locale) {
 
 function buildFormFromProfile(profile) {
   return {
+    firstName: profile?.firstName ?? '',
+    lastName: profile?.lastName ?? '',
     countryCode: profile?.countryCode ?? '',
     heightCm: profile?.heightCm ? String(profile.heightCm) : '',
     weightKg: profile?.weightKg ? String(profile.weightKg) : '',
@@ -103,7 +105,9 @@ export default function ProfileOverviewScreen({
     : '';
 
   const isDirty = profile ? (
-    form.countryCode !== (profile.countryCode ?? '')
+    form.firstName !== (profile.firstName ?? '')
+    || form.lastName !== (profile.lastName ?? '')
+    || form.countryCode !== (profile.countryCode ?? '')
     || form.heightCm !== (profile.heightCm ? String(profile.heightCm) : '')
     || form.weightKg !== (profile.weightKg ? String(profile.weightKg) : '')
   ) : false;
@@ -119,6 +123,8 @@ export default function ProfileOverviewScreen({
     }
 
     const updates = {};
+    if (form.firstName !== (profile.firstName ?? '')) updates.firstName = form.firstName;
+    if (form.lastName !== (profile.lastName ?? '')) updates.lastName = form.lastName;
     if (form.countryCode !== (profile.countryCode ?? '')) updates.countryCode = form.countryCode;
     if (form.heightCm !== (profile.heightCm ? String(profile.heightCm) : '')) updates.heightCm = Number(form.heightCm);
     if (form.weightKg !== (profile.weightKg ? String(profile.weightKg) : '')) updates.weightKg = Number(form.weightKg);
@@ -162,6 +168,18 @@ export default function ProfileOverviewScreen({
       <p className="sec-label">{t('settings.personalData')}</p>
       {bornSummary ? <p className="fixed-fact">{bornSummary}</p> : null}
       <form className="vitalis-profile-personal" onSubmit={handleSave}>
+        <Input
+          label={t('enrollment.firstName')}
+          icon="user"
+          value={form.firstName}
+          onChange={(event) => setField('firstName')(event.target.value)}
+        />
+        <Input
+          label={t('enrollment.lastName')}
+          icon="user"
+          value={form.lastName}
+          onChange={(event) => setField('lastName')(event.target.value)}
+        />
         <label className="vds-input">
           <span className="vds-input-label">{t('enrollment.countryOfResidence')}</span>
           <span className="vds-input-field">
