@@ -33,3 +33,27 @@ api_url = "http://127.0.0.1"
 [inbucket]
 enabled = true
 port = 54324
+
+[auth]
+enabled = true
+# The base URL auth emails (confirmation, magic link, password reset) are built
+# against. Was left at a localhost default from initial project setup, so every
+# signup confirmation link pointed mobile/production users at an unreachable
+# address instead of the live app.
+site_url = "https://health.korrum.com"
+# Exact allow-listed redirect targets. Production is the real destination;
+# localhost stays listed so local dev sign-up/reset flows keep working too.
+additional_redirect_urls = ["https://health.korrum.com", "http://localhost:5173"]
+
+# Restored to the project's actual prior values -- a first, too-hasty
+# `config push` (this file previously had no [auth] section at all) briefly
+# reset these to CLI defaults live: enable_confirmations=false (would have
+# let anyone sign up without verifying their email), otp_length=6, and
+# max_frequency=1s (a much looser email-send rate limit than intended).
+[auth.email]
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600
