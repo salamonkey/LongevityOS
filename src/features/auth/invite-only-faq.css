@@ -1,0 +1,26 @@
+.vitalis-invite-only-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vitalis-invite-only-faq-intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.vitalis-invite-only-faq-item h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vitalis-invite-only-faq-item p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

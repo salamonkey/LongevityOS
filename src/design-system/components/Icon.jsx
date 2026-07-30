@@ -30,6 +30,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  MessageCircle,
   Plus,
   RotateCcw,
   Ruler,
@@ -47,6 +48,7 @@ import {
   Trash2,
   Upload,
   User,
+  UserPlus,
   Users,
   Wifi,
   X,
@@ -85,6 +87,7 @@ const ICONS_BY_NAME = Object.freeze({
   info: Info,
   'map-pin': MapPin,
   mail: Mail,
+  'message-circle': MessageCircle,
   x: X,
   ruler: Ruler,
   scale: Scale,
@@ -107,6 +110,7 @@ const ICONS_BY_NAME = Object.freeze({
   'triangle-alert': TriangleAlert,
   'trash-2': Trash2,
   users: Users,
+  'user-plus': UserPlus,
 });
 
 export function Icon({ name, size = 20, strokeWidth = 1.75, color = 'currentColor', style, className, ...rest }) {

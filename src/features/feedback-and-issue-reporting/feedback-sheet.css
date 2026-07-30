@@ -1,0 +1,30 @@
+.vitalis-feedback-sheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vitalis-feedback-sheet-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.vitalis-feedback-sheet-textarea {
+  min-height: 140px;
+  padding: 12px 14px;
+  background: var(--surface-card);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.vitalis-feedback-sheet-textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}

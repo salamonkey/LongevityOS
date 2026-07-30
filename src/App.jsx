@@ -18,7 +18,6 @@ import {
   signOutLiveUser,
   deleteOwnLiveAccount,
   signInLiveUserWithPassword,
-  signUpLiveUserWithPassword,
   saveLivePlanForProfile,
   setLiveActiveProfile,
   setLiveUserLocale,
@@ -30,6 +29,8 @@ import {
   linkAppointmentToPlanItem,
 } from './lib/persistence/supabaseLivePlans.js';
 import { addCustomItemToSnapshot, markItemDoneInSnapshot } from './features/item-completion-and-reminder-actions/actions.js';
+import { submitFeedbackReport } from './features/feedback-and-issue-reporting/index.js';
+import { AcceptInviteScreen, acceptInvite, sendInvite } from './features/invite-users/index.js';
 import {
   isSupabaseCatalogConfigured,
   loadPreventiveCatalogFromSupabase,
@@ -78,6 +79,22 @@ function replaceViewInUrl(view) {
   }
 }
 
+function pendingInviteFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('invite');
+  const email = params.get('email');
+  if (!token || !email) return null;
+  return { token, email };
+}
+
+function clearInviteParamsFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('invite');
+  url.searchParams.delete('email');
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(null, '', next);
+}
+
 function resolveActiveProfileFromCollection(profiles, activeProfileId) {
   return profiles.find((profile) => String(profile.profileId) === String(activeProfileId)) ?? null;
 }
@@ -107,6 +124,28 @@ function isNotAuthenticatedError(error) {
   const message = String(error?.message ?? '').toLowerCase();
   return message.includes('not authenticated');
 }
+
+// `client.functions.invoke()` throws a FunctionsHttpError whose `.context`
+// is the raw (already-consumed-by-supabase-js-for-status-check) Response --
+// the JSON body has to be parsed separately to get the `{ error: '<code>' }`
+// shape the Edge Functions return.
+async function extractFunctionsErrorCode(error) {
+  try {
+    const body = await error?.context?.clone?.().json?.();
+    return body?.error;
+  } catch {
+    return undefined;
+  }
+}
+
+const ACCEPT_INVITE_ERROR_MESSAGE_KEYS = Object.freeze({
+  invalid_token: 'invite.errorInvalidToken',
+  expired: 'invite.errorExpired',
+  already_used: 'invite.errorAlreadyUsed',
+  email_mismatch: 'invite.errorEmailMismatch',
+  email_exists: 'invite.errorEmailExists',
+  password_too_short: 'auth.errorPasswordTooShort',
+});
 
 function resolveErrorMessage(error, fallbackMessage) {
   if (!error) {
@@ -194,7 +233,6 @@ export default function App() {
     ready: !livePlansEnabled,
     error: '',
     authRequired: false,
-    authMode: 'sign_in',
     authPending: false,
     signOutPending: false,
     deleteAccountPending: false,
@@ -202,6 +240,7 @@ export default function App() {
     authError: '',
     authInfo: '',
     userId: null,
+    userEmail: null,
     profiles: [],
     plansByProfileId: {},
     activeProfileId: null,
@@ -236,6 +275,13 @@ export default function App() {
   const [appointments, setAppointments] = useState([]);
   const [appointmentsPending, setAppointmentsPending] = useState(false);
   const [appointmentSaveError, setAppointmentSaveError] = useState('');
+  const [feedbackSubmitPending, setFeedbackSubmitPending] = useState(false);
+  const [feedbackSubmitError, setFeedbackSubmitError] = useState('');
+  const [pendingInvite, setPendingInvite] = useState(() => pendingInviteFromUrl());
+  const [acceptInvitePending, setAcceptInvitePending] = useState(false);
+  const [acceptInviteError, setAcceptInviteError] = useState('');
+  const [inviteSendPending, setInviteSendPending] = useState(false);
+  const [inviteSendError, setInviteSendError] = useState('');
 
   const hasCompletedOnboarding = Boolean(runtimeProfile && runtimePlanSnapshot);
 
@@ -294,12 +340,12 @@ export default function App() {
           ready: true,
           error: '',
           authRequired: false,
-          authMode: 'sign_in',
           authPending: false,
           signOutPending: false,
           authError: '',
           authInfo: '',
           userId: loaded.userId,
+          userEmail: loaded.userEmail ?? null,
           profiles: loaded.profiles,
           plansByProfileId: loaded.plansByProfileId,
           activeProfileId: loaded.activeProfileId,
@@ -337,6 +383,7 @@ export default function App() {
             signOutPending: false,
             authError: '',
             userId: null,
+            userEmail: null,
             profiles: [],
             plansByProfileId: {},
             activeProfileId: null,
@@ -688,12 +735,12 @@ export default function App() {
         ready: true,
         error: '',
         authRequired: false,
-        authMode: 'sign_in',
         authPending: false,
         signOutPending: false,
         authError: '',
         authInfo: '',
         userId: loaded.userId,
+        userEmail: loaded.userEmail ?? null,
         profiles: loaded.profiles,
         plansByProfileId: loaded.plansByProfileId,
         activeProfileId: loaded.activeProfileId,
@@ -944,6 +991,24 @@ export default function App() {
     }
   };
 
+  const handleSubmitFeedback = async (input) => {
+    setFeedbackSubmitPending(true);
+    setFeedbackSubmitError('');
+
+    try {
+      await submitFeedbackReport({
+        ...input,
+        route: `${window.location.pathname}${window.location.search}`,
+      });
+      return true;
+    } catch (error) {
+      setFeedbackSubmitError(resolveErrorMessage(error, t('appError.feedbackSaveFailed')));
+      return false;
+    } finally {
+      setFeedbackSubmitPending(false);
+    }
+  };
+
   const handleAuthSignIn = async ({ email, password }) => {
     setLiveState((previous) => ({
       ...previous,
@@ -979,69 +1044,37 @@ export default function App() {
     }
   };
 
-  const handleAuthSignUp = async ({ email, password }) => {
-    setLiveState((previous) => ({
-      ...previous,
-      authPending: true,
-      authError: '',
-      authInfo: '',
-    }));
-
+  const handleAcceptInvite = async ({ token, email, password }) => {
+    setAcceptInvitePending(true);
+    setAcceptInviteError('');
     try {
-      const result = await signUpLiveUserWithPassword({ email, password });
-      const hasSession = Boolean(result?.session);
-
-      if (hasSession) {
-        // Persist whatever language is active right now (i.e. whatever the
-        // user picked on the landing page before signing up) so it's still
-        // their language on the next login, from any device.
-        setLiveUserLocale(locale).catch((error) => {
-          console.warn('Failed to persist account language preference.', error);
-        });
-
-        setLiveState((previous) => ({
-          ...previous,
-          ready: false,
-          authRequired: false,
-          authPending: false,
-          signOutPending: false,
-          authError: '',
-          authInfo: '',
-          error: '',
-        }));
-        setLiveReloadToken((previous) => previous + 1);
-        return;
-      }
-
-      setLiveState((previous) => ({
-        ...previous,
-        authPending: false,
-        signOutPending: false,
-        authError: '',
-        authInfo: t('appError.accountCreatedConfirmEmail'),
-        authMode: 'sign_in',
-      }));
+      await acceptInvite({ token, email, password });
+      await signInLiveUserWithPassword({ email, password });
+      clearInviteParamsFromUrl();
+      setPendingInvite(null);
+      setLiveState((previous) => ({ ...previous, ready: false }));
+      setLiveReloadToken((previous) => previous + 1);
     } catch (error) {
-      const message = resolveErrorMessage(
-        error,
-        t('appError.signUpFailed'),
-      );
-      setLiveState((previous) => ({
-        ...previous,
-        authPending: false,
-        signOutPending: false,
-        authError: message,
-      }));
+      const code = await extractFunctionsErrorCode(error);
+      const key = ACCEPT_INVITE_ERROR_MESSAGE_KEYS[code];
+      setAcceptInviteError(key ? t(key) : resolveErrorMessage(error, t('appError.acceptInviteFailed')));
+    } finally {
+      setAcceptInvitePending(false);
     }
   };
 
-  const handleSwitchAuthMode = () => {
-    setLiveState((previous) => ({
-      ...previous,
-      authMode: previous.authMode === 'sign_up' ? 'sign_in' : 'sign_up',
-      authError: '',
-      authInfo: '',
-    }));
+  const handleSendInvite = async (email) => {
+    setInviteSendPending(true);
+    setInviteSendError('');
+    try {
+      await sendInvite(email);
+      return true;
+    } catch (error) {
+      setInviteSendError(resolveErrorMessage(error, t('appError.inviteSendFailed')));
+      return false;
+    } finally {
+      setInviteSendPending(false);
+    }
   };
 
   const handleLiveSignOut = async () => {
@@ -1065,12 +1098,12 @@ export default function App() {
         ready: true,
         error: '',
         authRequired: true,
-        authMode: 'sign_in',
         authPending: false,
         signOutPending: false,
         authError: '',
         authInfo: '',
         userId: null,
+        userEmail: null,
         profiles: [],
         plansByProfileId: {},
         activeProfileId: null,
@@ -1108,7 +1141,6 @@ export default function App() {
         ready: true,
         error: '',
         authRequired: true,
-        authMode: 'sign_in',
         authPending: false,
         signOutPending: false,
         deleteAccountPending: false,
@@ -1116,6 +1148,7 @@ export default function App() {
         authError: '',
         authInfo: '',
         userId: null,
+        userEmail: null,
         profiles: [],
         plansByProfileId: {},
         activeProfileId: null,
@@ -1221,6 +1254,18 @@ export default function App() {
     );
   }
 
+  if (pendingInvite) {
+    return (
+      <AcceptInviteScreen
+        token={pendingInvite.token}
+        email={pendingInvite.email}
+        pending={acceptInvitePending}
+        errorMessage={acceptInviteError}
+        onAccept={handleAcceptInvite}
+      />
+    );
+  }
+
   if (!liveState.ready) {
     return (
       <>
@@ -1274,13 +1319,10 @@ export default function App() {
           <LandingSplash onGetStarted={() => setShowLandingSplash(false)} />
         ) : (
           <EmailPasswordAuth
-            mode={liveState.authMode}
             pending={liveState.authPending}
             errorMessage={liveState.authError}
             infoMessage={liveState.authInfo}
             onSignIn={handleAuthSignIn}
-            onSignUp={handleAuthSignUp}
-            onSwitchMode={handleSwitchAuthMode}
             onBack={() => setShowLandingSplash(true)}
           />
         )}
@@ -1297,10 +1339,12 @@ export default function App() {
       onOpenHealthPlan={openHealthPlan}
       onOpenVaccinations={openVaccinations}
       onOpenSettings={() => handlePrimaryNavNavigate('settings')}
-      onOpenProfile={() => setShowProfileSheet(true)}
       onOpenRiskProfile={() => { setRiskProfileIsOnboarding(false); setShowRiskProfileStep(true); }}
       onOpenTimeline={() => handlePrimaryNavNavigate('timeline')}
       catalogGeneration={catalogGeneration}
+      onSubmitFeedback={handleSubmitFeedback}
+      feedbackSubmitPending={feedbackSubmitPending}
+      feedbackSubmitError={feedbackSubmitError}
     />
   );
 
@@ -1380,12 +1424,16 @@ export default function App() {
           onDeleteAccount={handleDeleteAccount}
           deleteAccountPending={liveState.deleteAccountPending}
           deleteAccountError={liveState.deleteAccountError}
+          onSendInvite={handleSendInvite}
+          inviteSendPending={inviteSendPending}
+          inviteSendError={inviteSendError}
         />
       );
     } else if (activeView === 'your-profile') {
       activeSurface = (
         <ProfileOverviewScreen
           profile={runtimeProfile}
+          email={liveState.userEmail}
           planSnapshot={runtimePlanSnapshot}
           onBack={() => handlePrimaryNavNavigate(profileOverviewOrigin)}
           onSaveProfileDetails={handleSaveProfileDetails}

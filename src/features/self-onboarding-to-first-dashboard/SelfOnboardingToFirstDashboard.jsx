@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AppShell } from './components';
-import { Card, ProgressRing, ListRow, BodyMap, IconButton, Logo, Icon, Button, Avatar, Sheet } from '../../design-system/components/index.js';
+import { Card, ProgressRing, ListRow, BodyMap, IconButton, Logo, Icon, Button, Sheet } from '../../design-system/components/index.js';
 import { useTranslation } from '../../lib/i18n/index.js';
 import { buildDashboardProjection } from './dashboard';
 import { buildBodyMapPoints, buildRegionDetailData, resolveRegionRouteForRegionId } from './bodyRegions.js';
@@ -8,6 +8,7 @@ import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.j
 import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { buildTimelineItems, buildTimelineGroups } from '../plan-timeline/index.js';
 import { computeRiskProfileReviewStatus } from '../live-enrollment/riskProfile.js';
+import { FeedbackSheet } from '../feedback-and-issue-reporting/index.js';
 
 // Temporal bucket -> icon tone, reusing the app's existing status tokens
 // (blue/due-now for today, amber/upcoming for soon) rather than the item's
@@ -206,16 +207,19 @@ export default function SelfOnboardingToFirstDashboard({
   initialPlanSnapshot = null,
   onOpenHealthPlan,
   onOpenSettings,
-  onOpenProfile,
   onOpenRiskProfile,
   onOpenTimeline,
   catalogGeneration = 0,
+  onSubmitFeedback,
+  feedbackSubmitPending = false,
+  feedbackSubmitError = '',
 }) {
   const { t, locale } = useTranslation();
   const [profile, setProfile] = useState(initialProfile);
   const [planSnapshot, setPlanSnapshot] = useState(initialPlanSnapshot);
   const [openRegionId, setOpenRegionId] = useState(null);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const hadProjectionRef = useRef(Boolean(initialProfile && initialPlanSnapshot));
 
   useEffect(() => {
@@ -359,6 +363,11 @@ export default function SelfOnboardingToFirstDashboard({
   });
   const riskProfileStale = riskProfileReviewStatus.state === 'due' || riskProfileReviewStatus.state === 'overdue';
 
+  const handleCloseFeedbackSheet = () => {
+    if (feedbackSubmitPending) return;
+    setShowFeedbackSheet(false);
+  };
+
   return (
     <>
       <AppShell title={null}>
@@ -371,10 +380,13 @@ export default function SelfOnboardingToFirstDashboard({
             <h1 className="vitalis-dash-header-title">{t(resolveGreetingKey(now))}, {firstName}</h1>
           </div>
           <div className="vitalis-dash-header-actions">
+            <IconButton
+              icon="message-circle"
+              variant="surface"
+              label={t('settings.reportIssue')}
+              onClick={() => setShowFeedbackSheet(true)}
+            />
             <IconButton icon="settings" variant="surface" label={t('dashboard.settingsLabel')} onClick={onOpenSettings} />
-            <button type="button" className="vitalis-dash-header-avatar" onClick={onOpenProfile} aria-label={t('dashboard.profileLabel')}>
-              <Avatar name={projection.profileName} size={40} />
-            </button>
           </div>
         </div>
 
@@ -505,6 +517,13 @@ export default function SelfOnboardingToFirstDashboard({
       >
         <p className="vitalis-dash-score-explainer">{t('dashboard.scoreExplainer')}</p>
       </Sheet>
+      <FeedbackSheet
+        open={showFeedbackSheet}
+        onClose={handleCloseFeedbackSheet}
+        onSubmit={onSubmitFeedback}
+        pending={feedbackSubmitPending}
+        errorMessage={feedbackSubmitError}
+      />
     </>
   );
 }

@@ -116,15 +116,6 @@
   flex: none;
 }
 
-.vitalis-dash-header-avatar {
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 50%;
-  display: inline-flex;
-}
-
 /* Container + glow now live in design-system/layout.css as .vitalis-hero /
    .vitalis-hero-glow (shared across every top-level tab's hero); only the
    dashboard's own margin tweak stays here. */

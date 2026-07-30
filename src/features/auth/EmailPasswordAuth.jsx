@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { AppShell } from '../self-onboarding-to-first-dashboard/components.jsx';
 import { Card, Input, Button } from '../../design-system/components/index.js';
+import InviteOnlyFaq from './InviteOnlyFaq.jsx';
 import { useTranslation } from '../../lib/i18n/index.js';
 import './auth.css';
 
-function validate(input, mode, t) {
+function validate(input, t) {
   const errors = {};
   const email = String(input.email ?? '').trim();
   const password = String(input.password ?? '');
@@ -17,15 +18,6 @@ function validate(input, mode, t) {
     errors.password = t('auth.errorPasswordTooShort');
   }
 
-  if (mode === 'sign_up') {
-    const confirmPassword = String(input.confirmPassword ?? '');
-    if (!confirmPassword) {
-      errors.confirmPassword = t('auth.errorConfirmPasswordRequired');
-    } else if (confirmPassword !== password) {
-      errors.confirmPassword = t('auth.errorPasswordsDoNotMatch');
-    }
-  }
-
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
@@ -33,24 +25,19 @@ function validate(input, mode, t) {
 }
 
 export default function EmailPasswordAuth({
-  mode,
   pending,
   errorMessage,
   infoMessage,
   onSignIn,
-  onSignUp,
-  onSwitchMode,
   onBack,
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
     email: '',
     password: '',
-    confirmPassword: '',
   });
   const [errors, setErrors] = useState({});
-
-  const isSignUp = mode === 'sign_up';
+  const [showInviteOnlyFaq, setShowInviteOnlyFaq] = useState(false);
 
   const handleChange = (field, value) => {
     setForm((previous) => ({ ...previous, [field]: value }));
@@ -61,7 +48,7 @@ export default function EmailPasswordAuth({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const validation = validate(form, mode, t);
+    const validation = validate(form, t);
     if (!validation.isValid) {
       setErrors(validation.errors);
       return;
@@ -69,24 +56,17 @@ export default function EmailPasswordAuth({
 
     setErrors({});
 
-    if (isSignUp) {
-      await onSignUp({
-        email: form.email,
-        password: form.password,
-      });
-    } else {
-      await onSignIn({
-        email: form.email,
-        password: form.password,
-      });
-    }
+    await onSignIn({
+      email: form.email,
+      password: form.password,
+    });
   };
 
   return (
     <AppShell title={null} onBack={onBack} backLabel={t('common.back')}>
       <div className="vitalis-auth-stack">
         <div className="vitalis-auth-intro">
-          <h1>{isSignUp ? t('auth.createAccount') : t('auth.signIn')}</h1>
+          <h1>{t('auth.signIn')}</h1>
         </div>
 
         <Card padding={20} className="vitalis-auth-form-card" aria-label={t('auth.formAriaLabel')}>
@@ -112,7 +92,7 @@ export default function EmailPasswordAuth({
               label={t('auth.password')}
               icon="lock"
               type="password"
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               value={form.password}
               onChange={(event) => handleChange('password', event.target.value)}
               disabled={pending}
@@ -120,31 +100,25 @@ export default function EmailPasswordAuth({
               aria-invalid={Boolean(errors.password)}
             />
 
-            {isSignUp ? (
-              <Input
-                id="auth-confirm-password"
-                label={t('auth.confirmPassword')}
-                icon="lock"
-                type="password"
-                autoComplete="new-password"
-                value={form.confirmPassword}
-                onChange={(event) => handleChange('confirmPassword', event.target.value)}
-                disabled={pending}
-                error={errors.confirmPassword}
-                aria-invalid={Boolean(errors.confirmPassword)}
-              />
-            ) : null}
-
             <Button type="submit" variant="primary" size="lg" fullWidth disabled={pending}>
-              {pending ? (isSignUp ? t('auth.creatingAccount') : t('auth.signingIn')) : (isSignUp ? t('auth.createAccount') : t('auth.signIn'))}
+              {pending ? t('auth.signingIn') : t('auth.signIn')}
             </Button>
 
-            <Button type="button" variant="ghost" size="lg" fullWidth onClick={onSwitchMode} disabled={pending}>
-              {isSignUp ? t('auth.alreadyHaveAccount') : t('auth.needAccount')}
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              fullWidth
+              onClick={() => setShowInviteOnlyFaq(true)}
+              disabled={pending}
+            >
+              {t('inviteOnlyFaq.trigger')}
             </Button>
           </form>
         </Card>
       </div>
+
+      <InviteOnlyFaq open={showInviteOnlyFaq} onClose={() => setShowInviteOnlyFaq(false)} />
     </AppShell>
   );
 }

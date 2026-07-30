@@ -64,6 +64,7 @@ function buildFormFromProfile(profile) {
 
 export default function ProfileOverviewScreen({
   profile,
+  email,
   planSnapshot,
   onBack,
   onSaveProfileDetails,
@@ -167,6 +168,12 @@ export default function ProfileOverviewScreen({
 
       <p className="sec-label">{t('settings.personalData')}</p>
       {bornSummary ? <p className="fixed-fact">{bornSummary}</p> : null}
+      {email ? (
+        <div className="vitalis-profile-email-fact">
+          <span className="vds-input-label">{t('auth.email')}</span>
+          <span>{email}</span>
+        </div>
+      ) : null}
       <form className="vitalis-profile-personal" onSubmit={handleSave}>
         <Input
           label={t('enrollment.firstName')}

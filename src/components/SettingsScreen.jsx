@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppShell } from '../features/self-onboarding-to-first-dashboard/components.jsx';
 import { Card, Button, Avatar, Icon, Sheet } from '../design-system/components/index.js';
+import { InviteSheet } from '../features/invite-users/index.js';
 import { useTranslation } from '../lib/i18n/index.js';
 import './settings-screen.css';
 
@@ -36,14 +37,23 @@ export default function SettingsScreen({
   onDeleteAccount,
   deleteAccountPending = false,
   deleteAccountError = '',
+  onSendInvite,
+  inviteSendPending = false,
+  inviteSendError = '',
 }) {
   const { t } = useTranslation();
   const displayName = profile?.name || profile?.displayLabel || '';
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showInviteSheet, setShowInviteSheet] = useState(false);
 
   const handleCloseDeleteConfirm = () => {
     if (deleteAccountPending) return;
     setShowDeleteConfirm(false);
+  };
+
+  const handleCloseInviteSheet = () => {
+    if (inviteSendPending) return;
+    setShowInviteSheet(false);
   };
 
   return (
@@ -55,6 +65,8 @@ export default function SettingsScreen({
 
       <div className="rows vitalis-settings-rows">
         <SettingsRow icon="user" label={t('profileOverview.title')} onClick={onOpenProfileOverview} />
+        <SettingsRow icon="users" label={t('settings.manageProfiles')} onClick={onOpenProfiles} />
+        <SettingsRow icon="user-plus" label={t('settings.inviteUsers')} onClick={() => setShowInviteSheet(true)} />
       </div>
 
       <p className="sec-label">{t('settings.preferences')}</p>
@@ -98,7 +110,6 @@ export default function SettingsScreen({
       </Card>
 
       <div className="rows vitalis-settings-rows">
-        <SettingsRow icon="users" label={t('settings.manageProfiles')} onClick={onOpenProfiles} />
         <SettingsRow icon="bell" label={t('settings.notifications')} onClick={() => {}} />
         <SettingsRow icon="shield" label={t('settings.privacy')} onClick={() => {}} />
       </div>
@@ -153,6 +164,14 @@ export default function SettingsScreen({
           </div>
         </div>
       </Sheet>
+
+      <InviteSheet
+        open={showInviteSheet}
+        onClose={handleCloseInviteSheet}
+        onSubmit={onSendInvite}
+        pending={inviteSendPending}
+        errorMessage={inviteSendError}
+      />
     </AppShell>
   );
 }

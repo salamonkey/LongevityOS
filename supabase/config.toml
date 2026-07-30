@@ -36,6 +36,11 @@ port = 54324
 
 [auth]
 enabled = true
+# Invite-only access: self-service sign-up is fully removed from the UI as
+# of this change; this is the server-side backstop so the public signUp()
+# endpoint is rejected even if called directly. Does NOT affect
+# admin.createUser() calls made by accept-invite via the service-role key.
+enable_signup = false
 # The base URL auth emails (confirmation, magic link, password reset) are built
 # against. Was left at a localhost default from initial project setup, so every
 # signup confirmation link pointed mobile/production users at an unreachable

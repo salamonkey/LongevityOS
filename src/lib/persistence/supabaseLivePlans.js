@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').t
 let supabaseClient = null;
 const PLAN_CONFLICT_ERROR_CODE = 'PLAN_CONFLICT';
 
-function getSupabaseClient() {
+export function getSupabaseClient() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return null;
   }
@@ -492,6 +492,7 @@ export async function loadLiveProfilesAndPlans(options = {}) {
 
     return {
       userId: user.id,
+      userEmail: user.email ?? null,
       profiles: [],
       plansByProfileId: {},
       activeProfileId: null,
@@ -529,6 +530,7 @@ export async function loadLiveProfilesAndPlans(options = {}) {
 
   return {
     userId: user.id,
+    userEmail: user.email ?? null,
     profiles,
     plansByProfileId,
     activeProfileId: defaultActive,
