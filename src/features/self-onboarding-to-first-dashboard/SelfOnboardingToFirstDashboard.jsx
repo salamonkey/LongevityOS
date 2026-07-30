@@ -9,6 +9,7 @@ import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-br
 import { buildTimelineItems, buildTimelineGroups } from '../plan-timeline/index.js';
 import { computeRiskProfileReviewStatus } from '../live-enrollment/riskProfile.js';
 import { FeedbackSheet } from '../feedback-and-issue-reporting/index.js';
+import { useTodayKey } from '../../lib/useTodayKey.js';
 
 // Temporal bucket -> icon tone, reusing the app's existing status tokens
 // (blue/due-now for today, amber/upcoming for soon) rather than the item's
@@ -101,12 +102,20 @@ function RegionDetailView({ region, onBack, onViewInTab, onOpenItem, t }) {
   );
 }
 
-function formatItemDueDate(item, locale) {
+function resolveItemRawDueDate(item) {
   const raw = item?.reminder?.scheduledFor || item?.nextDueDate || item?.dueDate || item?.initialDueDate;
-  if (!raw) return '';
+  if (!raw) return null;
   const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return '';
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isSameLocalDay(a, b) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function formatItemDueDate(dueDate, locale) {
+  if (!dueDate) return '';
+  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(dueDate);
 }
 
 function TimelineRailNode({ item, kind, tone: toneOverride, dateLabel, onOpen, t }) {
@@ -144,11 +153,11 @@ function TimelineRailNode({ item, kind, tone: toneOverride, dateLabel, onOpen, t
 // same blue/amber tone convention as their bucket, not their own clinical
 // status, so the rail keeps reading as "today" vs. "soon" regardless of what
 // each item actually is.
-function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGeneration, onOpen, onOpenItem, onOpenDashboardItem, t }) {
+function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGeneration, todayKey, onOpen, onOpenItem, onOpenDashboardItem, t }) {
   const items = useMemo(() => {
     if (!planSnapshot) return [];
     return buildTimelineItems(planSnapshot, { locale });
-  }, [planSnapshot, locale, catalogGeneration]);
+  }, [planSnapshot, locale, catalogGeneration, todayKey]);
 
   const groups = useMemo(() => buildTimelineGroups(items), [items]);
 
@@ -185,17 +194,30 @@ function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGene
               t={t}
             />
           ))}
-          {soonItems.map((item) => (
-            <TimelineRailNode
-              key={`soon-${item.catalogItemId}`}
-              item={item}
-              kind="future"
-              tone={PRIORITY_TONE.soon}
-              dateLabel={formatItemDueDate(item, locale)}
-              onOpen={() => onOpenDashboardItem(item)}
-              t={t}
-            />
-          ))}
+          {soonItems.map((item) => {
+            // The today/soon split above is capped (DEFAULT_FOCUS_BUCKET_LIMITS
+            // in dashboard.js) so the rail doesn't get crowded when many items
+            // are due the same day -- overflow past the cap lands here even
+            // though it's structurally still "due today". Keeping the amber
+            // "soon" tone for overflow items (rather than promoting them back
+            // to blue "Heute") is deliberate -- only the top 3 stay spotlighted.
+            // But showing today's own date under an amber "soon" pill reads as
+            // a contradiction, not a chronological span, so an overflowed
+            // today-item gets a plain "also due" label instead of a date.
+            const rawDueDate = resolveItemRawDueDate(item);
+            const isActuallyDueToday = rawDueDate ? isSameLocalDay(rawDueDate, new Date()) : false;
+            return (
+              <TimelineRailNode
+                key={`soon-${item.catalogItemId}`}
+                item={item}
+                kind="future"
+                tone={PRIORITY_TONE.soon}
+                dateLabel={isActuallyDueToday ? t('dashboard.timelineAlsoDue') : formatItemDueDate(rawDueDate, locale)}
+                onOpen={() => onOpenDashboardItem(item)}
+                t={t}
+              />
+            );
+          })}
         </div>
       </div>
     </Card>
@@ -220,6 +242,7 @@ export default function SelfOnboardingToFirstDashboard({
   const [openRegionId, setOpenRegionId] = useState(null);
   const [showScoreInfo, setShowScoreInfo] = useState(false);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const todayKey = useTodayKey();
   const hadProjectionRef = useRef(Boolean(initialProfile && initialPlanSnapshot));
 
   useEffect(() => {
@@ -233,7 +256,7 @@ export default function SelfOnboardingToFirstDashboard({
     }
 
     return buildDashboardProjection(planSnapshot, profile);
-  }, [planSnapshot, profile, locale, catalogGeneration]);
+  }, [planSnapshot, profile, locale, catalogGeneration, todayKey]);
 
   const [animatedScore, setAnimatedScore] = useState(0);
 
@@ -272,7 +295,7 @@ export default function SelfOnboardingToFirstDashboard({
     }
 
     return buildBodyMapPoints(planSnapshot.items, { t });
-  }, [planSnapshot, t, locale, catalogGeneration]);
+  }, [planSnapshot, t, locale, catalogGeneration, todayKey]);
 
   const openRegionDetail = useMemo(() => {
     if (!openRegionId || !planSnapshot) {
@@ -280,7 +303,7 @@ export default function SelfOnboardingToFirstDashboard({
     }
 
     return buildRegionDetailData(openRegionId, planSnapshot.items, { t });
-  }, [openRegionId, planSnapshot, t, locale, catalogGeneration]);
+  }, [openRegionId, planSnapshot, t, locale, catalogGeneration, todayKey]);
 
   useEffect(() => {
     if (!projection) {
@@ -488,6 +511,7 @@ export default function SelfOnboardingToFirstDashboard({
           soonItems={soonItems}
           locale={locale}
           catalogGeneration={catalogGeneration}
+          todayKey={todayKey}
           onOpen={onOpenTimeline}
           onOpenItem={openHealthPlanFromTimelineItem}
           onOpenDashboardItem={openHealthPlanFromDashboardItem}

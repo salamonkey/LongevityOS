@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, Icon } from '../../design-system/components/index.js';
+import { useTodayKey } from '../../lib/useTodayKey.js';
 import { getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import {
   parseDateValue,
@@ -188,10 +189,11 @@ function GanttRowTime({ row, columns, colWidth, todayTime, t, uiLocale, linkedAp
 export default function Gantt({ planSnapshot, onOpenItem, clock = () => new Date(), uiLocale = 'en-US', t, appointments = [] }) {
   const [scope, setScope] = useState('months');
   const scrollRef = useRef(null);
+  const todayKey = useTodayKey();
   const today = useMemo(() => {
     const now = clock();
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }, [clock]);
+  }, [clock, todayKey]);
 
   const colWidth = scope === 'months' ? MONTH_COL_W : QUARTER_COL_W;
   const columns = useMemo(

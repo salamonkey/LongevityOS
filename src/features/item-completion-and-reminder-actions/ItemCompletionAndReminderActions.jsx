@@ -43,6 +43,7 @@ import {
 import { ListRow, IconButton, Card, Badge, Button, Icon, ProgressRing } from '../../design-system/components/index.js';
 import { getCategoryIcon, getCategoryLabelKey, getInterventionTypeLabelKey, getStatusBadgeStatus, getStatusLabelKey, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { useTranslation } from '../../lib/i18n/index.js';
+import { useTodayKey } from '../../lib/useTodayKey.js';
 import { resolveCatalogCopyForItemKey } from '../../lib/catalog/runtimeCatalog.js';
 import { BODY_REGIONS, resolveRegionIdForItemKey } from '../self-onboarding-to-first-dashboard/bodyRegions.js';
 import { RISK_PROFILE_OPTION_KEYS } from '../live-enrollment/riskProfile.js';
@@ -1198,6 +1199,7 @@ export default function ItemCompletionAndReminderActions({
   catalogGeneration = 0,
 }) {
   const { t, locale: uiLocale } = useTranslation();
+  const todayKey = useTodayKey();
   const [planSnapshot, setPlanSnapshot] = useState(initialPlanSnapshot);
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [detailState, setDetailState] = useState(initialItemKey ? {
@@ -1255,7 +1257,7 @@ export default function ItemCompletionAndReminderActions({
 
   const readModel = useMemo(
     () => buildPlanReadModelForSlice(planSnapshot),
-    [planSnapshot, uiLocale, catalogGeneration],
+    [planSnapshot, uiLocale, catalogGeneration, todayKey],
   );
   // resolveNonApplicableCatalogItems only knows about the rules engine's own
   // gating, not about items added afterward (e.g. a just-adopted one) --
@@ -1286,7 +1288,7 @@ export default function ItemCompletionAndReminderActions({
   );
   const manualEntryRows = useMemo(
     () => buildManualVaccinationRows(manualEntries, planSnapshot, { locale }),
-    [manualEntries, planSnapshot, locale, uiLocale, catalogGeneration],
+    [manualEntries, planSnapshot, locale, uiLocale, catalogGeneration, todayKey],
   );
 
   const detailItem = detailState ? resolveItemDetail(readModel, detailState.itemKey) : null;
