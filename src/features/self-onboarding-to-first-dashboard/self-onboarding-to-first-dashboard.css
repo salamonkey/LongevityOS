@@ -197,7 +197,7 @@
 
 .vitalis-risk-chip {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   max-width: 100%;
   background: var(--surface-card);
@@ -214,26 +214,14 @@
   line-height: 1.4;
 }
 
-.vitalis-risk-chip-dot {
-  margin-top: 3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+.vitalis-risk-chip-ring {
   flex: none;
-  background: var(--color-primary);
-}
-
-.vitalis-risk-chip.is-reviewed .vitalis-risk-chip-dot {
-  background: var(--color-secondary);
+  display: inline-flex;
 }
 
 .vitalis-risk-chip.is-stale {
   background: var(--status-upcoming-soft);
   color: var(--status-upcoming-ink, #7a5411);
-}
-
-.vitalis-risk-chip.is-stale .vitalis-risk-chip-dot {
-  background: var(--status-upcoming);
 }
 
 .vitalis-risk-chip-caption {

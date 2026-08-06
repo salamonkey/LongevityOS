@@ -7,6 +7,7 @@ import {
   buildInitialAnswers,
   findFirstIncompleteStep,
   computeRiskProfileReviewStatus,
+  resolveElapsedTimeParts,
 } from '../../src/features/live-enrollment/riskProfile.js';
 
 function keyFor(optionValue) {
@@ -93,7 +94,7 @@ test('a profile with no answered questions is "unreviewed" regardless of cadence
     now: new Date('2026-01-01T00:00:00.000Z'),
   });
   assert.equal(status.state, 'unreviewed');
-  assert.equal(status.monthsSinceReview, null);
+  assert.equal(status.timeAgo, null);
 });
 
 // This is the exact case the user's feedback centered on: a profile that has
@@ -117,7 +118,19 @@ test('a reviewed profile within its cadence window is fresh', () => {
     now: new Date('2026-03-01T00:00:00.000Z'),
   });
   assert.equal(status.state, 'fresh');
-  assert.equal(status.monthsSinceReview, 1);
+  assert.deepEqual(status.timeAgo, { unit: 'month', value: 1 });
+});
+
+test('resolveElapsedTimeParts picks the largest unit that still reads naturally', () => {
+  assert.deepEqual(resolveElapsedTimeParts(0), { unit: 'day', value: 1 });
+  assert.deepEqual(resolveElapsedTimeParts(1), { unit: 'day', value: 1 });
+  assert.deepEqual(resolveElapsedTimeParts(3), { unit: 'days', value: 3 });
+  assert.deepEqual(resolveElapsedTimeParts(7), { unit: 'week', value: 1 });
+  assert.deepEqual(resolveElapsedTimeParts(20), { unit: 'weeks', value: 2 });
+  assert.deepEqual(resolveElapsedTimeParts(30), { unit: 'month', value: 1 });
+  assert.deepEqual(resolveElapsedTimeParts(90), { unit: 'months', value: 3 });
+  assert.deepEqual(resolveElapsedTimeParts(365), { unit: 'year', value: 1 });
+  assert.deepEqual(resolveElapsedTimeParts(800), { unit: 'years', value: 2 });
 });
 
 test('a reviewed profile past its cadence but under 2x is due, not overdue', () => {

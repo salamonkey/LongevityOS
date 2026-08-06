@@ -14,7 +14,6 @@ export const RISK_PROFILE_OPTION_GROUPS = Object.freeze([
   },
   {
     titleKey: 'riskProfile.groupChronicConditions',
-    collapseAfter: 6,
     // No severe-obesity checkbox here on purpose: 'obesity_bmi35plus' (the
     // BAG Impfplan's own risk-group threshold) is computed from the
     // profile's real height/weight in plan.js's normalizeProfileRiskFlags
@@ -45,7 +44,6 @@ export const RISK_PROFILE_OPTION_GROUPS = Object.freeze([
   },
   {
     titleKey: 'riskProfile.groupOccupationalExposure',
-    collapseAfter: 5,
     options: [
       { value: 'healthcare_worker', labelKey: 'riskProfile.healthcareWorker', icon: 'syringe' },
       { value: 'lab_personnel_pathogen_exposure', labelKey: 'riskProfile.labPersonnelPathogenExposure', icon: 'flask-conical' },
@@ -146,12 +144,39 @@ export function buildInitialAnswers(initialRiskFlags, initialReviewedKeys) {
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DAYS_PER_WEEK = 7;
 const DAYS_PER_MONTH = 30;
+const DAYS_PER_YEAR = 365;
 
 // Allowed cadence choices for the Settings segmented control; 0 means "Nie"
 // (never remind, always reads as fresh regardless of how old the review is).
 export const RISK_PROFILE_REVIEW_CADENCE_OPTIONS = Object.freeze([0, 6, 12]);
 export const DEFAULT_RISK_PROFILE_REVIEW_CADENCE_MONTHS = 12;
+
+// Buckets raw elapsed days into whichever unit actually reads naturally --
+// days for the first week, weeks up to a month, months up to a year, years
+// beyond that -- instead of always saying "months" (which used to floor to
+// "0 months" for anything under 30 days). unit is singular ('day') at
+// value 1, plural ('days') otherwise, so callers can pick the right i18n key
+// without redoing this grammar themselves.
+export function resolveElapsedTimeParts(elapsedDays) {
+  const days = Math.floor(Math.max(0, elapsedDays));
+
+  if (days < DAYS_PER_WEEK) {
+    const value = Math.max(1, days);
+    return { unit: value === 1 ? 'day' : 'days', value };
+  }
+  if (days < DAYS_PER_MONTH) {
+    const value = Math.floor(days / DAYS_PER_WEEK);
+    return { unit: value === 1 ? 'week' : 'weeks', value };
+  }
+  if (days < DAYS_PER_YEAR) {
+    const value = Math.floor(days / DAYS_PER_MONTH);
+    return { unit: value === 1 ? 'month' : 'months', value };
+  }
+  const value = Math.floor(days / DAYS_PER_YEAR);
+  return { unit: value === 1 ? 'year' : 'years', value };
+}
 
 // Reduces reviewedKeys/reviewedAt/cadence down to one of four states driving
 // the dashboard pill and profile-strength card. A profile with zero answered
@@ -167,7 +192,7 @@ export function computeRiskProfileReviewStatus({ reviewedKeys, reviewedAt, caden
   const nowDate = now instanceof Date ? now : new Date(now ?? Date.now());
 
   if (reviewedSet.length === 0) {
-    return { state: 'unreviewed', monthsSinceReview: null };
+    return { state: 'unreviewed', timeAgo: null };
   }
 
   const normalizedCadence = Number(cadenceMonths);
@@ -176,7 +201,7 @@ export function computeRiskProfileReviewStatus({ reviewedKeys, reviewedAt, caden
     : DEFAULT_RISK_PROFILE_REVIEW_CADENCE_MONTHS;
 
   if (cadence === 0) {
-    return { state: 'fresh', monthsSinceReview: null };
+    return { state: 'fresh', timeAgo: null };
   }
 
   const reviewedDate = reviewedAt ? new Date(reviewedAt) : null;
@@ -184,18 +209,18 @@ export function computeRiskProfileReviewStatus({ reviewedKeys, reviewedAt, caden
     // A reviewed profile with no timestamp (shouldn't happen after the
     // backfill migration, but defensive) reads as due rather than crashing
     // or silently reading as fresh.
-    return { state: 'due', monthsSinceReview: null };
+    return { state: 'due', timeAgo: null };
   }
 
   const elapsedDays = Math.max(0, (nowDate.getTime() - reviewedDate.getTime()) / MS_PER_DAY);
-  const monthsSinceReview = Math.floor(elapsedDays / DAYS_PER_MONTH);
+  const timeAgo = resolveElapsedTimeParts(elapsedDays);
   const cadenceDays = cadence * DAYS_PER_MONTH;
 
   if (elapsedDays < cadenceDays) {
-    return { state: 'fresh', monthsSinceReview };
+    return { state: 'fresh', timeAgo };
   }
   if (elapsedDays < cadenceDays * 2) {
-    return { state: 'due', monthsSinceReview };
+    return { state: 'due', timeAgo };
   }
-  return { state: 'overdue', monthsSinceReview };
+  return { state: 'overdue', timeAgo };
 }

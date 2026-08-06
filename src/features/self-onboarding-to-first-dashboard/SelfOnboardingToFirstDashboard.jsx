@@ -7,19 +7,9 @@ import { buildBodyMapPoints, buildRegionDetailData, resolveRegionRouteForRegionI
 import { PLAN_CATEGORIES } from '../health-plan-browsing-and-item-detail/model.js';
 import { getCategoryIcon, getStatusTone, getToneColors } from '../health-plan-browsing-and-item-detail/statusVisuals.js';
 import { buildTimelineItems, buildTimelineGroups } from '../plan-timeline/index.js';
-import { computeRiskProfileReviewStatus } from '../live-enrollment/riskProfile.js';
+import { computeRiskProfileReviewStatus, RISK_PROFILE_TOTAL_QUESTIONS } from '../live-enrollment/riskProfile.js';
 import { FeedbackSheet } from '../feedback-and-issue-reporting/index.js';
 import { useTodayKey } from '../../lib/useTodayKey.js';
-
-// Temporal bucket -> icon tone, reusing the app's existing status tokens
-// (blue/due-now for today, amber/upcoming for soon) rather than the item's
-// own fine-grained clinical status — this is what actually gives Heute vs.
-// Demnächst a consistent, at-a-glance color meaning on the dashboard.
-const PRIORITY_TONE = Object.freeze({
-  today: 'primary',
-  soon: 'amber',
-  later: 'neutral',
-});
 
 const BMI_CATEGORY_LABEL_KEY = Object.freeze({
   underweight: 'dashboard.bmiCategoryUnderweight',
@@ -27,6 +17,22 @@ const BMI_CATEGORY_LABEL_KEY = Object.freeze({
   overweight: 'dashboard.bmiCategoryOverweight',
   obese: 'dashboard.bmiCategoryObese',
 });
+
+const TIME_AGO_LABEL_KEY = Object.freeze({
+  day: 'dashboard.timeAgoDay',
+  days: 'dashboard.timeAgoDays',
+  week: 'dashboard.timeAgoWeek',
+  weeks: 'dashboard.timeAgoWeeks',
+  month: 'dashboard.timeAgoMonth',
+  months: 'dashboard.timeAgoMonths',
+  year: 'dashboard.timeAgoYear',
+  years: 'dashboard.timeAgoYears',
+});
+
+function formatTimeAgo(timeAgo, t) {
+  if (!timeAgo) return '';
+  return t(TIME_AGO_LABEL_KEY[timeAgo.unit], { count: timeAgo.value });
+}
 
 function resolveGreetingKey(now) {
   const hour = now.getHours();
@@ -109,13 +115,58 @@ function resolveItemRawDueDate(item) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function isSameLocalDay(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
 function formatItemDueDate(dueDate, locale) {
   if (!dueDate) return '';
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(dueDate);
+}
+
+// How many display-overflow due/overdue items (see buildFutureRailNodes)
+// share one "in N weeks" pacing label before moving to the next week's
+// label -- a deliberate queue, not a real schedule.
+const OVERFLOW_ITEMS_PER_WEEK_LABEL = 4;
+
+// todayItems is dashboard.js's own curated "what to focus on today" set (the
+// top few outstanding due/overdue items by priority, capped in
+// groupItemsByPriority) -- it's a work queue, not a claim that every one of
+// these has a due date of literally today, so it's always the "Heute"
+// spotlight regardless of how overdue any individual item actually is.
+// soonItems is everything else: items bumped out of the spotlight purely by
+// the cap (still due/overdue, just not one of the top few) get a "in N
+// weeks" pacing label instead of their real (already-past) due date, so a
+// large backlog reads as a manageable queue rather than a wall of identical
+// "Heute" or a pile of stale dates. Genuinely future items (real status
+// 'soon'/'pending'/'planned') keep showing their real due date, unaffected.
+function buildFutureRailNodes(todayItems, soonItems, locale, t) {
+  const todayNodes = todayItems.map((item) => ({
+    item,
+    tone: 'primary',
+    dateLabel: t('dashboard.timelineToday'),
+  }));
+
+  let overflowDueCount = 0;
+  const soonNodes = soonItems.map((item) => {
+    const status = String(item?.status ?? '').toLowerCase();
+    const isOverflowDueItem = status === 'due' || status === 'overdue';
+
+    let tone;
+    let dateLabel;
+
+    if (isOverflowDueItem) {
+      const weekIndex = Math.floor(overflowDueCount / OVERFLOW_ITEMS_PER_WEEK_LABEL);
+      overflowDueCount += 1;
+      tone = 'amber';
+      dateLabel = weekIndex === 0
+        ? t('dashboard.timelineNextWeek')
+        : t('dashboard.timelineInWeeks', { count: weekIndex + 1 });
+    } else {
+      tone = getStatusTone(item?.status);
+      dateLabel = formatItemDueDate(resolveItemRawDueDate(item), locale);
+    }
+
+    return { item, tone, dateLabel };
+  });
+
+  return [...todayNodes, ...soonNodes];
 }
 
 function TimelineRailNode({ item, kind, tone: toneOverride, dateLabel, onOpen, t }) {
@@ -148,11 +199,12 @@ function TimelineRailNode({ item, kind, tone: toneOverride, dateLabel, onOpen, t
 }
 
 // The rail is the Start page's single temporal element: recent history, the
-// present moment, then every Heute (due-today) and Demnächst (soon) item as
-// its own bullet — no separate list below it. Heute/Demnächst items use the
-// same blue/amber tone convention as their bucket, not their own clinical
-// status, so the rail keeps reading as "today" vs. "soon" regardless of what
-// each item actually is.
+// present moment, then every due-or-overdue and upcoming item as its own
+// bullet — no separate list below it. todayItems/soonItems come from
+// buildDashboardProjection's capped bucketing (see groupItemsByPriority in
+// dashboard.js), which is only about limiting how many items get pulled in
+// this far, not about which day an item is actually due -- see
+// buildFutureRailNodes for the label/tone each bullet actually renders.
 function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGeneration, todayKey, onOpen, onOpenItem, onOpenDashboardItem, t }) {
   const items = useMemo(() => {
     if (!planSnapshot) return [];
@@ -162,6 +214,7 @@ function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGene
   const groups = useMemo(() => buildTimelineGroups(items), [items]);
 
   const past = (groups.find((group) => group.label === 'Completed and past')?.items ?? []).slice(-2);
+  const futureNodes = buildFutureRailNodes(todayItems, soonItems, locale, t);
 
   if (past.length === 0 && todayItems.length === 0 && soonItems.length === 0) {
     return null;
@@ -183,36 +236,14 @@ function TimelineRail({ planSnapshot, todayItems, soonItems, locale, catalogGene
             <TimelineRailNode key={`past-${index}`} item={item} kind="past" onOpen={() => onOpenItem(item)} t={t} />
           ))}
           <TimelineRailNode key="today" kind="today" onOpen={onOpen} t={t} />
-          {todayItems.map((item) => (
-            <TimelineRailNode
-              key={`today-${item.catalogItemId}`}
-              item={item}
-              kind="future"
-              tone={PRIORITY_TONE.today}
-              dateLabel={t('dashboard.timelineToday')}
-              onOpen={() => onOpenDashboardItem(item)}
-              t={t}
-            />
-          ))}
-          {soonItems.map((item) => {
-            // The today/soon split above is capped (DEFAULT_FOCUS_BUCKET_LIMITS
-            // in dashboard.js) so the rail doesn't get crowded when many items
-            // are due the same day -- overflow past the cap lands here even
-            // though it's structurally still "due today". Keeping the amber
-            // "soon" tone for overflow items (rather than promoting them back
-            // to blue "Heute") is deliberate -- only the top 3 stay spotlighted.
-            // But showing today's own date under an amber "soon" pill reads as
-            // a contradiction, not a chronological span, so an overflowed
-            // today-item gets a plain "also due" label instead of a date.
-            const rawDueDate = resolveItemRawDueDate(item);
-            const isActuallyDueToday = rawDueDate ? isSameLocalDay(rawDueDate, new Date()) : false;
+          {futureNodes.map(({ item, tone, dateLabel }) => {
             return (
               <TimelineRailNode
-                key={`soon-${item.catalogItemId}`}
+                key={`future-${item.catalogItemId}`}
                 item={item}
                 kind="future"
-                tone={PRIORITY_TONE.soon}
-                dateLabel={isActuallyDueToday ? t('dashboard.timelineAlsoDue') : formatItemDueDate(rawDueDate, locale)}
+                tone={tone}
+                dateLabel={dateLabel}
                 onOpen={() => onOpenDashboardItem(item)}
                 t={t}
               />
@@ -385,6 +416,10 @@ export default function SelfOnboardingToFirstDashboard({
     now,
   });
   const riskProfileStale = riskProfileReviewStatus.state === 'due' || riskProfileReviewStatus.state === 'overdue';
+  const riskProfileCompletionPercent = Math.round((riskProfileReviewedKeys.length / RISK_PROFILE_TOTAL_QUESTIONS) * 100);
+  const riskProfileChipTone = riskProfileStale
+    ? 'var(--status-upcoming)'
+    : (riskProfileReviewed ? 'var(--color-secondary)' : 'var(--color-primary)');
 
   const handleCloseFeedbackSheet = () => {
     if (feedbackSubmitPending) return;
@@ -425,13 +460,22 @@ export default function SelfOnboardingToFirstDashboard({
                     className={`vitalis-risk-chip ${riskProfileStale ? 'is-stale' : (riskProfileReviewed ? 'is-reviewed' : 'is-unreviewed')}`}
                     onClick={onOpenRiskProfile}
                   >
-                    <span className="vitalis-risk-chip-dot" aria-hidden="true" />
+                    <span className="vitalis-risk-chip-ring" aria-hidden="true">
+                      <ProgressRing
+                        value={riskProfileCompletionPercent}
+                        size={18}
+                        stroke={2.5}
+                        color={riskProfileChipTone}
+                        track="var(--slate-150)"
+                        label={null}
+                      />
+                    </span>
                     {riskProfileStale ? t('dashboard.riskProfileCtaStale') : t('dashboard.riskProfileCta')}
                     <Icon name="chevron-right" size={14} color="var(--text-muted)" />
                   </button>
-                  {riskProfileReviewed && riskProfileReviewStatus.monthsSinceReview !== null ? (
+                  {riskProfileReviewed && riskProfileReviewStatus.timeAgo ? (
                     <p className={`vitalis-risk-chip-caption ${riskProfileStale ? 'is-stale' : ''}`}>
-                      {t('dashboard.riskProfileReviewedCaption', { months: riskProfileReviewStatus.monthsSinceReview })}
+                      {t('dashboard.riskProfileReviewedCaption', { timeAgo: formatTimeAgo(riskProfileReviewStatus.timeAgo, t) })}
                     </p>
                   ) : null}
                 </>
@@ -495,7 +539,7 @@ export default function SelfOnboardingToFirstDashboard({
               <div>
                 <p className="vitalis-risk-nudge-title">{t('dashboard.riskProfileNudgeTitle')}</p>
                 <p className="vitalis-risk-nudge-body">
-                  {t('dashboard.riskProfileNudgeBody', { months: riskProfileReviewStatus.monthsSinceReview })}
+                  {t('dashboard.riskProfileNudgeBody', { timeAgo: formatTimeAgo(riskProfileReviewStatus.timeAgo, t) })}
                 </p>
                 <button type="button" className="vitalis-risk-nudge-cta" onClick={onOpenRiskProfile}>
                   {t('dashboard.riskProfileNudgeCta')}

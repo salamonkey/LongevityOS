@@ -33,15 +33,11 @@ export default function RiskProfileStep({
   const [step, setStep] = useState(() => findFirstIncompleteStep(initialReviewedKeys));
   const [answers, setAnswers] = useState(() => buildInitialAnswers(initialRiskFlags, initialReviewedKeys));
   const [dueDate, setDueDate] = useState(initialPregnancyDueDate || '');
-  const [expanded, setExpanded] = useState(() => new Set());
   const [infoSheet, setInfoSheet] = useState(null);
   const autosaveTimeoutRef = useRef(null);
 
   const group = RISK_PROFILE_OPTION_GROUPS[step];
   const isLastStep = step === RISK_PROFILE_OPTION_GROUPS.length - 1;
-  const isExpanded = expanded.has(step);
-  const limit = group.collapseAfter && !isExpanded ? group.collapseAfter : group.options.length;
-  const visibleOptions = group.options.slice(0, limit);
   const groupAnsweredCount = group.options.filter((_, index) => answers.has(`${step}-${index}`)).length;
 
   const answeredCount = answers.size;
@@ -214,7 +210,7 @@ export default function RiskProfileStep({
             </p>
 
             <div role="group" aria-label={t(group.titleKey)}>
-              {visibleOptions.map((option, optionIndex) => {
+              {group.options.map((option, optionIndex) => {
                 const key = `${step}-${optionIndex}`;
                 const answer = answers.get(key);
                 const isYes = answer === 'yes';
@@ -226,7 +222,7 @@ export default function RiskProfileStep({
                     </div>
                     <div className="opt-body">
                       <div className="opt-text-row">
-                        <div className="opt-text">{t(option.labelKey)}</div>
+                        <div className="opt-text"><span className="opt-number">{optionIndex + 1}.</span> {t(option.labelKey)}</div>
                         {option.info ? (
                           <button
                             type="button"
@@ -277,17 +273,6 @@ export default function RiskProfileStep({
                 );
               })}
             </div>
-
-            {group.collapseAfter && !isExpanded ? (
-              <button
-                type="button"
-                className="riskwiz-showmore"
-                onClick={() => setExpanded((previous) => new Set(previous).add(step))}
-              >
-                <Icon name="chevron-right" size={13} />
-                {t('riskProfile.showMore', { count: group.options.length - group.collapseAfter })}
-              </button>
-            ) : null}
 
             <div className="vitalis-enrollment-dots" aria-hidden="true">
               {RISK_PROFILE_OPTION_GROUPS.map((_, index) => (
